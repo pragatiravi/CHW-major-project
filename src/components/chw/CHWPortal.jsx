@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Users, 
   UserPlus, 
@@ -6,22 +6,23 @@ import {
   BookOpen, 
   Pill, 
   Hospital, 
-  Navigation, 
   WifiOff, 
-  RefreshCw, 
   Search, 
-  Filter, 
   AlertTriangle, 
-  CheckCircle, 
   Calendar, 
   Eye, 
-  Edit3, 
-  Trash2, 
-  Heart, 
-  Activity, 
-  Clock 
+  Clock, 
+  ArrowRight, 
+  CheckCircle2, 
+  Plus, 
+  MapPin, 
+  Activity,
+  Heart,
+  ChevronRight,
+  Sparkles
 } from 'lucide-react';
 import PatientRegistrationModal from './PatientRegistrationModal';
+import GuidedScreeningWizard from './GuidedScreeningWizard';
 import AIScreeningModal from './AIScreeningModal';
 import ThinkLetsCounsellingModal from './ThinkLetsCounsellingModal';
 import MedicationTrackerModal from './MedicationTrackerModal';
@@ -30,7 +31,7 @@ import NearbyHospitalsMap from '../maps/NearbyHospitalsMap';
 import PatientDetailModal from '../shared/PatientDetailModal';
 
 export default function CHWPortal({
-  patients,
+  patients = [],
   onSavePatient,
   onDeletePatient,
   onUpdatePatientMedicines,
@@ -39,19 +40,22 @@ export default function CHWPortal({
   onSaveReferral,
   isOffline,
   toggleOffline,
-  offlineQueue,
-  syncLogs,
+  offlineQueue = [],
+  syncLogs = [],
   onSyncOfflineData,
   onRestoreBackup,
   userRole,
-  globalSearch
+  globalSearch = '',
+  activeSection = 'home',
+  currentUser
 }) {
-  const [activeTab, setActiveTab] = useState('patients'); // 'patients', 'followups', 'referrals'
+  const [activeTab, setActiveTab] = useState(activeSection || 'home');
   const [filterRisk, setFilterRisk] = useState('all');
   const [localSearch, setLocalSearch] = useState('');
 
-  // Active Modals State
+  // Modals & Drawers
   const [showRegisterModal, setShowRegisterModal] = useState(false);
+  const [showWizardModal, setShowWizardModal] = useState(false);
   const [selectedPatientForEdit, setSelectedPatientForEdit] = useState(null);
   const [showDetailPatient, setShowDetailPatient] = useState(null);
   const [showAIScreeningPatient, setShowAIScreeningPatient] = useState(null);
@@ -59,334 +63,482 @@ export default function CHWPortal({
   const [showMedicationPatient, setShowMedicationPatient] = useState(null);
   const [showMapModal, setShowMapModal] = useState(false);
   const [showSyncModal, setShowSyncModal] = useState(false);
-  const [showReferralPatient, setShowReferralPatient] = useState(null);
 
-  // Compute Dashboard Metrics
+  // Sync navigation section from AppShell
+  useEffect(() => {
+    if (activeSection) {
+      if (activeSection === 'screening') {
+        setShowWizardModal(true);
+        setActiveTab('home');
+      } else if (activeSection === 'offline') {
+        setShowSyncModal(true);
+        setActiveTab('home');
+      } else if (activeSection === 'counselling') {
+        if (patients.length > 0) setShowCounsellingPatient(patients[0]);
+        setActiveTab('home');
+      } else if (activeSection === 'medications') {
+        if (patients.length > 0) setShowMedicationPatient(patients[0]);
+        setActiveTab('home');
+      } else {
+        setActiveTab(activeSection);
+      }
+    }
+  }, [activeSection, patients]);
+
+  // Compute Metrics
   const totalPatients = patients.length;
-  const criticalCount = patients.filter(p => p.evaluation?.overall?.riskLevel === 'Critical').length;
-  const highRiskCount = patients.filter(p => p.evaluation?.overall?.riskLevel === 'High').length;
+  const criticalPatients = patients.filter(p => (p.evaluation?.overallRiskLevel || p.evaluation?.overall?.riskLevel) === 'Critical');
+  const highRiskPatients = patients.filter(p => (p.evaluation?.overallRiskLevel || p.evaluation?.overall?.riskLevel) === 'High');
+  const needsAttentionList = [...criticalPatients, ...highRiskPatients];
   const pendingReferralCount = patients.filter(p => p.referral && p.referral.status === 'Pending').length;
-  const followupsToday = patients.filter(p => (p.evaluation?.overall?.followUpDays || 30) <= 7).length;
+  const followupsDueList = patients.filter(p => (p.evaluation?.followUpDays || p.evaluation?.overall?.followUpDays || 30) <= 7);
 
   const searchQuery = globalSearch || localSearch;
 
   const filteredPatients = patients.filter(p => {
-    const matchesRisk = filterRisk === 'all' || p.evaluation?.overall?.riskLevel?.toLowerCase() === filterRisk.toLowerCase();
+    const risk = (p.evaluation?.overallRiskLevel || p.evaluation?.overall?.riskLevel || 'Low').toLowerCase();
+    const matchesRisk = filterRisk === 'all' || risk === filterRisk.toLowerCase();
     const matchesSearch = !searchQuery || 
       p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
       p.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.address.toLowerCase().includes(searchQuery.toLowerCase());
+      (p.address && p.address.toLowerCase().includes(searchQuery.toLowerCase()));
     return matchesRisk && matchesSearch;
   });
 
-  const getRiskClass = (level) => {
+  const getRiskBadge = (level) => {
     switch (level) {
-      case 'Critical': return 'badge-risk-critical';
-      case 'High': return 'badge-risk-high';
-      case 'Moderate': return 'badge-risk-moderate';
-      default: return 'badge-risk-low';
+      case 'Critical': return <span className="badge badge-risk-critical">Critical Risk</span>;
+      case 'High': return <span className="badge badge-risk-high">High Risk</span>;
+      case 'Moderate': return <span className="badge badge-risk-moderate">Moderate</span>;
+      default: return <span className="badge badge-risk-low">Low Risk</span>;
     }
   };
 
   const handleOpenReferralForm = (patient) => {
     const hospName = 'District Memorial Community Hospital';
     const doctorName = 'Dr. Ananya Roy';
-    const reason = patient.evaluation?.overall?.referralReason || 'Elevated chronic disease risk criteria.';
+    const reason = patient.evaluation?.whyThisResult || 'Elevated chronic risk criteria requiring clinical consultation.';
 
     const referralObj = {
       status: 'Pending',
       hospitalName: hospName,
       doctorName: doctorName,
-      urgency: patient.evaluation?.overall?.referralUrgency || 'Normal',
+      urgency: patient.evaluation?.overallRiskLevel === 'Critical' ? 'Urgent' : 'Normal',
       reason: reason,
       dateGenerated: new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })
     };
 
     onSaveReferral(patient.id, referralObj);
-    alert(`Hospital Referral generated for ${patient.name} to ${hospName}!`);
   };
 
   return (
-    <div className="portal-container">
-      {/* Top Banner & Quick Stat Cards */}
-      <div className="portal-header-banner bg-gradient-to-r from-slate-900 via-blue-950 to-indigo-950">
-        <div className="flex justify-between items-center w-full">
-          <div className="flex items-center gap-3">
-            <div className="portal-badge-icon bg-blue-500/20 text-blue-400">
-              <Users size={28} />
-            </div>
+    <div className="portal-content-container space-y-6">
+      {/* =============================================================
+          1. CHW HOME: 5-SECOND "WHAT DO I NEED TO DO TODAY?"
+          ============================================================= */}
+      {activeTab === 'home' && (
+        <div className="space-y-6">
+          {/* Header Card: Greeting + Primary Actions */}
+          <div className="chw-workflow-header text-white flex justify-between items-center flex-wrap gap-4">
             <div>
-              <h1 className="portal-title">Community Health Worker (CHW) Field Portal</h1>
-              <p className="portal-subtitle">AI Screening, Offline Data Sync, ThinkLets Counselling & Follow-up Care</p>
+              <span className="text-sky-300 text-xs font-semibold uppercase tracking-wider block">Frontline Field Dashboard</span>
+              <h1 className="text-2xl font-bold mt-1 text-white">
+                Good morning, {currentUser?.name ? currentUser.name.split(' ')[0] : 'Sunita'}
+              </h1>
+              <p className="text-xs text-slate-300 mt-1 max-w-xl">
+                Here is your clinical summary for today: <strong>{needsAttentionList.length} priority cases</strong> need follow-up or referral.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <button 
+                className="btn btn-primary btn-lg shadow-md font-bold"
+                onClick={() => setShowWizardModal(true)}
+              >
+                <Plus size={18} /> New Patient Screening
+              </button>
+              <button 
+                className="btn btn-secondary text-slate-900 font-semibold"
+                onClick={() => setActiveTab('patients')}
+              >
+                <Search size={16} /> Find Patient
+              </button>
             </div>
           </div>
 
-          <div className="flex gap-2">
-            <button className="btn btn-primary flex items-center gap-1.5 shadow-lg" onClick={() => { setSelectedPatientForEdit(null); setShowRegisterModal(true); }}>
-              <UserPlus size={18} /> Register Patient
-            </button>
-            <button className="btn btn-secondary flex items-center gap-1.5" onClick={() => setShowSyncModal(true)}>
-              <WifiOff size={16} /> Sync Queue ({offlineQueue.length})
-            </button>
-            <button className="btn btn-secondary flex items-center gap-1.5" onClick={() => setShowMapModal(true)}>
-              <Navigation size={16} /> Hospital Map
-            </button>
-          </div>
-        </div>
-      </div>
+          {/* Today's Overview: 4 Compact Metrics */}
+          <div className="grid-4-col gap-4">
+            <div className="metric-box border-l-4 border-l-sky-600">
+              <span className="metric-label">Assigned Patients</span>
+              <div className="metric-value">{totalPatients}</div>
+              <span className="metric-sub">Active community cases</span>
+            </div>
 
-      {/* Metrics Row */}
-      <div className="grid-5-col gap-3 mt-4">
-        <div className="metric-box border-l-4 border-indigo-500">
-          <span className="metric-label">Total Registered Patients</span>
-          <div className="metric-value text-indigo-400 mt-1">{totalPatients}</div>
-          <span className="metric-sub">Active Field Cases</span>
-        </div>
+            <div className="metric-box border-l-4 border-l-rose-600">
+              <span className="metric-label">Needs Attention</span>
+              <div className="metric-value text-rose-700">{needsAttentionList.length}</div>
+              <span className="metric-sub">{criticalPatients.length} Critical • {highRiskPatients.length} High</span>
+            </div>
 
-        <div className="metric-box border-l-4 border-rose-500">
-          <span className="metric-label">High / Critical Risk Cases</span>
-          <div className="metric-value text-rose-400 mt-1">{criticalCount + highRiskCount}</div>
-          <span className="metric-sub">{criticalCount} Critical • {highRiskCount} High</span>
-        </div>
+            <div className="metric-box border-l-4 border-l-amber-600">
+              <span className="metric-label">Follow-ups Due</span>
+              <div className="metric-value text-amber-700">{followupsDueList.length}</div>
+              <span className="metric-sub">Within next 7 days</span>
+            </div>
 
-        <div className="metric-box border-l-4 border-amber-500">
-          <span className="metric-label">Follow-ups Due This Week</span>
-          <div className="metric-value text-amber-400 mt-1">{followupsToday}</div>
-          <span className="metric-sub">Scheduled Visits</span>
-        </div>
-
-        <div className="metric-box border-l-4 border-blue-500">
-          <span className="metric-label">Pending Hospital Referrals</span>
-          <div className="metric-value text-blue-400 mt-1">{pendingReferralCount}</div>
-          <span className="metric-sub">Awaiting Doctor Review</span>
-        </div>
-
-        <div className="metric-box border-l-4 border-emerald-500">
-          <span className="metric-label">Local Offline Queue</span>
-          <div className="metric-value text-emerald-400 mt-1">{offlineQueue.length}</div>
-          <span className="metric-sub">{isOffline ? 'Offline Mode Active' : 'Synced Cloud DB'}</span>
-        </div>
-      </div>
-
-      {/* Navigation Sub-Tabs & Filters */}
-      <div className="flex justify-between items-center mt-4">
-        <div className="detail-tabs">
-          <button className={`tab-btn ${activeTab === 'patients' ? 'active' : ''}`} onClick={() => setActiveTab('patients')}>
-            👥 Patient Directory ({filteredPatients.length})
-          </button>
-          <button className={`tab-btn ${activeTab === 'followups' ? 'active' : ''}`} onClick={() => setActiveTab('followups')}>
-            📅 Follow-up Schedule
-          </button>
-          <button className={`tab-btn ${activeTab === 'referrals' ? 'active' : ''}`} onClick={() => setActiveTab('referrals')}>
-            🏥 Hospital Referrals
-          </button>
-        </div>
-
-        <div className="flex gap-2 items-center">
-          <div className="search-bar-sm">
-            <Search size={14} className="text-gray-400" />
-            <input 
-              type="text" 
-              placeholder="Search patients..."
-              value={localSearch}
-              onChange={(e) => setLocalSearch(e.target.value)}
-              className="form-input text-xs"
-            />
-          </div>
-
-          <select value={filterRisk} onChange={(e) => setFilterRisk(e.target.value)} className="form-input text-xs w-36">
-            <option value="all">All Risk Levels</option>
-            <option value="critical">Critical Risk</option>
-            <option value="high">High Risk</option>
-            <option value="moderate">Moderate Risk</option>
-            <option value="low">Low Risk</option>
-          </select>
-        </div>
-      </div>
-
-      {/* Main Tab Content */}
-      <div className="tab-content mt-3">
-        {activeTab === 'patients' && (
-          <div className="card-box bg-secondary">
-            <div className="table-responsive">
-              <table className="custom-table">
-                <thead>
-                  <tr>
-                    <th>Patient Name & ID</th>
-                    <th>Age / Gender</th>
-                    <th>Vitals (BP & Glucose)</th>
-                    <th>Symptoms</th>
-                    <th>AI Risk Assessment</th>
-                    <th>Sync Status</th>
-                    <th>Quick Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredPatients.length > 0 ? (
-                    filteredPatients.map((p) => {
-                      const evalData = p.evaluation || {};
-                      const overall = evalData.overall || {};
-
-                      return (
-                        <tr key={p.id} className="hover:bg-slate-800/40">
-                          <td>
-                            <div className="flex items-center gap-2">
-                              <div className="patient-avatar-sm">{p.name.charAt(0)}</div>
-                              <div>
-                                <strong className="text-white text-sm cursor-pointer hover:text-indigo-400" onClick={() => setShowDetailPatient(p)}>
-                                  {p.name}
-                                </strong>
-                                <div className="text-2xs text-gray-400">ID: {p.id} • {p.phone}</div>
-                              </div>
-                            </div>
-                          </td>
-
-                          <td>
-                            <span className="text-xs text-gray-300">{p.age} yrs</span>
-                            <div className="text-2xs text-gray-400">{p.gender.toUpperCase()}</div>
-                          </td>
-
-                          <td>
-                            <div className="text-xs text-indigo-400 font-bold">{p.systolic}/{p.diastolic} <span className="text-2xs text-gray-400">mmHg</span></div>
-                            <div className="text-2xs text-amber-400">{p.glucose} mg/dL ({p.glucoseType})</div>
-                          </td>
-
-                          <td>
-                            <div className="flex flex-wrap gap-1 max-w-xs">
-                              {p.symptoms && p.symptoms.length > 0 ? (
-                                p.symptoms.slice(0, 2).map(s => <span key={s} className="tag-pill text-2xs">{s.replace('_', ' ')}</span>)
-                              ) : (
-                                <span className="text-2xs text-gray-500">None</span>
-                              )}
-                              {p.symptoms && p.symptoms.length > 2 && <span className="text-2xs text-gray-400">+{p.symptoms.length - 2}</span>}
-                            </div>
-                          </td>
-
-                          <td>
-                            <span className={`risk-badge ${getRiskClass(overall.riskLevel)}`}>
-                              {overall.riskLevel || 'Low'}
-                            </span>
-                            <div className="text-2xs text-gray-400 mt-0.5">
-                              HTN: {evalData.hypertension?.riskScore}% • DB: {evalData.diabetes?.riskScore}%
-                            </div>
-                          </td>
-
-                          <td>
-                            <span className="badge badge-success text-2xs flex items-center gap-1">
-                              <CheckCircle size={10} /> {p.syncStatus || 'synced'}
-                            </span>
-                          </td>
-
-                          <td>
-                            <div className="flex gap-1">
-                              <button className="btn-icon-xs text-indigo-400" title="Inspect Detail" onClick={() => setShowDetailPatient(p)}>
-                                <Eye size={14} />
-                              </button>
-                              <button className="btn-icon-xs text-purple-400" title="Run AI Screening" onClick={() => setShowAIScreeningPatient(p)}>
-                                <BrainCircuit size={14} />
-                              </button>
-                              <button className="btn-icon-xs text-emerald-400" title="ThinkLets Counselling" onClick={() => setShowCounsellingPatient(p)}>
-                                <BookOpen size={14} />
-                              </button>
-                              <button className="btn-icon-xs text-amber-400" title="Prescriptions" onClick={() => setShowMedicationPatient(p)}>
-                                <Pill size={14} />
-                              </button>
-                              <button className="btn-icon-xs text-blue-400" title="Generate Referral" onClick={() => handleOpenReferralForm(p)}>
-                                <Hospital size={14} />
-                              </button>
-                              <button className="btn-icon-xs text-gray-400" title="Edit Patient" onClick={() => { setSelectedPatientForEdit(p); setShowRegisterModal(true); }}>
-                                <Edit3 size={14} />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })
-                  ) : (
-                    <tr>
-                      <td colSpan={7} className="text-center py-6 text-gray-400">
-                        No patients matched the criteria.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
+            <div className="metric-box border-l-4 border-l-indigo-600">
+              <span className="metric-label">Pending Referrals</span>
+              <div className="metric-value text-indigo-700">{pendingReferralCount}</div>
+              <span className="metric-sub">Awaiting hospital review</span>
             </div>
           </div>
-        )}
 
-        {activeTab === 'followups' && (
-          <div className="card-box bg-secondary">
-            <h3 className="text-sm font-bold text-white mb-3">Scheduled Follow-Up Visits Calendar</h3>
-            <div className="grid-3-col gap-3">
-              {patients.map(p => {
-                const days = p.evaluation?.overall?.followUpDays || 30;
-                return (
-                  <div key={p.id} className="card-box bg-slate-900 border-slate-700">
-                    <div className="flex justify-between items-start">
+          {/* Core Focus Split: "Needs Attention" & "Today's Follow-ups" */}
+          <div className="grid-2-col gap-6">
+            {/* Needs Attention Panel */}
+            <div className="card-box space-y-4">
+              <div className="card-box-header">
+                <div>
+                  <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                    <AlertTriangle size={18} className="text-rose-600" /> Needs Immediate Attention
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-0.5">High or critical risk patients requiring clinical review</p>
+                </div>
+                <span className="badge badge-risk-critical font-mono">{needsAttentionList.length} flagged</span>
+              </div>
+
+              <div className="space-y-2.5">
+                {needsAttentionList.length > 0 ? (
+                  needsAttentionList.slice(0, 4).map(p => (
+                    <div 
+                      key={p.id} 
+                      className="p-3.5 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 transition-colors flex justify-between items-center cursor-pointer"
+                      onClick={() => setShowDetailPatient(p)}
+                    >
                       <div>
-                        <strong className="text-white text-sm">{p.name}</strong>
-                        <div className="text-2xs text-gray-400">ID: {p.id}</div>
+                        <div className="flex items-center gap-2">
+                          <strong className="text-sm text-slate-900">{p.name}</strong>
+                          <span className="text-xs text-slate-400 font-mono">({p.id})</span>
+                          {getRiskBadge(p.evaluation?.overallRiskLevel || 'High')}
+                        </div>
+                        <p className="text-xs text-slate-600 mt-1">
+                          BP <strong>{p.systolic}/{p.diastolic}</strong> mmHg • Glucose <strong>{p.glucose}</strong> mg/dL • {p.address}
+                        </p>
                       </div>
-                      <span className={`badge badge-${p.evaluation?.overall?.riskLevel?.toLowerCase()}`}>
-                        {p.evaluation?.overall?.riskLevel}
-                      </span>
-                    </div>
 
-                    <div className="mt-3 pt-2 border-t border-slate-800 flex justify-between items-center text-xs">
-                      <span className="text-gray-400 flex items-center gap-1">
-                        <Clock size={12} /> Due in {days} Days
-                      </span>
-                      <button className="btn btn-primary text-2xs" onClick={() => setShowDetailPatient(p)}>
-                        Start Visit
-                      </button>
+                      <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                        <button 
+                          className="btn btn-secondary text-xs"
+                          onClick={() => setShowDetailPatient(p)}
+                        >
+                          Details
+                        </button>
+                        <button 
+                          className="btn btn-primary text-xs"
+                          onClick={() => handleOpenReferralForm(p)}
+                        >
+                          Refer
+                        </button>
+                      </div>
                     </div>
+                  ))
+                ) : (
+                  <div className="empty-state py-8 text-center text-slate-500 text-xs">
+                    <CheckCircle2 size={32} className="text-emerald-500 mx-auto mb-2" />
+                    No urgent attention cases today. All high-risk patients are managed.
                   </div>
-                );
-              })}
+                )}
+              </div>
+            </div>
+
+            {/* Today's Follow-up Schedule & Tools */}
+            <div className="space-y-6">
+              <div className="card-box space-y-4">
+                <div className="card-box-header">
+                  <div>
+                    <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                      <Clock size={18} className="text-sky-600" /> Upcoming Follow-ups
+                    </h3>
+                    <p className="text-xs text-slate-500 mt-0.5">Recalls due based on clinical guidelines</p>
+                  </div>
+                  <span className="badge badge-primary">{followupsDueList.length} Due</span>
+                </div>
+
+                <div className="space-y-2.5">
+                  {followupsDueList.length > 0 ? (
+                    followupsDueList.slice(0, 3).map(p => (
+                      <div key={p.id} className="p-3 rounded-lg border border-slate-200 bg-slate-50 flex justify-between items-center">
+                        <div>
+                          <strong className="text-sm text-slate-900">{p.name}</strong>
+                          <div className="text-xs text-slate-500 mt-0.5">
+                            Due in <strong>{p.evaluation?.followUpDays || 7} days</strong> • {p.phone}
+                          </div>
+                        </div>
+                        <button 
+                          className="btn btn-secondary text-xs"
+                          onClick={() => setShowDetailPatient(p)}
+                        >
+                          Start Visit
+                        </button>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-xs text-slate-500 py-4 text-center">No follow-ups due today.</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Quick Field Tools Row */}
+              <div className="grid-2-col gap-3">
+                <button 
+                  className="field-tool-card"
+                  onClick={() => {
+                    if (patients.length > 0) setShowCounsellingPatient(patients[0]);
+                  }}
+                >
+                  <BookOpen size={20} className="text-emerald-600 mb-1" />
+                  <strong className="text-sm text-slate-900">ThinkLets Counselling</strong>
+                  <span className="text-xs text-slate-500">Voice-assisted protocol scripts</span>
+                </button>
+
+                <button 
+                  className="field-tool-card"
+                  onClick={() => setShowMapModal(true)}
+                >
+                  <Hospital size={20} className="text-indigo-600 mb-1" />
+                  <strong className="text-sm text-slate-900">Hospital Bed Map</strong>
+                  <span className="text-xs text-slate-500">Nearest facility emergency routes</span>
+                </button>
+              </div>
             </div>
           </div>
-        )}
+        </div>
+      )}
 
-        {activeTab === 'referrals' && (
-          <div className="card-box bg-secondary">
-            <h3 className="text-sm font-bold text-white mb-3">Hospital Referral Pipeline</h3>
-            <div className="grid-2-col gap-4">
-              {patients.filter(p => p.referral).map(p => (
-                <div key={p.id} className="card-box bg-slate-900 border-indigo-500/30">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h4 className="font-bold text-white text-sm">{p.name}</h4>
-                      <p className="text-2xs text-gray-400">Target Hospital: <strong>{p.referral?.hospitalName}</strong></p>
+      {/* =============================================================
+          2. DEDICATED PATIENTS DIRECTORY
+          ============================================================= */}
+      {activeTab === 'patients' && (
+        <div className="card-box space-y-4">
+          <div className="flex justify-between items-center flex-wrap gap-4">
+            <div>
+              <h2 className="text-lg font-bold text-slate-900">Patient Directory</h2>
+              <p className="text-xs text-slate-500">Search and manage electronic health records for community patients.</p>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="search-bar-sm">
+                <Search size={14} className="text-slate-400" />
+                <input 
+                  type="text" 
+                  placeholder="Search name, ID, village..."
+                  value={localSearch}
+                  onChange={(e) => setLocalSearch(e.target.value)}
+                  className="form-input text-xs"
+                />
+              </div>
+
+              <select 
+                value={filterRisk} 
+                onChange={(e) => setFilterRisk(e.target.value)} 
+                className="form-input text-xs w-36"
+              >
+                <option value="all">All Risk Levels</option>
+                <option value="critical">Critical Risk</option>
+                <option value="high">High Risk</option>
+                <option value="moderate">Moderate Risk</option>
+                <option value="low">Low Risk</option>
+              </select>
+
+              <button 
+                className="btn btn-primary text-xs"
+                onClick={() => { setSelectedPatientForEdit(null); setShowRegisterModal(true); }}
+              >
+                <UserPlus size={14} /> Register Patient
+              </button>
+            </div>
+          </div>
+
+          <div className="table-responsive">
+            <table className="custom-table">
+              <thead>
+                <tr>
+                  <th>Patient Name & ID</th>
+                  <th>Age / Gender</th>
+                  <th>Clinical Risk</th>
+                  <th>Last Screening (Vitals)</th>
+                  <th>Next Follow-up</th>
+                  <th style={{ textAlign: 'right' }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredPatients.length > 0 ? (
+                  filteredPatients.map(p => {
+                    const evalData = p.evaluation || {};
+                    const risk = evalData.overallRiskLevel || evalData.overall?.riskLevel || 'Low';
+                    const followDays = evalData.followUpDays || evalData.overall?.followUpDays || 30;
+
+                    return (
+                      <tr 
+                        key={p.id}
+                        onClick={() => setShowDetailPatient(p)}
+                        className="cursor-pointer"
+                      >
+                        <td>
+                          <div className="flex items-center gap-3">
+                            <div className="patient-avatar-sm">{p.name.charAt(0)}</div>
+                            <div>
+                              <strong className="text-sm text-slate-900 hover:text-sky-600 block">{p.name}</strong>
+                              <span className="text-xs text-slate-400 font-mono">ID: {p.id} • {p.phone}</span>
+                            </div>
+                          </div>
+                        </td>
+
+                        <td>
+                          <span className="text-xs text-slate-700">{p.age} yrs</span>
+                          <span className="text-xs text-slate-400 block uppercase">{p.gender}</span>
+                        </td>
+
+                        <td>
+                          {getRiskBadge(risk)}
+                        </td>
+
+                        <td>
+                          <div className="text-xs font-semibold text-slate-800">
+                            BP {p.systolic}/{p.diastolic} mmHg
+                          </div>
+                          <div className="text-xs text-slate-500">
+                            Glucose: {p.glucose} mg/dL
+                          </div>
+                        </td>
+
+                        <td>
+                          <span className="text-xs text-slate-700 font-medium">In {followDays} days</span>
+                        </td>
+
+                        <td style={{ textAlign: 'right' }}>
+                          <button 
+                            className="btn btn-secondary text-xs"
+                            onClick={(e) => { e.stopPropagation(); setShowDetailPatient(p); }}
+                          >
+                            View Record ➔
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })
+                ) : (
+                  <tr>
+                    <td colSpan={6} className="text-center py-8 text-slate-400 text-xs">
+                      No patients found matching your search.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* =============================================================
+          3. FOLLOW-UPS TAB
+          ============================================================= */}
+      {activeTab === 'followups' && (
+        <div className="card-box space-y-4">
+          <div>
+            <h2 className="text-lg font-bold text-slate-900">Follow-up Schedule</h2>
+            <p className="text-xs text-slate-500">Prioritized timeline for community household re-screenings.</p>
+          </div>
+
+          <div className="grid-3-col gap-4">
+            {patients.map(p => {
+              const days = p.evaluation?.followUpDays || p.evaluation?.overall?.followUpDays || 30;
+              const risk = p.evaluation?.overallRiskLevel || 'Low';
+              return (
+                <div key={p.id} className="card-box p-4 border border-slate-200 bg-slate-50 flex flex-col justify-between">
+                  <div>
+                    <div className="flex justify-between items-start mb-2">
+                      <strong className="text-sm text-slate-900">{p.name}</strong>
+                      {getRiskBadge(risk)}
                     </div>
-                    <span className={`badge ${p.referral?.status === 'Approved' ? 'badge-success' : 'badge-warning'}`}>
-                      {p.referral?.status}
-                    </span>
+                    <p className="text-xs text-slate-500">{p.phone} • {p.address}</p>
                   </div>
 
-                  <p className="text-xs text-gray-300 mt-2 bg-slate-950 p-2 rounded border border-slate-800">
-                    Reason: {p.referral?.reason}
-                  </p>
-
-                  <div className="flex justify-between items-center mt-3 text-2xs text-gray-400">
-                    <span>Issued: {p.referral?.dateGenerated}</span>
-                    <button className="btn btn-secondary text-2xs" onClick={() => setShowDetailPatient(p)}>
-                      View Details
+                  <div className="mt-4 pt-3 border-t border-slate-200 flex justify-between items-center">
+                    <span className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
+                      <Clock size={14} className="text-sky-600" /> Due in {days} days
+                    </span>
+                    <button className="btn btn-primary text-xs" onClick={() => setShowDetailPatient(p)}>
+                      Start Visit
                     </button>
                   </div>
                 </div>
-              ))}
-            </div>
+              );
+            })}
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
-      {/* Modal Dialogs */}
+      {/* =============================================================
+          4. HOSPITAL REFERRALS TAB
+          ============================================================= */}
+      {activeTab === 'referrals' && (
+        <div className="card-box space-y-4">
+          <div className="flex justify-between items-center">
+            <div>
+              <h2 className="text-lg font-bold text-slate-900">Hospital Referral Pipeline</h2>
+              <p className="text-xs text-slate-500">Track referrals generated to secondary and district hospitals.</p>
+            </div>
+            <button className="btn btn-secondary text-xs" onClick={() => setShowMapModal(true)}>
+              <MapPin size={14} /> Hospital Bed Map
+            </button>
+          </div>
+
+          <div className="grid-2-col gap-4">
+            {patients.filter(p => p.referral).map(p => (
+              <div key={p.id} className="card-box p-4 border border-slate-200 bg-slate-50 space-y-3">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h4 className="font-bold text-sm text-slate-900">{p.name} ({p.id})</h4>
+                    <p className="text-xs text-slate-500 mt-0.5">Facility: <strong>{p.referral?.hospitalName}</strong></p>
+                  </div>
+                  <span className={`badge ${p.referral?.status === 'Approved' ? 'badge-risk-low' : 'badge-risk-moderate'}`}>
+                    {p.referral?.status}
+                  </span>
+                </div>
+
+                <div className="p-3 bg-white rounded border border-slate-200 text-xs text-slate-700">
+                  <strong>Referral Reason:</strong> {p.referral?.reason}
+                </div>
+
+                <div className="flex justify-between items-center text-xs text-slate-500 pt-1">
+                  <span>Generated: {p.referral?.dateGenerated}</span>
+                  <button className="btn btn-secondary text-xs" onClick={() => setShowDetailPatient(p)}>
+                    View Record
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* MODALS & DRAWERS */}
       {showRegisterModal && (
         <PatientRegistrationModal 
           onClose={() => setShowRegisterModal(false)}
           onSavePatient={onSavePatient}
           initialData={selectedPatientForEdit}
+        />
+      )}
+
+      {showWizardModal && (
+        <GuidedScreeningWizard 
+          patients={patients}
+          onSavePatient={onSavePatient}
+          onOpenCounselling={(p) => { setShowWizardModal(false); setShowCounsellingPatient(p); }}
+          onOpenReferral={(p) => { setShowWizardModal(false); handleOpenReferralForm(p); }}
+          onClose={() => setShowWizardModal(false)}
         />
       )}
 
@@ -443,7 +595,6 @@ export default function CHWPortal({
         <NearbyHospitalsMap 
           onClose={() => setShowMapModal(false)}
           onSelectHospitalForReferral={(hosp) => {
-            alert(`Selected hospital: ${hosp.name}`);
             setShowMapModal(false);
           }}
         />

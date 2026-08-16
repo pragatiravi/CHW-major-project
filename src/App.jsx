@@ -1,19 +1,74 @@
 import React, { useState, useEffect } from 'react';
-import Header from './components/shared/Header';
+import LandingPage from './components/public/LandingPage';
+import SignInPage from './components/auth/SignInPage';
+import AppShell from './components/layout/AppShell';
+
 import CHWPortal from './components/chw/CHWPortal';
 import DoctorPortal from './components/doctor/DoctorPortal';
 import SupervisorDashboard from './components/supervisor/SupervisorDashboard';
 import AdminPortal from './components/admin/AdminPortal';
 import PatientPortal from './components/patient/PatientPortal';
 import NotificationsDrawer from './components/shared/NotificationsDrawer';
-import AuthModal from './components/auth/AuthModal';
+import { ToastProvider, useToast } from './components/shared/ToastContainer';
+import { LanguageProvider, useLanguage } from './components/shared/LanguageContext';
 
-import { INITIAL_PATIENTS, INITIAL_CHWS, INITIAL_DOCTORS, INITIAL_HOSPITALS, INITIAL_AUDIT_LOGS } from './data/initialData';
+import { 
+  INITIAL_PATIENTS, 
+  INITIAL_CHWS, 
+  INITIAL_DOCTORS, 
+  INITIAL_HOSPITALS, 
+  INITIAL_AUDIT_LOGS 
+} from './data/initialData';
 import { assessPatientRisk } from './utils/predictionEngine';
 
-export default function App() {
-  const [userRole, setUserRole] = useState('chw'); // 'chw', 'doctor', 'supervisor', 'admin'
-  const [theme, setTheme] = useState('light'); // Default to clean white & blue hospital theme
+function AppContent() {
+  const { toastSuccess, toastInfo, toastWarning, toastError } = useToast();
+  const { t, language } = useLanguage();
+
+  // Session State: Default to null on fresh load (Public Landing)
+  const [currentUser, setCurrentUser] = useState(() => {
+    try {
+      const savedSession = sessionStorage.getItem('chw_auth_session');
+      return savedSession ? JSON.parse(savedSession) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  const [currentView, setCurrentView] = useState(() => {
+    try {
+      const savedSession = sessionStorage.getItem('chw_auth_session');
+      return savedSession ? 'app' : 'landing'; // 'landing' | 'auth' | 'app'
+    } catch {
+      return 'landing';
+    }
+  });
+
+  const [userRole, setUserRole] = useState(() => {
+    try {
+      const savedSession = sessionStorage.getItem('chw_auth_session');
+      if (savedSession) {
+        const parsed = JSON.parse(savedSession);
+        return parsed.role || 'chw';
+      }
+      return 'chw';
+    } catch {
+      return 'chw';
+    }
+  });
+
+  const [activeNavSection, setActiveNavSection] = useState('home');
+
+  // Theme State with localStorage persistence
+  const [theme, setTheme] = useState(() => {
+    try {
+      const savedTheme = localStorage.getItem('chw_app_theme');
+      return savedTheme === 'dark' ? 'dark' : 'light';
+    } catch {
+      return 'light';
+    }
+  });
+
   const [isOffline, setIsOffline] = useState(false);
   const [globalSearch, setGlobalSearch] = useState('');
 
@@ -80,13 +135,19 @@ export default function App() {
     }
   }, [syncLogs]);
 
-  // User Auth State
-  const [currentUser, setCurrentUser] = useState({
-    name: 'Sunita Patil (CHW)',
-    email: 'sunita.patil@communityhealth.org',
-    role: 'chw'
-  });
-  const [showAuthModal, setShowAuthModal] = useState(false);
+  // Sync theme to root and persist
+  useEffect(() => {
+    try {
+      localStorage.setItem('chw_app_theme', theme);
+      document.documentElement.setAttribute('data-theme', theme);
+      const root = document.getElementById('root');
+      if (root) {
+        root.className = theme === 'dark' ? 'theme-dark' : 'theme-light';
+      }
+    } catch (e) {
+      console.error('Failed to save theme:', e);
+    }
+  }, [theme]);
 
   // Notifications State
   const [notifications, setNotifications] = useState([
@@ -117,41 +178,84 @@ export default function App() {
   ]);
   const [showNotificationsDrawer, setShowNotificationsDrawer] = useState(false);
 
-  // Sync theme class to root
-  useEffect(() => {
-    const root = document.getElementById('root');
-    if (root) {
-      root.className = theme === 'dark' ? 'theme-dark' : 'theme-light';
+  // -------------------------------------------------------------
+  // AUTH HANDLERS
+  // -------------------------------------------------------------
+  const handleLogin = (userObj) => {
+    setCurrentUser(userObj);
+    setUserRole(userObj.role || 'chw');
+    setActiveNavSection(userObj.role === 'doctor' ? 'triage' : (userObj.role === 'patient' ? 'overview' : (userObj.role === 'supervisor' ? 'overview' : (userObj.role === 'admin' ? 'overview' : 'home'))));
+    setCurrentView('app');
+    toastSuccess(`Welcome back, ${userObj.name}!`);
+    try {
+      sessionStorage.setItem('chw_auth_session', JSON.stringify(userObj));
+    } catch (e) {
+      console.error('Failed to save session:', e);
     }
-  }, [theme]);
+  };
 
-  // Handlers for Patient Mutations & High-Risk Triage System
+  const handleLogout = () => {
+    setCurrentUser(null);
+    setUserRole('chw');
+    setActiveNavSection('home');
+    setCurrentView('landing');
+    setShowNotificationsDrawer(false);
+    toastInfo('You have been securely signed out.');
+    try {
+      sessionStorage.removeItem('chw_auth_session');
+    } catch (e) {
+      console.error('Failed to clear session:', e);
+    }
+  };
+
+  const handleQuickDemoLogin = (role) => {
+    const demoAccounts = {
+      chw: { name: 'Sunita Patil (CHW)', email: 'sunita.patil@communityhealth.org', role: 'chw' },
+      doctor: { name: 'Dr. Ananya Roy (M.D.)', email: 'ananya.roy@districtmed.org', role: 'doctor' },
+      patient: { name: 'Priya Sharma (Patient)', email: 'priya.sharma@patienthealth.net', role: 'patient' },
+      supervisor: { name: 'Vikram Singh (Supervisor)', email: 'vikram.singh@subdistrictops.org', role: 'supervisor' },
+      admin: { name: 'Admin Operations', email: 'admin.lead@healthsystem.gov', role: 'admin' }
+    };
+    const targetUser = demoAccounts[role] || demoAccounts.chw;
+    handleLogin(targetUser);
+  };
+
+  const handleSwitchDemoRole = (newRole) => {
+    handleQuickDemoLogin(newRole);
+  };
+
+  // -------------------------------------------------------------
+  // PATIENT MUTATION HANDLERS
+  // -------------------------------------------------------------
   const handleSavePatient = (patientRecord) => {
     const evaluation = assessPatientRisk(patientRecord);
-    const isHighRisk = evaluation.overallRisk === 'High' || evaluation.overallRisk === 'Critical' || (parseFloat(patientRecord.systolic) >= 180);
+    const isHighRisk = evaluation.overallRiskLevel === 'High' || evaluation.overallRiskLevel === 'Critical' || (parseFloat(patientRecord.systolic) >= 180);
 
     const evaluatedRecord = {
       ...patientRecord,
       evaluation,
       isPriority: isHighRisk,
-      followUpDate: isHighRisk ? new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] : patientRecord.followUpDate
+      followUpDate: isHighRisk ? new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] : (patientRecord.followUpDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0])
     };
 
-    // If High/Critical Risk, auto-trigger notifications for CHW, Patient, and Doctor
     if (isHighRisk) {
       const highRiskNotif = {
         id: 'n-' + Date.now(),
         title: `🚨 HIGH RISK ALERT: ${evaluatedRecord.name} (${evaluatedRecord.id})`,
-        message: `AI predicted ${evaluation.overallRisk} Risk (BP ${evaluatedRecord.systolic}/${evaluatedRecord.diastolic} mmHg). Urgent Doctor & CHW follow-up scheduled.`,
+        message: `Clinical engine flagged ${evaluation.overallRiskLevel} Risk (BP ${evaluatedRecord.systolic}/${evaluatedRecord.diastolic} mmHg). Priority follow-up required.`,
         time: 'Just now',
         type: 'CRITICAL_ALERT',
         read: false
       };
       setNotifications(prev => [highRiskNotif, ...prev]);
+      toastWarning(`High Risk flagged for ${evaluatedRecord.name} (${evaluation.overallRiskLevel} Risk)`);
+    } else {
+      toastSuccess(`Patient record saved for ${evaluatedRecord.name}`);
     }
 
     if (isOffline) {
       setOfflineQueue(prev => [evaluatedRecord, ...prev]);
+      toastInfo('Offline mode active. Record queued locally for synchronization.');
     } else {
       setPatients(prev => {
         const index = prev.findIndex(p => p.id === evaluatedRecord.id);
@@ -163,13 +267,12 @@ export default function App() {
         return [evaluatedRecord, ...prev];
       });
 
-      // Log activity
       const logEntry = {
         id: 'L-' + Math.floor(9000 + Math.random() * 999),
         timestamp: new Date().toLocaleString(),
         type: isHighRisk ? 'High-Risk Priority Sync' : 'Instant Sync',
         count: 1,
-        device: 'CHW Handheld App'
+        device: 'CHW Handheld Field App'
       };
       setSyncLogs(prev => [logEntry, ...prev]);
     }
@@ -178,6 +281,7 @@ export default function App() {
   const handleDeletePatient = (patientId) => {
     if (window.confirm('Are you sure you want to delete this patient record?')) {
       setPatients(prev => prev.filter(p => p.id !== patientId));
+      toastInfo(`Patient record ${patientId} removed.`);
     }
   };
 
@@ -188,6 +292,7 @@ export default function App() {
       }
       return p;
     }));
+    toastSuccess('Medication orders updated.');
   };
 
   const handleAddReport = (patientId, newReport) => {
@@ -197,6 +302,7 @@ export default function App() {
       }
       return p;
     }));
+    toastSuccess('Clinical report uploaded.');
   };
 
   const handleSaveCounsellingSession = (patientId, sessionRecord) => {
@@ -206,6 +312,7 @@ export default function App() {
       }
       return p;
     }));
+    toastSuccess('ThinkLets counselling session recorded.');
   };
 
   const handleSaveReferral = (patientId, referralObj) => {
@@ -216,16 +323,16 @@ export default function App() {
       return p;
     }));
 
-    // Add notification
     const newNotif = {
       id: 'n-' + Date.now(),
-      title: '🏥 New Hospital Referral Generated',
+      title: '🏥 Hospital Referral Dispatched',
       message: `Referral submitted for patient ID ${patientId} to ${referralObj.hospitalName}.`,
       time: 'Just now',
       type: 'REFERRAL_UPDATE',
       read: false
     };
     setNotifications(prev => [newNotif, ...prev]);
+    toastSuccess(`Hospital referral submitted to ${referralObj.hospitalName}`);
   };
 
   const handleApproveReferral = (patientId, doctorNotes) => {
@@ -242,6 +349,7 @@ export default function App() {
       }
       return p;
     }));
+    toastSuccess(`Referral treatment plan approved for patient ID ${patientId}`);
   };
 
   const handleRejectReferral = (patientId, doctorNotes) => {
@@ -251,18 +359,21 @@ export default function App() {
           ...p,
           referral: {
             ...p.referral,
-            status: 'Cancelled',
+            status: 'Declined',
             notes: doctorNotes
           }
         };
       }
       return p;
     }));
+    toastInfo('Referral marked for community primary care management.');
   };
 
-  // Sync Offline Queue
   const handleSyncOfflineData = () => {
-    if (offlineQueue.length === 0) return;
+    if (offlineQueue.length === 0) {
+      toastInfo('Offline queue is empty. Central registry is up to date.');
+      return;
+    }
 
     const syncedRecords = offlineQueue.map(p => ({ ...p, syncStatus: 'synced' }));
     setPatients(prev => [...syncedRecords, ...prev]);
@@ -276,108 +387,152 @@ export default function App() {
     };
     setSyncLogs(prev => [newLog, ...prev]);
     setOfflineQueue([]);
+    toastSuccess(`Successfully synced ${syncedRecords.length} record(s) with Central Health Registry!`);
   };
 
   const handleRestoreBackup = (restoredPatients) => {
     setPatients(restoredPatients.map(p => ({ ...p, evaluation: assessPatientRisk(p) })));
+    toastSuccess('Backup database successfully restored.');
   };
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
-  return (
-    <div className="app-wrapper desktop-view">
-      <Header 
-        userRole={userRole}
-        setUserRole={setUserRole}
-        isOffline={isOffline}
-        toggleOffline={() => setIsOffline(!isOffline)}
-        offlineQueueCount={offlineQueue.length}
-        onSyncNow={handleSyncOfflineData}
-        theme={theme}
-        toggleTheme={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-        unreadNotifications={unreadCount}
-        onOpenNotifications={() => setShowNotificationsDrawer(true)}
-        globalSearch={globalSearch}
-        setGlobalSearch={setGlobalSearch}
-        currentUser={currentUser}
-        onOpenAuthModal={() => setShowAuthModal(true)}
+  // -------------------------------------------------------------
+  // CONDITIONAL RENDERING FLOW
+  // -------------------------------------------------------------
+
+  // 1. PUBLIC LANDING PAGE
+  if (!currentUser && currentView === 'landing') {
+    return (
+      <LandingPage 
+        onNavigateToAuth={(preferredRole) => {
+          if (preferredRole) setUserRole(preferredRole);
+          setCurrentView('auth');
+        }}
+        onQuickDemoLogin={handleQuickDemoLogin}
       />
+    );
+  }
 
-      <main className="main-content-area">
-        {userRole === 'chw' && (
-          <CHWPortal 
-            patients={patients}
-            onSavePatient={handleSavePatient}
-            onDeletePatient={handleDeletePatient}
-            onUpdatePatientMedicines={handleUpdatePatientMedicines}
-            onAddReport={handleAddReport}
-            onSaveCounsellingSession={handleSaveCounsellingSession}
-            onSaveReferral={handleSaveReferral}
-            isOffline={isOffline}
-            toggleOffline={() => setIsOffline(!isOffline)}
-            offlineQueue={offlineQueue}
-            syncLogs={syncLogs}
-            onSyncOfflineData={handleSyncOfflineData}
-            onRestoreBackup={handleRestoreBackup}
-            userRole={userRole}
-            globalSearch={globalSearch}
-          />
-        )}
+  // 2. DEDICATED AUTHENTICATION PAGE
+  if (!currentUser && currentView === 'auth') {
+    return (
+      <SignInPage 
+        onLogin={handleLogin}
+        onBackToLanding={() => setCurrentView('landing')}
+        initialRole={userRole}
+      />
+    );
+  }
 
-        {userRole === 'patient' && (
-          <PatientPortal patients={patients} onSavePatient={handleSavePatient} />
-        )}
+  // 3. AUTHENTICATED APPLICATION
+  return (
+    <AppShell
+      currentUser={currentUser}
+      userRole={userRole}
+      onSwitchRole={handleSwitchDemoRole}
+      onLogout={handleLogout}
+      isOffline={isOffline}
+      toggleOffline={() => {
+        setIsOffline(!isOffline);
+        if (!isOffline) {
+          toastWarning('Offline mode activated. Field screenings will be stored locally.');
+        } else {
+          toastSuccess('Cloud connectivity restored.');
+        }
+      }}
+      offlineQueueCount={offlineQueue.length}
+      onSyncNow={handleSyncOfflineData}
+      theme={theme}
+      toggleTheme={() => setTheme(prev => prev === 'dark' ? 'light' : 'dark')}
+      unreadNotifications={unreadCount}
+      onOpenNotifications={() => setShowNotificationsDrawer(true)}
+      globalSearch={globalSearch}
+      setGlobalSearch={setGlobalSearch}
+      activeNav={activeNavSection}
+      setActiveNav={setActiveNavSection}
+    >
+      {/* Role-Based Portal Routing */}
+      {userRole === 'chw' && (
+        <CHWPortal 
+          patients={patients}
+          onSavePatient={handleSavePatient}
+          onDeletePatient={handleDeletePatient}
+          onUpdatePatientMedicines={handleUpdatePatientMedicines}
+          onAddReport={handleAddReport}
+          onSaveCounsellingSession={handleSaveCounsellingSession}
+          onSaveReferral={handleSaveReferral}
+          isOffline={isOffline}
+          toggleOffline={() => setIsOffline(!isOffline)}
+          offlineQueue={offlineQueue}
+          syncLogs={syncLogs}
+          onSyncOfflineData={handleSyncOfflineData}
+          onRestoreBackup={handleRestoreBackup}
+          userRole={userRole}
+          globalSearch={globalSearch}
+          activeSection={activeNavSection}
+          currentUser={currentUser}
+        />
+      )}
 
-        {userRole === 'doctor' && (
-          <DoctorPortal 
-            patients={patients}
-            onApproveReferral={handleApproveReferral}
-            onRejectReferral={handleRejectReferral}
-            onOpenPatientDetail={(patient) => {
-              setUserRole('chw');
-            }}
-            onOpenMedicationModal={(patient) => {
-              setUserRole('chw');
-            }}
-          />
-        )}
+      {userRole === 'patient' && (
+        <PatientPortal 
+          patients={patients} 
+          onSavePatient={handleSavePatient} 
+          activeSection={activeNavSection}
+        />
+      )}
 
-        {userRole === 'supervisor' && (
-          <SupervisorDashboard 
-            patients={patients}
-            chwList={chwList}
-            syncLogs={syncLogs}
-            onOpenPatientDetail={(patient) => {
-              setUserRole('chw');
-            }}
-          />
-        )}
+      {userRole === 'doctor' && (
+        <DoctorPortal 
+          patients={patients}
+          onApproveReferral={handleApproveReferral}
+          onRejectReferral={handleRejectReferral}
+          onUpdatePatientMedicines={handleUpdatePatientMedicines}
+          onAddReport={handleAddReport}
+          onSaveReferral={handleSaveReferral}
+          activeSection={activeNavSection}
+        />
+      )}
 
-        {userRole === 'admin' && (
-          <AdminPortal auditLogs={auditLogs} patients={patients} />
-        )}
-      </main>
+      {userRole === 'supervisor' && (
+        <SupervisorDashboard 
+          patients={patients}
+          chwList={chwList}
+          syncLogs={syncLogs}
+          activeSection={activeNavSection}
+        />
+      )}
+
+      {userRole === 'admin' && (
+        <AdminPortal 
+          auditLogs={auditLogs} 
+          patients={patients} 
+          activeSection={activeNavSection}
+        />
+      )}
 
       {/* Notifications Drawer Overlay */}
       {showNotificationsDrawer && (
         <NotificationsDrawer 
           notifications={notifications}
           onClose={() => setShowNotificationsDrawer(false)}
-          onMarkAllRead={() => setNotifications(prev => prev.map(n => ({ ...n, read: true })))}
+          onMarkAllRead={() => {
+            setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+            toastInfo('All notifications marked as read.');
+          }}
         />
       )}
+    </AppShell>
+  );
+}
 
-      {/* Auth Modal Overlay */}
-      {showAuthModal && (
-        <AuthModal 
-          onClose={() => setShowAuthModal(false)}
-          currentUser={currentUser}
-          onLogin={(usr) => setCurrentUser(usr)}
-          onLogout={() => setCurrentUser(null)}
-          userRole={userRole}
-          setUserRole={setUserRole}
-        />
-      )}
-    </div>
+export default function App() {
+  return (
+    <LanguageProvider>
+      <ToastProvider>
+        <AppContent />
+      </ToastProvider>
+    </LanguageProvider>
   );
 }

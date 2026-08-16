@@ -1,57 +1,77 @@
 import React from 'react';
 import { Bell, AlertTriangle, Pill, Calendar, CheckCircle2, X } from 'lucide-react';
 
-export default function NotificationsDrawer({ notifications, onClose, onMarkAllRead, onSelectNotification }) {
+export default function NotificationsDrawer({ notifications = [], onClose, onMarkAllRead, onSelectNotification }) {
   const getIcon = (type) => {
     switch (type) {
       case 'CRITICAL_ALERT':
       case 'HIGH_RISK':
-        return <AlertTriangle size={18} className="text-red-400" />;
+        return <AlertTriangle size={16} className="text-rose-600" />;
       case 'MEDICATION_ALERT':
-        return <Pill size={18} className="text-amber-400" />;
+        return <Pill size={16} className="text-amber-600" />;
       case 'REFERRAL_UPDATE':
-        return <CheckCircle2 size={18} className="text-blue-400" />;
+        return <CheckCircle2 size={16} className="text-sky-600" />;
       default:
-        return <Calendar size={18} className="text-emerald-400" />;
+        return <Calendar size={16} className="text-emerald-600" />;
     }
   };
 
   return (
-    <div className="notifications-overlay" onClick={onClose}>
-      <div className="notifications-panel" onClick={(e) => e.stopPropagation()}>
-        <div className="notifications-header">
+    <div className="drawer-overlay" onClick={onClose}>
+      <div 
+        className="drawer-panel" 
+        style={{ width: '420px', maxWidth: '90vw' }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="drawer-header flex justify-between items-center">
           <div className="flex items-center gap-2">
-            <Bell size={20} className="text-indigo-400" />
-            <h3 className="notifications-title">Notifications Hub</h3>
+            <div className="w-8 h-8 rounded-lg bg-sky-100 text-sky-700 flex items-center justify-center">
+              <Bell size={18} />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-slate-900">Clinical Alerts & Notifications</h3>
+              <p className="text-3xs text-slate-500">System events and field triage alerts</p>
+            </div>
           </div>
+
           <div className="flex items-center gap-2">
-            <button className="text-xs text-indigo-400 hover:underline" onClick={onMarkAllRead}>
+            <button 
+              className="btn btn-secondary text-2xs py-1 px-2 font-semibold"
+              onClick={onMarkAllRead}
+            >
               Mark all read
             </button>
-            <button className="close-btn" onClick={onClose}><X size={18} /></button>
+            <button className="btn-icon-xs" onClick={onClose}><X size={14} /></button>
           </div>
         </div>
 
-        <div className="notifications-list">
+        {/* List */}
+        <div className="p-4 overflow-y-auto flex-1 space-y-2.5">
           {notifications.length === 0 ? (
-            <div className="empty-notifications">
-              <CheckCircle2 size={32} className="text-gray-500 mb-2" />
-              <p>No new notifications. Everything is up to date!</p>
+            <div className="py-12 text-center text-slate-400">
+              <CheckCircle2 size={32} className="mx-auto mb-2 text-emerald-500" />
+              <p className="text-xs font-semibold text-slate-600">All caught up!</p>
+              <p className="text-2xs text-slate-400 mt-0.5">No unread clinical alerts.</p>
             </div>
           ) : (
             notifications.map((n) => (
               <div 
                 key={n.id} 
-                className={`notification-card ${n.read ? 'read' : 'unread'} type-${n.type}`}
+                className={`p-3 rounded-xl border transition-all cursor-pointer ${
+                  n.read ? 'border-slate-200 bg-white opacity-80' : 'border-sky-300 bg-sky-50/60 shadow-xs'
+                }`}
                 onClick={() => onSelectNotification && onSelectNotification(n)}
               >
-                <div className="notification-icon">{getIcon(n.type)}</div>
-                <div className="notification-content">
-                  <div className="notification-top">
-                    <span className="notification-subject">{n.title}</span>
-                    <span className="notification-time">{n.time}</span>
+                <div className="flex items-start gap-2.5">
+                  <div className="mt-0.5">{getIcon(n.type)}</div>
+                  <div className="flex-1">
+                    <div className="flex justify-between items-start">
+                      <strong className="text-xs text-slate-900 block leading-snug">{n.title}</strong>
+                      <span className="text-3xs text-slate-400 whitespace-nowrap ml-2">{n.time}</span>
+                    </div>
+                    <p className="text-2xs text-slate-600 mt-1 leading-relaxed">{n.message}</p>
                   </div>
-                  <p className="notification-text">{n.message}</p>
                 </div>
               </div>
             ))

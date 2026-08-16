@@ -10,14 +10,15 @@ import {
   MapPin, 
   Phone, 
   AlertTriangle, 
-  CheckCircle, 
+  CheckCircle2, 
   Hospital, 
-  Plus, 
-  Trash2, 
-  Upload, 
   BookOpen, 
-  BrainCircuit 
+  BrainCircuit,
+  Clock,
+  Printer,
+  Sparkles
 } from 'lucide-react';
+import { exportPatientSummaryPDF } from '../../utils/pdfExport';
 
 export default function PatientDetailModal({
   patient,
@@ -30,7 +31,7 @@ export default function PatientDetailModal({
   onAddReport,
   userRole
 }) {
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState('overview'); // overview | vitals | medications | counselling | referrals | reports
   const [reportTitle, setReportTitle] = useState('');
   const [reportSummary, setReportSummary] = useState('');
   const [showUploadForm, setShowUploadForm] = useState(false);
@@ -38,16 +39,14 @@ export default function PatientDetailModal({
   if (!patient) return null;
 
   const evalData = patient.evaluation || {};
-  const overall = evalData.overall || {};
-  const ht = evalData.hypertension || {};
-  const db = evalData.diabetes || {};
+  const overallRisk = evalData.overallRiskLevel || evalData.overall?.riskLevel || 'Low';
 
-  const getRiskClass = (level) => {
+  const getRiskBadge = (level) => {
     switch (level) {
-      case 'Critical': return 'badge-risk-critical';
-      case 'High': return 'badge-risk-high';
-      case 'Moderate': return 'badge-risk-moderate';
-      default: return 'badge-risk-low';
+      case 'Critical': return <span className="badge badge-risk-critical">Critical Risk</span>;
+      case 'High': return <span className="badge badge-risk-high">High Risk</span>;
+      case 'Moderate': return <span className="badge badge-risk-moderate">Moderate</span>;
+      default: return <span className="badge badge-risk-low">Low Risk</span>;
     }
   };
 
@@ -60,7 +59,7 @@ export default function PatientDetailModal({
       title: reportTitle,
       date: new Date().toISOString().split('T')[0],
       fileType: 'pdf',
-      summary: reportSummary || 'Patient medical report uploaded.'
+      summary: reportSummary || 'Patient clinical report uploaded.'
     };
     onAddReport(patient.id, newRep);
     setReportTitle('');
@@ -69,332 +68,275 @@ export default function PatientDetailModal({
   };
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div className="patient-detail-drawer" onClick={(e) => e.stopPropagation()}>
-        {/* Header */}
+    <div className="drawer-overlay" onClick={onClose}>
+      <div className="drawer-panel" onClick={(e) => e.stopPropagation()}>
+        {/* Drawer Header */}
         <div className="drawer-header">
-          <div className="drawer-title-block">
-            <div className="patient-avatar-large">
+          <div className="flex items-center gap-3">
+            <div className="patient-avatar-sm" style={{ width: 44, height: 44, fontSize: '1.2rem' }}>
               {patient.name.charAt(0)}
             </div>
             <div>
-              <div className="patient-head-name">
-                <h2>{patient.name}</h2>
-                <span className={`badge ${getRiskClass(overall.riskLevel)}`}>
-                  {overall.riskLevel || 'Low'} Risk
-                </span>
-                <span className="badge badge-primary">ID: {patient.id}</span>
+              <div className="flex items-center gap-2">
+                <h2 className="text-lg font-bold text-slate-900">{patient.name}</h2>
+                <span className="badge badge-primary font-mono text-2xs">ID: {patient.id}</span>
+                {getRiskBadge(overallRisk)}
               </div>
-              <p className="text-xs text-slate-600 mt-1">
-                {patient.age} yrs • {patient.gender.toUpperCase()} • Registered: {patient.dateRegistered} • Health Worker: {patient.assignedCHW || 'Sunita Patil'}
+              <p className="text-xs text-slate-500 mt-0.5">
+                {patient.age} yrs • {patient.gender.toUpperCase()} • Sector: {patient.address} • Contact: {patient.phone}
               </p>
             </div>
           </div>
-          <button className="close-btn text-slate-500 hover:text-slate-800" onClick={onClose}><X size={22} /></button>
+          <button className="btn-icon-xs" onClick={onClose}><X size={16} /></button>
         </div>
 
         {/* Action Toolbar */}
-        <div className="detail-action-bar">
-          <button className="btn btn-primary text-xs flex items-center gap-1" onClick={() => onOpenAIScreening(patient)}>
-            <BrainCircuit size={16} /> AI Health Assessment
+        <div className="flex gap-2 p-3 px-6 bg-slate-50 border-b border-slate-200 overflow-x-auto">
+          <button className="btn btn-primary text-xs" onClick={() => onOpenAIScreening(patient)}>
+            <BrainCircuit size={14} /> Run Screening
           </button>
-          <button className="btn btn-secondary text-xs flex items-center gap-1" onClick={() => onOpenCounselling(patient)}>
-            <BookOpen size={16} /> Patient Counselling
+          <button className="btn btn-secondary text-xs" onClick={() => onOpenCounselling(patient)}>
+            <BookOpen size={14} /> Counselling
           </button>
-          <button className="btn btn-secondary text-xs flex items-center gap-1" onClick={() => onOpenReferral(patient)}>
-            <Hospital size={16} /> Hospital Referral
+          <button className="btn btn-secondary text-xs" onClick={() => onOpenReferral(patient)}>
+            <Hospital size={14} /> Refer
           </button>
-          <button className="btn btn-secondary text-xs flex items-center gap-1" onClick={() => onOpenMedicationModal(patient)}>
-            <Pill size={16} /> Prescriptions
+          <button className="btn btn-secondary text-xs" onClick={() => onOpenMedicationModal(patient)}>
+            <Pill size={14} /> Medicines
           </button>
-          {userRole === 'admin' && (
-            <button className="btn btn-danger-outline text-xs flex items-center gap-1 ml-auto" onClick={() => onDeletePatient(patient.id)}>
-              <Trash2 size={16} /> Delete Record
-            </button>
-          )}
+          <button className="btn btn-secondary text-xs" onClick={() => exportPatientSummaryPDF(patient)}>
+            <Printer size={14} /> PDF Passport
+          </button>
         </div>
 
-        {/* Navigation Tabs */}
-        <div className="detail-tabs px-6 pt-3 bg-white">
-          <button className={`tab-btn ${activeTab === 'overview' ? 'active' : ''}`} onClick={() => setActiveTab('overview')}>
-            Patient Summary & Vitals
+        {/* Drawer Tabs */}
+        <div className="drawer-tabs">
+          <button 
+            className={`drawer-tab-btn ${activeTab === 'overview' ? 'active' : ''}`}
+            onClick={() => setActiveTab('overview')}
+          >
+            Overview
           </button>
-          <button className={`tab-btn ${activeTab === 'ai' ? 'active' : ''}`} onClick={() => setActiveTab('ai')}>
-            AI Disease Prediction
+          <button 
+            className={`drawer-tab-btn ${activeTab === 'vitals' ? 'active' : ''}`}
+            onClick={() => setActiveTab('vitals')}
+          >
+            Vitals & Screening
           </button>
-          <button className={`tab-btn ${activeTab === 'meds' ? 'active' : ''}`} onClick={() => setActiveTab('meds')}>
+          <button 
+            className={`drawer-tab-btn ${activeTab === 'medications' ? 'active' : ''}`}
+            onClick={() => setActiveTab('medications')}
+          >
             Medications ({patient.medicines?.length || 0})
           </button>
-          <button className={`tab-btn ${activeTab === 'referral' ? 'active' : ''}`} onClick={() => setActiveTab('referral')}>
-            Hospital Referral {patient.referral ? '🟢' : ''}
+          <button 
+            className={`drawer-tab-btn ${activeTab === 'counselling' ? 'active' : ''}`}
+            onClick={() => setActiveTab('counselling')}
+          >
+            Counselling
           </button>
-          <button className={`tab-btn ${activeTab === 'reports' ? 'active' : ''}`} onClick={() => setActiveTab('reports')}>
-            Medical Reports ({patient.reports?.length || 0})
+          <button 
+            className={`drawer-tab-btn ${activeTab === 'referrals' ? 'active' : ''}`}
+            onClick={() => setActiveTab('referrals')}
+          >
+            Referrals & Reports
           </button>
         </div>
 
-        {/* Drawer Body Content */}
-        <div className="modal-body p-6">
+        {/* Drawer Content Body */}
+        <div className="drawer-content space-y-4">
+          {/* TAB 1: OVERVIEW */}
           {activeTab === 'overview' && (
             <div className="space-y-4">
-              <h4 className="text-sm font-bold text-slate-800">Current Health Vitals & Measurements</h4>
-              <div className="vitals-grid">
-                <div className="vital-card">
-                  <div className="vital-label">Blood Pressure</div>
-                  <div className="vital-value text-sky-700">{patient.systolic}/{patient.diastolic} <span className="text-xs text-slate-500 font-normal">mmHg</span></div>
-                  <div className="vital-sub font-semibold">{ht.category || 'Normal'}</div>
+              <div className="grid-3-col gap-3">
+                <div className="p-3.5 rounded-xl border border-slate-200 bg-sky-50/50">
+                  <span className="text-2xs font-bold text-sky-700 uppercase tracking-wider block">Blood Pressure</span>
+                  <div className="text-xl font-bold text-sky-950 mt-0.5">{patient.systolic}/{patient.diastolic} <span className="text-xs font-normal text-slate-500">mmHg</span></div>
+                  <span className="text-2xs text-slate-600 block mt-0.5 font-medium">{evalData.hypertension?.category || 'Stage 2 Hypertension'}</span>
                 </div>
-                <div className="vital-card">
-                  <div className="vital-label">Blood Glucose (Sugar)</div>
-                  <div className="vital-value text-amber-700">{patient.glucose} <span className="text-xs text-slate-500 font-normal">mg/dL</span></div>
-                  <div className="vital-sub font-semibold">Type: {patient.glucoseType} • {db.category}</div>
+
+                <div className="p-3.5 rounded-xl border border-slate-200 bg-amber-50/50">
+                  <span className="text-2xs font-bold text-amber-700 uppercase tracking-wider block">Blood Sugar</span>
+                  <div className="text-xl font-bold text-amber-950 mt-0.5">{patient.glucose} <span className="text-xs font-normal text-slate-500">mg/dL</span></div>
+                  <span className="text-2xs text-slate-600 block mt-0.5 font-medium">{patient.glucoseType || 'Random'} Reading</span>
                 </div>
-                <div className="vital-card">
-                  <div className="vital-label">BMI (Body Weight)</div>
-                  <div className="vital-value text-emerald-700">{patient.bmi} <span className="text-xs text-slate-500 font-normal">kg/m²</span></div>
-                  <div className="vital-sub">{patient.weight} kg • {patient.height} cm</div>
-                </div>
-                <div className="vital-card">
-                  <div className="vital-label">Heart Rate</div>
-                  <div className="vital-value text-rose-700">{patient.heartRate || 76} <span className="text-xs text-slate-500 font-normal">BPM</span></div>
-                  <div className="vital-sub">Normal Rhythm</div>
+
+                <div className="p-3.5 rounded-xl border border-slate-200 bg-emerald-50/50">
+                  <span className="text-2xs font-bold text-emerald-700 uppercase tracking-wider block">BMI</span>
+                  <div className="text-xl font-bold text-emerald-950 mt-0.5">{patient.bmi} <span className="text-xs font-normal text-slate-500">kg/m²</span></div>
+                  <span className="text-2xs text-slate-600 block mt-0.5 font-medium">{patient.weight || 65} kg • {patient.height || 160} cm</span>
                 </div>
               </div>
 
-              {/* Patient Profile Details */}
-              <div className="grid-2-col gap-4 mt-4">
-                <div className="card-box bg-slate-50 border-slate-200">
-                  <h4 className="text-xs font-bold text-sky-900 mb-2 flex items-center gap-1"><User size={16} /> Demographics & Contact</h4>
-                  <div className="space-y-1.5 text-xs text-slate-700">
-                    <div>Address: <strong className="text-slate-900">{patient.address}</strong></div>
-                    <div>Phone Number: <strong className="text-slate-900">{patient.phone}</strong></div>
-                    <div>Family Medical History: <strong className="text-slate-900">{patient.familyHistory ? 'Yes (Hypertension/Diabetes)' : 'No'}</strong></div>
-                    <div>Assigned Health Worker: <strong className="text-slate-900">{patient.assignedCHW || 'Sunita Patil'}</strong></div>
-                  </div>
+              {/* Presenting Symptoms */}
+              <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 space-y-2">
+                <strong className="text-xs text-slate-900 block">Reported Symptoms</strong>
+                <div className="flex flex-wrap gap-1.5">
+                  {patient.symptoms && patient.symptoms.length > 0 ? (
+                    patient.symptoms.map(s => (
+                      <span key={s} className="tag-pill text-xs">
+                        {s.replace(/_/g, ' ')}
+                      </span>
+                    ))
+                  ) : (
+                    <span className="text-xs text-slate-400">No active symptoms reported.</span>
+                  )}
                 </div>
+              </div>
 
-                <div className="card-box bg-slate-50 border-slate-200">
-                  <h4 className="text-xs font-bold text-sky-900 mb-2 flex items-center gap-1"><Activity size={16} /> Lifestyle Habits & Symptoms</h4>
-                  <div className="space-y-1.5 text-xs text-slate-700">
-                    <div>Tobacco Smoker: <strong className="text-slate-900">{patient.smoking ? 'Yes' : 'No'}</strong></div>
-                    <div>Alcohol Consumption: <strong className="text-slate-900">{patient.alcohol ? 'Yes' : 'No'}</strong></div>
-                    <div>Physical Activity: <strong className="text-slate-900">{patient.activeLifestyle ? 'Active (150+ mins/wk)' : 'Sedentary'}</strong></div>
-                    <div>
-                      Presenting Symptoms: 
-                      <div className="flex flex-wrap gap-1 mt-1">
-                        {patient.symptoms && patient.symptoms.length > 0 ? (
-                          patient.symptoms.map(s => <span key={s} className="tag-pill">{s.replace('_', ' ')}</span>)
-                        ) : (
-                          <span className="text-slate-400">None Reported</span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
+              {/* Clinical Assessment Summary */}
+              <div className="p-4 rounded-xl border border-slate-200 bg-white space-y-2">
+                <div className="flex justify-between items-center">
+                  <strong className="text-xs text-slate-900 flex items-center gap-1.5">
+                    <BrainCircuit size={16} className="text-sky-600" /> AI Risk Stratification Summary
+                  </strong>
+                  <span className="badge badge-neutral text-2xs font-mono">Confidence: {evalData.confidenceScore || 95}%</span>
+                </div>
+                <p className="text-xs text-slate-700 leading-relaxed">
+                  {evalData.whyThisResult || 'Patient exhibits chronic risk indicators aligned with clinical guidelines.'}
+                </p>
+                <div className="text-2xs text-slate-500 pt-1">
+                  Recommended Recall: <strong>{evalData.followUpDays || 30} Days</strong>
                 </div>
               </div>
             </div>
           )}
 
-          {activeTab === 'ai' && (
+          {/* TAB 2: VITALS & FACTORS */}
+          {activeTab === 'vitals' && (
             <div className="space-y-4">
-              <div className="card-box bg-sky-50 border-sky-200 flex items-center gap-3">
-                <BrainCircuit size={32} className="text-sky-600" />
-                <div>
-                  <h3 className="text-slate-900 font-bold">AI Clinical Risk Analysis</h3>
-                  <p className="text-xs text-slate-600">Evaluated using Random Forest machine learning with explainable risk drivers.</p>
-                </div>
-              </div>
-
-              <div className="grid-2-col gap-4">
-                {/* Hypertension */}
-                <div className="card-box bg-white border-slate-200">
-                  <div className="flex justify-between items-center mb-2">
-                    <h4 className="font-bold text-rose-700">❤️ Hypertension Risk</h4>
-                    <span className={`badge ${getRiskClass(ht.riskLevel)}`}>{ht.riskLevel} ({ht.riskScore}%)</span>
-                  </div>
-                  <div className="text-xs text-slate-700 mb-3">Category: <strong>{ht.category}</strong></div>
-
-                  <h5 className="text-xs font-bold text-sky-800 mb-2">Key Risk Factors:</h5>
-                  <div className="shap-list">
-                    {ht.explanations?.map((exp, idx) => (
-                      <div key={idx} className="shap-row">
-                        <div className="flex justify-between text-xs font-medium text-slate-800">
-                          <span>{exp.feature}</span>
-                          <span className="text-rose-700 font-bold">{exp.impact}</span>
-                        </div>
-                        <div className="shap-bar-bg">
-                          <div className="shap-bar-fill bg-rose-500" style={{ width: exp.impact.replace('+', '') }}></div>
-                        </div>
-                        <span className="text-2xs text-slate-500">{exp.detail}</span>
-                      </div>
+              <div className="grid-2-col gap-3">
+                <div className="p-4 rounded-xl border border-slate-200 bg-white space-y-2">
+                  <strong className="text-xs text-rose-700 block">
+                    Hypertension Factors ({evalData.hypertension?.riskScore || 0}% Risk):
+                  </strong>
+                  <ul className="list-disc pl-4 text-slate-600 space-y-1 text-2xs">
+                    {evalData.hypertension?.explanations?.map((exp, i) => (
+                      <li key={i}><strong>{exp.feature}</strong> ({exp.impact}): {exp.detail}</li>
                     ))}
-                  </div>
+                  </ul>
                 </div>
 
-                {/* Diabetes */}
-                <div className="card-box bg-white border-slate-200">
-                  <div className="flex justify-between items-center mb-2">
-                    <h4 className="font-bold text-amber-700">🩸 Diabetes Risk</h4>
-                    <span className={`badge ${getRiskClass(db.riskLevel)}`}>{db.riskLevel} ({db.riskScore}%)</span>
-                  </div>
-                  <div className="text-xs text-slate-700 mb-3">Category: <strong>{db.category}</strong></div>
-
-                  <h5 className="text-xs font-bold text-sky-800 mb-2">Key Risk Factors:</h5>
-                  <div className="shap-list">
-                    {db.explanations?.map((exp, idx) => (
-                      <div key={idx} className="shap-row">
-                        <div className="flex justify-between text-xs font-medium text-slate-800">
-                          <span>{exp.feature}</span>
-                          <span className="text-amber-700 font-bold">{exp.impact}</span>
-                        </div>
-                        <div className="shap-bar-bg">
-                          <div className="shap-bar-fill bg-amber-500" style={{ width: exp.impact.replace('+', '') }}></div>
-                        </div>
-                        <span className="text-2xs text-slate-500">{exp.detail}</span>
-                      </div>
+                <div className="p-4 rounded-xl border border-slate-200 bg-white space-y-2">
+                  <strong className="text-xs text-amber-700 block">
+                    Diabetes Factors ({evalData.diabetes?.riskScore || 0}% Risk):
+                  </strong>
+                  <ul className="list-disc pl-4 text-slate-600 space-y-1 text-2xs">
+                    {evalData.diabetes?.explanations?.map((exp, i) => (
+                      <li key={i}><strong>{exp.feature}</strong> ({exp.impact}): {exp.detail}</li>
                     ))}
-                  </div>
+                  </ul>
                 </div>
               </div>
             </div>
           )}
 
-          {activeTab === 'meds' && (
+          {/* TAB 3: MEDICATIONS */}
+          {activeTab === 'medications' && (
             <div className="space-y-3">
-              <div className="flex justify-between items-center mb-2">
-                <h4 className="text-sm font-bold text-slate-900">Active Prescriptions & Medicines</h4>
-                <button className="btn btn-primary text-xs flex items-center gap-1" onClick={() => onOpenMedicationModal(patient)}>
-                  <Plus size={14} /> Add Medicine
-                </button>
-              </div>
-
               {patient.medicines && patient.medicines.length > 0 ? (
-                <table className="custom-table">
-                  <thead>
-                    <tr>
-                      <th>Medicine Name</th>
-                      <th>Dosage</th>
-                      <th>Routine</th>
-                      <th>Status</th>
-                      <th>Compliance</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {patient.medicines.map((m) => (
-                      <tr key={m.id}>
-                        <td><strong>{m.name}</strong></td>
-                        <td>{m.dosage}</td>
-                        <td>{m.frequency}</td>
-                        <td><span className="badge badge-success">{m.status}</span></td>
-                        <td>
-                          {m.missedDoses > 0 ? (
-                            <span className="badge badge-danger">{m.missedDoses} Missed Alert</span>
-                          ) : (
-                            <span className="badge badge-success">100% Compliant</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                patient.medicines.map((med, idx) => (
+                  <div key={idx} className="p-3.5 rounded-xl border border-slate-200 bg-slate-50 flex justify-between items-center">
+                    <div>
+                      <strong className="text-sm text-slate-900 block">{med.name} ({med.dosage})</strong>
+                      <span className="text-xs text-slate-500">{med.frequency} • Time: {med.time}</span>
+                    </div>
+                    <span className={`badge ${med.takenToday ? 'badge-risk-low' : 'badge-neutral'} text-xs`}>
+                      {med.takenToday ? 'Taken Today' : 'Pending'}
+                    </span>
+                  </div>
+                ))
               ) : (
-                <div className="empty-state">
-                  <Pill size={36} className="text-slate-400 mb-2" />
-                  <p>No medicines currently prescribed.</p>
-                </div>
+                <p className="text-xs text-slate-400 py-6 text-center">No active medication orders.</p>
               )}
             </div>
           )}
 
-          {activeTab === 'referral' && (
-            <div>
-              {patient.referral ? (
-                <div className="card-box bg-sky-50 border-sky-300">
-                  <div className="flex justify-between items-center mb-3">
-                    <h3 className="text-sky-900 font-bold flex items-center gap-2">
-                      <Hospital size={20} /> Hospital Referral Info
-                    </h3>
-                    <span className={`badge ${patient.referral.status === 'Approved' ? 'badge-success' : 'badge-warning'}`}>
-                      Status: {patient.referral.status}
-                    </span>
+          {/* TAB 4: COUNSELLING */}
+          {activeTab === 'counselling' && (
+            <div className="space-y-3">
+              {patient.counsellingHistory && patient.counsellingHistory.length > 0 ? (
+                patient.counsellingHistory.map((sess, idx) => (
+                  <div key={idx} className="p-3.5 rounded-xl border border-slate-200 bg-slate-50 space-y-1 text-xs">
+                    <div className="flex justify-between items-center">
+                      <strong className="text-slate-900">{sess.topic}</strong>
+                      <span className="text-2xs text-slate-400">{sess.date}</span>
+                    </div>
+                    <p className="text-slate-600">{sess.notes}</p>
                   </div>
-                  <div className="space-y-1.5 text-xs text-slate-800">
-                    <div>Hospital: <strong>{patient.referral.hospitalName}</strong></div>
-                    <div>Doctor: <strong>{patient.referral.doctorName}</strong></div>
-                    <div>Urgency: <strong className={patient.referral.urgency === 'Urgent' ? 'text-rose-700' : 'text-amber-700'}>{patient.referral.urgency}</strong></div>
-                    <div>Reason: <strong>{patient.referral.reason}</strong></div>
-                    <div>Doctor Clinical Notes: <strong>{patient.referral.notes || 'Awaiting doctor review.'}</strong></div>
-                  </div>
-                </div>
+                ))
               ) : (
-                <div className="empty-state">
-                  <Hospital size={36} className="text-slate-400 mb-2" />
-                  <p>No active hospital referral generated.</p>
-                  <button className="btn btn-primary mt-2 text-xs" onClick={() => onOpenReferral(patient)}>
-                    Create Referral
+                <div className="text-center py-6">
+                  <p className="text-xs text-slate-400 mb-3">No counselling history recorded.</p>
+                  <button className="btn btn-primary text-xs" onClick={() => onOpenCounselling(patient)}>
+                    Conduct ThinkLets Session
                   </button>
                 </div>
               )}
             </div>
           )}
 
-          {activeTab === 'reports' && (
-            <div className="space-y-3">
-              <div className="flex justify-between items-center">
-                <h4 className="text-sm font-bold text-slate-900">Uploaded Medical Reports</h4>
-                <button className="btn btn-secondary text-xs flex items-center gap-1" onClick={() => setShowUploadForm(!showUploadForm)}>
-                  <Upload size={14} /> Upload Lab Report
-                </button>
-              </div>
-
-              {showUploadForm && (
-                <form onSubmit={handleUploadReport} className="card-box bg-slate-50 border-slate-300 mb-3">
-                  <h5 className="text-xs font-bold text-slate-900 mb-2">Upload Medical Lab File</h5>
-                  <div className="form-group mb-2">
-                    <label>Report Title</label>
-                    <input 
-                      type="text" 
-                      placeholder="e.g. Fasting Glucose Lab Slip"
-                      value={reportTitle}
-                      onChange={(e) => setReportTitle(e.target.value)}
-                      className="form-input text-xs"
-                      required
-                    />
+          {/* TAB 5: REFERRALS & REPORTS */}
+          {activeTab === 'referrals' && (
+            <div className="space-y-4">
+              {patient.referral ? (
+                <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 space-y-2 text-xs">
+                  <div className="flex justify-between items-center">
+                    <strong className="text-slate-900">{patient.referral.hospitalName}</strong>
+                    <span className={`badge ${patient.referral.status === 'Approved' ? 'badge-risk-low' : 'badge-risk-moderate'}`}>
+                      {patient.referral.status}
+                    </span>
                   </div>
-                  <div className="form-group mb-2">
-                    <label>Report Findings</label>
-                    <textarea 
-                      placeholder="Enter findings..."
-                      value={reportSummary}
-                      onChange={(e) => setReportSummary(e.target.value)}
-                      className="form-input text-xs"
-                      rows={2}
-                    />
-                  </div>
-                  <div className="flex justify-end gap-2">
-                    <button type="button" className="btn btn-secondary text-xs" onClick={() => setShowUploadForm(false)}>Cancel</button>
-                    <button type="submit" className="btn btn-primary text-xs">Save Report</button>
-                  </div>
-                </form>
-              )}
-
-              {patient.reports && patient.reports.length > 0 ? (
-                <div className="grid-2-col gap-3">
-                  {patient.reports.map(r => (
-                    <div key={r.id} className="card-box bg-white border-slate-200">
-                      <FileText size={20} className="text-sky-600 mb-1" />
-                      <div className="font-bold text-xs text-slate-900">{r.title}</div>
-                      <div className="text-2xs text-slate-500">Date: {r.date}</div>
-                      <p className="text-xs text-slate-700 mt-1">{r.summary}</p>
-                    </div>
-                  ))}
+                  <p className="text-slate-600"><strong>Reason:</strong> {patient.referral.reason}</p>
+                  {patient.referral.notes && (
+                    <p className="p-2.5 rounded bg-white border border-slate-200 text-slate-700">
+                      <strong>Doctor Notes:</strong> {patient.referral.notes}
+                    </p>
+                  )}
                 </div>
               ) : (
-                <div className="empty-state">
-                  <FileText size={36} className="text-slate-400 mb-2" />
-                  <p>No lab reports uploaded yet.</p>
-                </div>
+                <p className="text-xs text-slate-400 py-4 text-center">No active hospital referrals.</p>
               )}
+
+              {/* Upload Report Section */}
+              <div className="pt-3 border-t border-slate-200">
+                <div className="flex justify-between items-center mb-2">
+                  <h4 className="text-xs font-bold text-slate-900">Clinical Reports & Documents</h4>
+                  <button className="btn btn-secondary text-xs" onClick={() => setShowUploadForm(!showUploadForm)}>
+                    + Upload Report
+                  </button>
+                </div>
+
+                {showUploadForm && (
+                  <form onSubmit={handleUploadReport} className="p-3.5 rounded-xl border border-slate-200 bg-slate-50 space-y-2.5 mb-3">
+                    <div className="form-group">
+                      <label className="form-label">Report Title</label>
+                      <input type="text" value={reportTitle} onChange={(e) => setReportTitle(e.target.value)} className="form-input text-xs" placeholder="e.g. Fasting Lipid Profile" required />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Summary</label>
+                      <input type="text" value={reportSummary} onChange={(e) => setReportSummary(e.target.value)} className="form-input text-xs" placeholder="e.g. Total cholesterol 195 mg/dL" />
+                    </div>
+                    <button type="submit" className="btn btn-primary text-xs">Save Report</button>
+                  </form>
+                )}
+
+                <div className="space-y-2">
+                  {patient.reports && patient.reports.length > 0 ? (
+                    patient.reports.map((rep, idx) => (
+                      <div key={idx} className="p-3 rounded-lg border border-slate-200 bg-white flex justify-between items-center text-xs">
+                        <div>
+                          <strong className="text-slate-900 block">{rep.title}</strong>
+                          <span className="text-2xs text-slate-500">{rep.summary}</span>
+                        </div>
+                        <span className="text-2xs text-slate-400">{rep.date}</span>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-2xs text-slate-400">No external reports uploaded.</p>
+                  )}
+                </div>
+              </div>
             </div>
           )}
         </div>

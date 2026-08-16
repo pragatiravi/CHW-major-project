@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
-import { X, UserPlus, Save, Activity, Upload, AlertCircle } from 'lucide-react';
+import { X, UserPlus, Save, Activity, AlertCircle } from 'lucide-react';
 import { assessPatientRisk } from '../../utils/predictionEngine';
+import { useToast } from '../shared/ToastContainer';
 
 export default function PatientRegistrationModal({ onClose, onSavePatient, initialData = null }) {
+  const { toastError, toastSuccess } = useToast();
   const [formData, setFormData] = useState({
     id: initialData?.id || 'P' + Math.floor(1000 + Math.random() * 9000),
     name: initialData?.name || '',
@@ -36,8 +38,8 @@ export default function PatientRegistrationModal({ onClose, onSavePatient, initi
     { id: 'chest_pain', label: 'Chest Pain / Angina', critical: true },
     { id: 'headache', label: 'Severe Headache' },
     { id: 'dizziness', label: 'Dizziness / Vertigo' },
-    { id: 'polyuria', label: 'Polyuria (Frequent Urination)' },
-    { id: 'polydipsia', label: 'Polydipsia (Excessive Thirst)' },
+    { id: 'polyuria', label: 'Frequent Urination (Polyuria)' },
+    { id: 'polydipsia', label: 'Excessive Thirst (Polydipsia)' },
     { id: 'blurred_vision', label: 'Blurred Vision' },
     { id: 'fatigue', label: 'Chronic Fatigue' }
   ];
@@ -66,7 +68,7 @@ export default function PatientRegistrationModal({ onClose, onSavePatient, initi
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!formData.name.trim()) {
-      alert('Please enter patient full name');
+      toastError('Please enter patient full name');
       return;
     }
     
@@ -74,6 +76,7 @@ export default function PatientRegistrationModal({ onClose, onSavePatient, initi
     const evaluation = assessPatientRisk(formData);
     const completeRecord = {
       ...formData,
+      name: formData.name.trim(),
       evaluation
     };
 
@@ -83,39 +86,49 @@ export default function PatientRegistrationModal({ onClose, onSavePatient, initi
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal-dialog modal-lg" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header">
-          <div className="flex items-center gap-2">
-            <UserPlus className="text-indigo-400" size={22} />
-            <h2>{initialData ? 'Update Patient Record' : 'Register New Patient'}</h2>
+      <div 
+        className="card-box w-full max-w-3xl max-h-[90vh] bg-white rounded-2xl shadow-2xl p-0 flex flex-col overflow-hidden" 
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex justify-between items-center px-6 py-4 border-b border-slate-200 bg-slate-50">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-sky-100 text-sky-700 flex items-center justify-center">
+              <UserPlus size={20} />
+            </div>
+            <div>
+              <h2 className="text-base font-bold text-slate-900">{initialData ? 'Update Patient Record' : 'Register New Patient'}</h2>
+              <p className="text-2xs text-slate-500">Record community member demographic and baseline health profile</p>
+            </div>
           </div>
-          <button className="close-btn" onClick={onClose}><X size={20} /></button>
+          <button className="btn-icon-xs" onClick={onClose}><X size={16} /></button>
         </div>
 
-        <form onSubmit={handleSubmit} className="modal-body">
+        {/* Body */}
+        <form onSubmit={handleSubmit} className="p-6 overflow-y-auto space-y-5 flex-1">
           {/* Demographics Section */}
-          <div className="form-section">
-            <h3 className="form-section-title">1. Patient Demographics</h3>
-            <div className="grid-3-col">
+          <div className="space-y-3">
+            <span className="metric-label text-2xs uppercase block">1. Patient Demographics</span>
+            <div className="grid-3-col gap-3">
               <div className="form-group">
-                <label>Full Name *</label>
+                <label className="form-label">Full Name *</label>
                 <input 
                   type="text" 
                   value={formData.name} 
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   placeholder="e.g. Ramesh Chandra"
-                  className="form-input"
+                  className="form-input text-xs"
                   required
                 />
               </div>
 
               <div className="form-group">
-                <label>Age (Years) *</label>
+                <label className="form-label">Age (Years) *</label>
                 <input 
                   type="number" 
                   value={formData.age} 
                   onChange={(e) => setFormData({ ...formData, age: parseInt(e.target.value) || 0 })}
-                  className="form-input"
+                  className="form-input text-xs"
                   min={1}
                   max={120}
                   required
@@ -123,11 +136,11 @@ export default function PatientRegistrationModal({ onClose, onSavePatient, initi
               </div>
 
               <div className="form-group">
-                <label>Gender *</label>
+                <label className="form-label">Gender *</label>
                 <select 
                   value={formData.gender} 
                   onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
-                  className="form-input"
+                  className="form-input text-xs"
                 >
                   <option value="female">Female</option>
                   <option value="male">Male</option>
@@ -136,185 +149,144 @@ export default function PatientRegistrationModal({ onClose, onSavePatient, initi
               </div>
             </div>
 
-            <div className="grid-2-col mt-2">
+            <div className="grid-2-col gap-3">
               <div className="form-group">
-                <label>Phone Number</label>
+                <label className="form-label">Phone Number</label>
                 <input 
                   type="text" 
                   value={formData.phone} 
                   onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                   placeholder="+91 98765 43210"
-                  className="form-input"
+                  className="form-input text-xs"
                 />
               </div>
 
               <div className="form-group">
-                <label>Residential Address / Sector</label>
+                <label className="form-label">Village / Community Sector</label>
                 <input 
                   type="text" 
                   value={formData.address} 
                   onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                   placeholder="House #, Village/Sector Name"
-                  className="form-input"
+                  className="form-input text-xs"
                 />
               </div>
             </div>
           </div>
 
-          {/* Clinical Vital Signs Section */}
-          <div className="form-section mt-4">
-            <h3 className="form-section-title">2. Vital Signs & Body Measurements</h3>
-            <div className="grid-4-col">
+          {/* Vitals Section */}
+          <div className="space-y-3 pt-3 border-t border-slate-200">
+            <span className="metric-label text-2xs uppercase block">2. Baseline Vitals & Measurements</span>
+            <div className="grid-4-col gap-3">
               <div className="form-group">
-                <label>Systolic BP (mmHg)</label>
+                <label className="form-label">Systolic BP (mmHg)</label>
                 <input 
                   type="number" 
                   value={formData.systolic} 
                   onChange={(e) => setFormData({ ...formData, systolic: parseInt(e.target.value) || 120 })}
-                  className="form-input"
+                  className="form-input text-xs"
                 />
               </div>
 
               <div className="form-group">
-                <label>Diastolic BP (mmHg)</label>
+                <label className="form-label">Diastolic BP (mmHg)</label>
                 <input 
                   type="number" 
                   value={formData.diastolic} 
                   onChange={(e) => setFormData({ ...formData, diastolic: parseInt(e.target.value) || 80 })}
-                  className="form-input"
+                  className="form-input text-xs"
                 />
               </div>
 
               <div className="form-group">
-                <label>Blood Glucose (mg/dL)</label>
+                <label className="form-label">Glucose (mg/dL)</label>
                 <input 
                   type="number" 
                   value={formData.glucose} 
                   onChange={(e) => setFormData({ ...formData, glucose: parseInt(e.target.value) || 90 })}
-                  className="form-input"
+                  className="form-input text-xs"
                 />
               </div>
 
               <div className="form-group">
-                <label>Glucose Measurement Type</label>
+                <label className="form-label">Measurement Type</label>
                 <select 
                   value={formData.glucoseType} 
                   onChange={(e) => setFormData({ ...formData, glucoseType: e.target.value })}
-                  className="form-input"
+                  className="form-input text-xs"
                 >
                   <option value="random">Random Glucose</option>
                   <option value="fasting">Fasting Glucose</option>
-                  <option value="postprandial">Post-Prandial (2hr)</option>
+                  <option value="postprandial">Post-Prandial</option>
                 </select>
               </div>
             </div>
 
-            <div className="grid-4-col mt-2">
+            <div className="grid-3-col gap-3">
               <div className="form-group">
-                <label>Weight (kg)</label>
+                <label className="form-label">Weight (kg)</label>
                 <input 
                   type="number" 
                   value={formData.weight} 
                   onChange={(e) => handleWeightHeightChange(parseFloat(e.target.value) || 0, formData.height)}
-                  className="form-input"
+                  className="form-input text-xs"
                 />
               </div>
 
               <div className="form-group">
-                <label>Height (cm)</label>
+                <label className="form-label">Height (cm)</label>
                 <input 
                   type="number" 
                   value={formData.height} 
                   onChange={(e) => handleWeightHeightChange(formData.weight, parseFloat(e.target.value) || 0)}
-                  className="form-input"
+                  className="form-input text-xs"
                 />
               </div>
 
               <div className="form-group">
-                <label>Calculated BMI (kg/m²)</label>
+                <label className="form-label">Calculated BMI</label>
                 <input 
                   type="text" 
-                  value={formData.bmi} 
-                  disabled 
-                  className="form-input bg-secondary font-bold text-indigo-400"
-                />
-              </div>
-
-              <div className="form-group">
-                <label>Heart Rate (BPM)</label>
-                <input 
-                  type="number" 
-                  value={formData.heartRate} 
-                  onChange={(e) => setFormData({ ...formData, heartRate: parseInt(e.target.value) || 75 })}
-                  className="form-input"
+                  value={`${formData.bmi} kg/m²`} 
+                  readOnly 
+                  className="form-input text-xs bg-slate-100 font-bold text-slate-700"
                 />
               </div>
             </div>
           </div>
 
           {/* Symptoms Checklist */}
-          <div className="form-section mt-4">
-            <h3 className="form-section-title">3. Presenting Symptoms & Risk Factors</h3>
-            <div className="symptoms-checkbox-grid">
+          <div className="space-y-3 pt-3 border-t border-slate-200">
+            <span className="metric-label text-2xs uppercase block">3. Presenting Symptoms</span>
+            <div className="grid-2-col gap-2">
               {availableSymptoms.map((sym) => (
-                <label key={sym.id} className={`checkbox-card ${formData.symptoms.includes(sym.id) ? 'checked' : ''}`}>
+                <label 
+                  key={sym.id} 
+                  className={`p-2.5 rounded-lg border text-xs flex items-center justify-between cursor-pointer ${
+                    formData.symptoms.includes(sym.id) 
+                      ? 'border-sky-300 bg-sky-50 font-bold text-sky-950' 
+                      : 'border-slate-200 bg-white text-slate-700'
+                  }`}
+                >
+                  <span>{sym.label} {sym.critical && <span className="text-rose-600 font-bold text-3xs">(CRITICAL)</span>}</span>
                   <input 
                     type="checkbox" 
                     checked={formData.symptoms.includes(sym.id)} 
                     onChange={() => handleSymptomToggle(sym.id)}
+                    className="w-4 h-4 text-sky-600"
                   />
-                  <span>{sym.label}</span>
-                  {sym.critical && <span className="text-xs text-red-400 font-bold ml-1">(CRITICAL)</span>}
                 </label>
               ))}
             </div>
-
-            <div className="grid-4-col mt-3">
-              <label className="toggle-switch-card">
-                <span>Family History of HTN/Diabetes</span>
-                <input 
-                  type="checkbox" 
-                  checked={formData.familyHistory} 
-                  onChange={(e) => setFormData({ ...formData, familyHistory: e.target.checked })}
-                />
-              </label>
-
-              <label className="toggle-switch-card">
-                <span>Active Tobacco Smoker</span>
-                <input 
-                  type="checkbox" 
-                  checked={formData.smoking} 
-                  onChange={(e) => setFormData({ ...formData, smoking: e.target.checked })}
-                />
-              </label>
-
-              <label className="toggle-switch-card">
-                <span>Alcohol Consumption</span>
-                <input 
-                  type="checkbox" 
-                  checked={formData.alcohol} 
-                  onChange={(e) => setFormData({ ...formData, alcohol: e.target.checked })}
-                />
-              </label>
-
-              <label className="toggle-switch-card">
-                <span>Physically Active Lifestyle</span>
-                <input 
-                  type="checkbox" 
-                  checked={formData.activeLifestyle} 
-                  onChange={(e) => setFormData({ ...formData, activeLifestyle: e.target.checked })}
-                />
-              </label>
-            </div>
           </div>
 
-          {/* Modal Footer Controls */}
-          <div className="modal-footer mt-4 flex justify-end gap-2">
-            <button type="button" className="btn btn-secondary" onClick={onClose}>
+          {/* Footer Controls */}
+          <div className="pt-4 border-t border-slate-200 flex justify-end gap-2">
+            <button type="button" className="btn btn-secondary text-xs" onClick={onClose}>
               Cancel
             </button>
-            <button type="submit" className="btn btn-primary flex items-center gap-1">
-              <Save size={16} /> Save Patient Record & Run AI
+            <button type="submit" className="btn btn-primary text-xs font-bold flex items-center gap-1">
+              <Save size={14} /> Save Patient Record & Run CDSS
             </button>
           </div>
         </form>

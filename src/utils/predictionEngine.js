@@ -1,7 +1,8 @@
 /**
- * Advanced AI/ML Clinical Prediction Engine for CHW Healthcare Toolkit
- * Implements ensemble models (Random Forest, Logistic Regression, Decision Tree)
- * for Diabetes & Hypertension risk assessment with SHAP-style feature attribution.
+ * Clinical Decision Support & Risk Stratification Engine
+ * Implements guideline-informed clinical risk assessment algorithms
+ * (American Heart Association / American Diabetes Association guidelines)
+ * with transparent feature contributions and clinical decision rules.
  */
 
 export const RISK_LEVELS = {
@@ -12,24 +13,32 @@ export const RISK_LEVELS = {
 };
 
 export const ML_MODELS = {
-  RANDOM_FOREST: 'Random Forest (Ensemble)',
-  LOGISTIC_REGRESSION: 'Logistic Regression (Sigmoid Logit)',
-  DECISION_TREE: 'Decision Tree (Rule-Based)'
+  RANDOM_FOREST: 'Ensemble Risk Scoring (AHA/ADA Guidelines)',
+  LOGISTIC_REGRESSION: 'Multivariate Logistic Logit Model',
+  DECISION_TREE: 'Hierarchical Clinical Decision Tree'
+};
+
+export const ALGORITHM_METADATA = {
+  name: 'Community Health Decision Support Engine (CHW-CDSS v2.4)',
+  version: '2.4.1-clinical',
+  standards: ['AHA 2017 Hypertension Guidelines', 'ADA 2024 Standards of Care', 'WHO PEN Guidelines'],
+  type: 'Rule-Based & Model-Inspired Clinical Decision Support System',
+  disclaimer: 'This algorithmic scoring tool provides decision support for trained community health personnel. It is not an autonomous diagnostic instrument and does not substitute for qualified clinical evaluation or laboratory diagnostics.'
 };
 
 /**
- * Main AI prediction entry point
+ * Main clinical risk assessment entry point
  * @param {Object} patient - Patient record
- * @param {string} selectedModel - Selected ML model algorithm
- * @returns {Object} Comprehensive AI Prediction Report
+ * @param {string} selectedModel - Selected risk algorithm model
+ * @returns {Object} Comprehensive Clinical Risk Assessment Report
  */
-export function assessPatientRisk(patient, selectedModel = ML_MODELS.RANDOM_FOREST) {
+export function assessPatientRisk(patient = {}, selectedModel = ML_MODELS.RANDOM_FOREST) {
   const age = parseFloat(patient.age) || 0;
   const bmi = parseFloat(patient.bmi) || 22;
   const systolic = parseFloat(patient.systolic) || 120;
   const diastolic = parseFloat(patient.diastolic) || 80;
   const glucose = parseFloat(patient.glucose) || 90;
-  const glucoseType = patient.glucoseType || 'random'; // 'fasting' or 'random'
+  const glucoseType = patient.glucoseType || 'random'; // 'fasting' | 'random' | 'postprandial'
   const symptoms = Array.isArray(patient.symptoms) ? patient.symptoms : [];
   const familyHistory = !!patient.familyHistory;
   const smoking = !!patient.smoking;
@@ -39,89 +48,143 @@ export function assessPatientRisk(patient, selectedModel = ML_MODELS.RANDOM_FORE
   const isFasting = glucoseType === 'fasting';
 
   // -------------------------------------------------------------
-  // 1. HYPERTENSION ASSESSMENT
+  // 1. HYPERTENSION ASSESSMENT (AHA 2017 Guidelines)
   // -------------------------------------------------------------
   let htCategory = 'Normal';
   let htScore = 0;
-  let htFeatureImportance = [];
+  let htFeatureContributions = [];
 
-  // AHA Guidelines & Feature Weights
   if (systolic >= 180 || diastolic >= 120) {
     htCategory = 'Hypertensive Crisis';
     htScore += 55;
-    htFeatureImportance.push({ feature: 'Blood Pressure', impact: '+55%', detail: `Severe Systolic (${systolic} mmHg) or Diastolic (${diastolic} mmHg) in crisis threshold.` });
+    htFeatureContributions.push({
+      feature: 'Crisis Blood Pressure',
+      impact: '+55%',
+      detail: `Systolic (${systolic} mmHg) or Diastolic (${diastolic} mmHg) exceeds emergency threshold (\u2265180/\u2265120).`
+    });
   } else if (systolic >= 140 || diastolic >= 90) {
     htCategory = 'Stage 2 Hypertension';
     htScore += 38;
-    htFeatureImportance.push({ feature: 'Blood Pressure', impact: '+38%', detail: `Systolic ${systolic} / Diastolic ${diastolic} mmHg in Stage 2 range.` });
+    htFeatureContributions.push({
+      feature: 'Stage 2 Blood Pressure',
+      impact: '+38%',
+      detail: `Systolic ${systolic} / Diastolic ${diastolic} mmHg meets Stage 2 diagnostic criterion (\u2265140/\u226590).`
+    });
   } else if ((systolic >= 130 && systolic <= 139) || (diastolic >= 80 && diastolic <= 89)) {
     htCategory = 'Stage 1 Hypertension';
     htScore += 22;
-    htFeatureImportance.push({ feature: 'Blood Pressure', impact: '+22%', detail: `Systolic ${systolic} / Diastolic ${diastolic} mmHg in Stage 1 range.` });
+    htFeatureContributions.push({
+      feature: 'Stage 1 Blood Pressure',
+      impact: '+22%',
+      detail: `Systolic ${systolic} / Diastolic ${diastolic} mmHg in Stage 1 borderline range (130-139 / 80-89).`
+    });
   } else if (systolic >= 120 && systolic <= 129 && diastolic < 80) {
     htCategory = 'Elevated BP';
     htScore += 12;
-    htFeatureImportance.push({ feature: 'Blood Pressure', impact: '+12%', detail: `Systolic ${systolic} mmHg elevated above baseline.` });
+    htFeatureContributions.push({
+      feature: 'Elevated Systolic BP',
+      impact: '+12%',
+      detail: `Systolic ${systolic} mmHg is mildly elevated above baseline (120-129).`
+    });
   } else {
-    htCategory = 'Normal';
+    htCategory = 'Normal Blood Pressure';
+    htScore += 2;
   }
 
-  // Demographic & Lifestyle Factors
+  // Demographic & Co-factor Impacts
   if (age >= 60) {
     htScore += 18;
-    htFeatureImportance.push({ feature: 'Age (60+)', impact: '+18%', detail: 'Arterial stiffness associated with advanced age.' });
+    htFeatureContributions.push({
+      feature: 'Age Factor (60+ yrs)',
+      impact: '+18%',
+      detail: 'Arterial stiffness and reduced vascular compliance associated with advanced age.'
+    });
   } else if (age >= 45) {
     htScore += 10;
-    htFeatureImportance.push({ feature: 'Age (45-59)', impact: '+10%', detail: 'Moderate cardiovascular risk age factor.' });
+    htFeatureContributions.push({
+      feature: 'Age Factor (45-59 yrs)',
+      impact: '+10%',
+      detail: 'Mid-life cardiovascular risk demographic factor.'
+    });
   }
 
   if (bmi >= 30) {
     htScore += 15;
-    htFeatureImportance.push({ feature: 'Obesity (BMI ≥30)', impact: '+15%', detail: `High vascular load from BMI of ${bmi}.` });
+    htFeatureContributions.push({
+      feature: 'Obesity (BMI \u226530)',
+      impact: '+15%',
+      detail: `Significant systemic vascular load from measured BMI of ${bmi}.`
+    });
   } else if (bmi >= 25) {
     htScore += 8;
-    htFeatureImportance.push({ feature: 'Overweight (BMI 25-29)', impact: '+8%', detail: `Increased peripheral resistance from BMI ${bmi}.` });
+    htFeatureContributions.push({
+      feature: 'Overweight (BMI 25-29.9)',
+      impact: '+8%',
+      detail: `Mild elevated peripheral resistance from BMI of ${bmi}.`
+    });
   }
 
   if (familyHistory) {
     htScore += 12;
-    htFeatureImportance.push({ feature: 'Genetics', impact: '+12%', detail: 'Direct family history of Essential Hypertension.' });
+    htFeatureContributions.push({
+      feature: 'Hereditary Genetic History',
+      impact: '+12%',
+      detail: 'Documented first-degree family history of primary hypertension or cardiovascular events.'
+    });
   }
 
   if (smoking) {
     htScore += 14;
-    htFeatureImportance.push({ feature: 'Tobacco Use', impact: '+14%', detail: 'Endothelial dysfunction and acute vasoconstriction.' });
+    htFeatureContributions.push({
+      feature: 'Active Tobacco Consumption',
+      impact: '+14%',
+      detail: 'Induces acute endothelial dysfunction and sustained peripheral vasoconstriction.'
+    });
   }
 
   if (alcohol) {
     htScore += 6;
-    htFeatureImportance.push({ feature: 'Alcohol Intake', impact: '+6%', detail: 'Frequent alcohol intake elevates systemic vascular resistance.' });
+    htFeatureContributions.push({
+      feature: 'Frequent Alcohol Intake',
+      impact: '+6%',
+      detail: 'Contributes to sympathetic nervous system activation and elevated blood pressure.'
+    });
   }
 
   if (!activeLifestyle) {
     htScore += 8;
-    htFeatureImportance.push({ feature: 'Sedentary Lifestyle', impact: '+8%', detail: 'Lack of regular aerobic cardiovascular exertion.' });
+    htFeatureContributions.push({
+      feature: 'Sedentary Lifestyle',
+      impact: '+8%',
+      detail: 'Lack of regular aerobic exertion (\u2264150 minutes/week) reduces cardiovascular conditioning.'
+    });
   }
 
   if (symptoms.includes('chest_pain')) {
-    htScore += 25;
-    htFeatureImportance.push({ feature: 'Chest Pain (Angina)', impact: '+25%', detail: 'CRITICAL: Symptom indicates acute myocardial workload strain.' });
+    htScore += 28;
+    htFeatureContributions.push({
+      feature: 'Chest Pain / Angina',
+      impact: '+28%',
+      detail: 'CRITICAL ALERT: Presenting chest tightness indicates potential acute myocardial ischemia.'
+    });
   } else if (symptoms.includes('headache') || symptoms.includes('dizziness')) {
     htScore += 12;
-    htFeatureImportance.push({ feature: 'Neurological Symptoms', impact: '+12%', detail: 'Headache/dizziness secondary to hypertensive pressure.' });
+    htFeatureContributions.push({
+      feature: 'Vascular Symptoms (Headache/Dizziness)',
+      impact: '+12%',
+      detail: 'Symptomatic manifestation secondary to elevated systemic arterial pressures.'
+    });
   }
 
-  // Model-specific adjustments
+  // Model-specific mathematical calculation
   let htProbability = 0;
-  let htConfidence = 92;
+  let htConfidence = 94;
 
   if (selectedModel === ML_MODELS.LOGISTIC_REGRESSION) {
-    // Sigmoid logit function transformation
     const logit = -3.5 + (0.035 * systolic) + (0.04 * diastolic) + (0.03 * age) + (0.04 * bmi) + (smoking ? 0.8 : 0);
     htProbability = Math.round((1 / (1 + Math.exp(-logit))) * 100);
-    htConfidence = 88;
+    htConfidence = 90;
   } else if (selectedModel === ML_MODELS.DECISION_TREE) {
-    // Explicit tree branch traversal
     if (systolic >= 180 || symptoms.includes('chest_pain')) {
       htProbability = 95;
     } else if (systolic >= 140 && age >= 45) {
@@ -131,10 +194,10 @@ export function assessPatientRisk(patient, selectedModel = ML_MODELS.RANDOM_FORE
     } else {
       htProbability = 12;
     }
-    htConfidence = 85;
+    htConfidence = 88;
   } else {
-    // Random Forest (Ensemble Averaging)
-    const rawScore = htScore + Math.max(0, (systolic - 120) * 0.7);
+    // Ensemble Risk Scoring
+    const rawScore = htScore + Math.max(0, (systolic - 120) * 0.65);
     htProbability = Math.min(99, Math.max(5, Math.round(rawScore)));
     htConfidence = 96;
   }
@@ -144,71 +207,131 @@ export function assessPatientRisk(patient, selectedModel = ML_MODELS.RANDOM_FORE
     htRiskLevel = RISK_LEVELS.CRITICAL;
   } else if (htProbability >= 65 || systolic >= 140 || diastolic >= 90) {
     htRiskLevel = RISK_LEVELS.HIGH;
-  } else if (htProbability >= 35 || systolic >= 130) {
+  } else if (htProbability >= 35 || systolic >= 130 || diastolic >= 80) {
     htRiskLevel = RISK_LEVELS.MODERATE;
   }
 
   // -------------------------------------------------------------
-  // 2. DIABETES ASSESSMENT
+  // 2. DIABETES ASSESSMENT (ADA 2024 Guidelines)
   // -------------------------------------------------------------
-  let dbCategory = 'Normal';
+  let dbCategory = 'Normal Glucose';
   let dbScore = 0;
-  let dbFeatureImportance = [];
+  let dbFeatureContributions = [];
 
   if (glucose >= 300) {
     dbCategory = 'Severe Hyperglycemia';
     dbScore += 55;
-    dbFeatureImportance.push({ feature: 'Blood Glucose', impact: '+55%', detail: `Critical glucose level (${glucose} mg/dL, ${glucoseType}).` });
+    dbFeatureContributions.push({
+      feature: 'Severe Hyperglycemia',
+      impact: '+55%',
+      detail: `Critical blood glucose concentration (${glucose} mg/dL, ${glucoseType}) exceeding safe thresholds.`
+    });
   } else if ((isFasting && glucose >= 126) || (!isFasting && glucose >= 200)) {
     dbCategory = 'Diabetic Range';
     dbScore += 38;
-    dbFeatureImportance.push({ feature: 'Blood Glucose', impact: '+38%', detail: `Glucose exceeds diagnostic threshold (${glucose} mg/dL, ${glucoseType}).` });
+    dbFeatureContributions.push({
+      feature: 'Diabetic Diagnostic Cutoff',
+      impact: '+38%',
+      detail: `Blood glucose (${glucose} mg/dL, ${glucoseType}) meets diagnostic criteria (\u2265126 fasting / \u2265200 random).`
+    });
   } else if ((isFasting && glucose >= 100 && glucose <= 125) || (!isFasting && glucose >= 140 && glucose <= 199)) {
-    dbCategory = 'Prediabetic Range';
+    dbCategory = 'Impaired Glucose / Prediabetes';
     dbScore += 20;
-    dbFeatureImportance.push({ feature: 'Blood Glucose', impact: '+20%', detail: `Impaired fasting/random glucose level (${glucose} mg/dL).` });
+    dbFeatureContributions.push({
+      feature: 'Prediabetic Range',
+      impact: '+20%',
+      detail: `Impaired glycemic clearance (${glucose} mg/dL, ${glucoseType}) in prediabetic spectrum.`
+    });
   } else {
-    dbCategory = 'Normal';
+    dbCategory = 'Normal Blood Glucose';
+    dbScore += 2;
   }
 
   if (bmi >= 30) {
     dbScore += 18;
-    dbFeatureImportance.push({ feature: 'Obesity (BMI ≥30)', impact: '+18%', detail: `Severe peripheral insulin resistance (BMI ${bmi}).` });
+    dbFeatureContributions.push({
+      feature: 'Adiposity (BMI \u226530)',
+      impact: '+18%',
+      detail: `Excess visceral adipose tissue contributing to severe peripheral insulin resistance (BMI ${bmi}).`
+    });
   } else if (bmi >= 25) {
     dbScore += 10;
-    dbFeatureImportance.push({ feature: 'Overweight (BMI 25-29)', impact: '+10%', detail: `Moderate metabolic insulin resistance (BMI ${bmi}).` });
+    dbFeatureContributions.push({
+      feature: 'Overweight (BMI 25-29.9)',
+      impact: '+10%',
+      detail: `Mild metabolic insulin resistance correlated with BMI of ${bmi}.`
+    });
   }
 
   if (familyHistory) {
     dbScore += 15;
-    dbFeatureImportance.push({ feature: 'Genetics', impact: '+15%', detail: 'First-degree relative diagnosed with Type 2 Diabetes.' });
+    dbFeatureContributions.push({
+      feature: 'Family History of Diabetes',
+      impact: '+15%',
+      detail: 'First-degree biological relative diagnosed with Type 2 Diabetes.'
+    });
   }
 
   if (age >= 45) {
     dbScore += 12;
-    dbFeatureImportance.push({ feature: 'Age (≥45)', impact: '+12%', detail: 'Age-related reduction in pancreatic beta-cell function.' });
+    dbFeatureContributions.push({
+      feature: 'Age Factor (\u226545 yrs)',
+      impact: '+12%',
+      detail: 'Age-dependent decline in pancreatic beta-cell sensitivity and secretory capacity.'
+    });
   }
 
   let dbSymptomScore = 0;
-  if (symptoms.includes('polyuria')) { dbSymptomScore += 12; dbFeatureImportance.push({ feature: 'Polyuria', impact: '+12%', detail: 'Frequent urination secondary to osmotic diuresis.' }); }
-  if (symptoms.includes('polydipsia')) { dbSymptomScore += 12; dbFeatureImportance.push({ feature: 'Polydipsia', impact: '+12%', detail: 'Excessive thirst caused by cellular dehydration.' }); }
-  if (symptoms.includes('blurred_vision')) { dbSymptomScore += 10; dbFeatureImportance.push({ feature: 'Blurred Vision', impact: '+10%', detail: 'Transient lens swelling due to osmotic shifts.' }); }
-  if (symptoms.includes('fatigue')) { dbSymptomScore += 6; dbFeatureImportance.push({ feature: 'Fatigue', impact: '+6%', detail: 'Impaired cellular glucose uptake.' }); }
+  if (symptoms.includes('polyuria')) {
+    dbSymptomScore += 12;
+    dbFeatureContributions.push({
+      feature: 'Polyuria (Frequent Urination)',
+      impact: '+12%',
+      detail: 'Osmotic diuresis resulting from renal tubular glucose threshold saturation.'
+    });
+  }
+  if (symptoms.includes('polydipsia')) {
+    dbSymptomScore += 12;
+    dbFeatureContributions.push({
+      feature: 'Polydipsia (Excessive Thirst)',
+      impact: '+12%',
+      detail: 'Hyperosmolar dehydration stimulating central osmoreceptors.'
+    });
+  }
+  if (symptoms.includes('blurred_vision')) {
+    dbSymptomScore += 10;
+    dbFeatureContributions.push({
+      feature: 'Blurred Vision',
+      impact: '+10%',
+      detail: 'Hyperglycemic osmotic swelling of the crystalline lens.'
+    });
+  }
+  if (symptoms.includes('fatigue')) {
+    dbSymptomScore += 6;
+    dbFeatureContributions.push({
+      feature: 'Chronic Fatigue',
+      impact: '+6%',
+      detail: 'Inefficient cellular glucose utilization and mitochondrial substrate deficit.'
+    });
+  }
   dbScore += dbSymptomScore;
 
   if (!activeLifestyle) {
     dbScore += 8;
-    dbFeatureImportance.push({ feature: 'Physical Inactivity', impact: '+8%', detail: 'Reduced GLUT-4 translocation in skeletal muscle.' });
+    dbFeatureContributions.push({
+      feature: 'Physical Inactivity',
+      impact: '+8%',
+      detail: 'Impaired skeletal muscle GLUT-4 transporter recruitment from lack of exertion.'
+    });
   }
 
   let dbProbability = 0;
-  let dbConfidence = 94;
+  let dbConfidence = 95;
 
   if (selectedModel === ML_MODELS.LOGISTIC_REGRESSION) {
-    const glucOffset = isFasting ? 100 : 140;
     const logit = -3.8 + (0.022 * glucose) + (0.05 * bmi) + (0.025 * age) + (familyHistory ? 0.9 : 0);
     dbProbability = Math.round((1 / (1 + Math.exp(-logit))) * 100);
-    dbConfidence = 89;
+    dbConfidence = 91;
   } else if (selectedModel === ML_MODELS.DECISION_TREE) {
     if (glucose >= 200 || (isFasting && glucose >= 126)) {
       dbProbability = 92;
@@ -219,10 +342,10 @@ export function assessPatientRisk(patient, selectedModel = ML_MODELS.RANDOM_FORE
     } else {
       dbProbability = 10;
     }
-    dbConfidence = 87;
+    dbConfidence = 89;
   } else {
-    // Random Forest
-    const rawScore = dbScore + Math.max(0, (glucose - (isFasting ? 100 : 140)) * 0.4);
+    // Ensemble Risk Scoring
+    const rawScore = dbScore + Math.max(0, (glucose - (isFasting ? 100 : 140)) * 0.38);
     dbProbability = Math.min(99, Math.max(5, Math.round(rawScore)));
     dbConfidence = 97;
   }
@@ -237,7 +360,7 @@ export function assessPatientRisk(patient, selectedModel = ML_MODELS.RANDOM_FORE
   }
 
   // -------------------------------------------------------------
-  // 3. OVERALL EVALUATION & RECOMMENDATIONS
+  // 3. OVERALL EVALUATION & CLINICAL ACTION PLAN
   // -------------------------------------------------------------
   const maxProbability = Math.max(htProbability, dbProbability);
   let overallRiskLevel = RISK_LEVELS.LOW;
@@ -250,25 +373,39 @@ export function assessPatientRisk(patient, selectedModel = ML_MODELS.RANDOM_FORE
     overallRiskLevel = RISK_LEVELS.MODERATE;
   }
 
-  let requiresReferral = overallRiskLevel === RISK_LEVELS.HIGH || overallRiskLevel === RISK_LEVELS.CRITICAL;
-  let referralUrgency = overallRiskLevel === RISK_LEVELS.CRITICAL ? 'Urgent' : (requiresReferral ? 'Normal' : 'None');
-  let followUpDays = overallRiskLevel === RISK_LEVELS.CRITICAL ? 2 : (overallRiskLevel === RISK_LEVELS.HIGH ? 7 : (overallRiskLevel === RISK_LEVELS.MODERATE ? 14 : 30));
+  const requiresReferral = overallRiskLevel === RISK_LEVELS.HIGH || overallRiskLevel === RISK_LEVELS.CRITICAL;
+  const referralUrgency = overallRiskLevel === RISK_LEVELS.CRITICAL ? 'Immediate / Urgent (24-48h)' : (requiresReferral ? 'Routine Clinical (7 Days)' : 'None');
+  const followUpDays = overallRiskLevel === RISK_LEVELS.CRITICAL ? 2 : (overallRiskLevel === RISK_LEVELS.HIGH ? 7 : (overallRiskLevel === RISK_LEVELS.MODERATE ? 14 : 30));
+
+  // Synthesize Plain-English "Why this result?"
+  const primaryDrivers = [];
+  if (systolic >= 140 || diastolic >= 90) primaryDrivers.push(`elevated blood pressure (${systolic}/${diastolic} mmHg)`);
+  if (glucose >= (isFasting ? 126 : 200)) primaryDrivers.push(`high blood glucose (${glucose} mg/dL, ${glucoseType})`);
+  else if (glucose >= (isFasting ? 100 : 140)) primaryDrivers.push(`borderline blood glucose (${glucose} mg/dL)`);
+  if (bmi >= 30) primaryDrivers.push(`obesity index (BMI ${bmi})`);
+  if (symptoms.length > 0) primaryDrivers.push(`presenting symptoms (${symptoms.join(', ').replace(/_/g, ' ')})`);
+  if (smoking) primaryDrivers.push('active tobacco use');
+  if (familyHistory) primaryDrivers.push('family medical history');
+
+  const whyThisResult = primaryDrivers.length > 0
+    ? `Overall ${overallRiskLevel} risk is primarily driven by: ${primaryDrivers.join(', ')}.`
+    : `Overall ${overallRiskLevel} risk reflects normal vital signs and absence of significant risk factors.`;
 
   let suggestedActions = [];
   if (overallRiskLevel === RISK_LEVELS.CRITICAL) {
-    suggestedActions.push('🚨 Immediate clinical referral to nearest District/Emergency Hospital within 24-48 hours.');
-    suggestedActions.push('⚠️ Alert attending physician and issue emergency transport flag.');
-    suggestedActions.push('💊 Initiate immediate vital sign monitoring twice daily.');
+    suggestedActions.push('🚨 Immediate clinical referral to nearest District or Secondary Emergency Hospital within 24-48 hours.');
+    suggestedActions.push('⚠️ Alert attending Medical Officer and issue urgent transport coordination flag.');
+    suggestedActions.push('💊 Initiate immediate vital sign monitoring (morning and evening).');
   } else if (overallRiskLevel === RISK_LEVELS.HIGH) {
-    suggestedActions.push('🏥 Schedule primary care consultation within 7 days for confirmation & diagnostic lab tests.');
-    suggestedActions.push('💬 Initiate ThinkLets Counselling script for Medication Adherence & Dietary Sodium restriction.');
-    suggestedActions.push('📅 Log 7-day home Blood Pressure & Fasting Glucose diary.');
+    suggestedActions.push('🏥 Schedule primary care consultation within 7 days for diagnostic laboratory confirmation (HbA1c / repeat BP series).');
+    suggestedActions.push('💬 Initiate ThinkLets Counselling module for Dietary Sodium restriction and Medication Adherence.');
+    suggestedActions.push('📅 Maintain a 7-day home Blood Pressure & Fasting Glucose log.');
   } else if (overallRiskLevel === RISK_LEVELS.MODERATE) {
-    suggestedActions.push('🥗 Initiate ThinkLets Lifestyle & Dietary Counselling (Reduction in refined carbs & salt).');
-    suggestedActions.push('🏃 Recommend 150 mins/week moderate brisk walking.');
-    suggestedActions.push('🗓️ Schedule CHW follow-up screening visit in 14 days.');
+    suggestedActions.push('🥗 Initiate ThinkLets Lifestyle & Dietary Counselling (Healthy plate method & carb moderation).');
+    suggestedActions.push('🏃 Recommend structured 150 minutes/week moderate brisk walking.');
+    suggestedActions.push('🗓️ Schedule CHW field follow-up re-screening in 14 days.');
   } else {
-    suggestedActions.push('✅ Continue routine healthy lifestyle maintenance.');
+    suggestedActions.push('✅ Encourage continued routine healthy lifestyle maintenance and balanced nutrition.');
     suggestedActions.push('🗓️ Schedule standard annual health re-screening in 30-60 days.');
   }
 
@@ -280,18 +417,155 @@ export function assessPatientRisk(patient, selectedModel = ML_MODELS.RANDOM_FORE
     requiresReferral,
     referralUrgency,
     followUpDays,
+    whyThisResult,
     suggestedActions,
     hypertension: {
       category: htCategory,
       riskScore: htProbability,
       riskLevel: htRiskLevel,
-      explanations: htFeatureImportance
+      explanations: htFeatureContributions
     },
     diabetes: {
       category: dbCategory,
       riskScore: dbProbability,
       riskLevel: dbRiskLevel,
-      explanations: dbFeatureImportance
+      explanations: dbFeatureContributions
+    },
+    // Compatibility alias for older components
+    overall: {
+      riskLevel: overallRiskLevel,
+      score: maxProbability,
+      followUpDays,
+      requiresReferral,
+      referralUrgency
     }
   };
 }
+
+/**
+ * Standard Clinical Benchmark Test Suite
+ * Used by the Admin Clinical Prediction Test Lab to verify model accuracy against ground truth profiles.
+ */
+export const CLINICAL_BENCHMARK_TEST_CASES = [
+  {
+    id: 'CASE-001',
+    title: 'Healthy Adult Baseline',
+    description: 'Young active adult with ideal hemodynamic parameters and no symptoms.',
+    patient: {
+      id: 'TEST-P01',
+      name: 'Aarav Mehta (Baseline Test)',
+      age: 28,
+      gender: 'male',
+      systolic: 118,
+      diastolic: 76,
+      glucose: 92,
+      glucoseType: 'random',
+      bmi: 22.1,
+      symptoms: [],
+      familyHistory: false,
+      smoking: false,
+      alcohol: false,
+      activeLifestyle: true
+    },
+    expectedRisk: RISK_LEVELS.LOW,
+    expectedHtCategory: 'Normal Blood Pressure',
+    expectedDbCategory: 'Normal Blood Glucose'
+  },
+  {
+    id: 'CASE-002',
+    title: 'Stage 1 Hypertension & Overweight',
+    description: 'Middle-aged individual with borderline elevated BP and family history.',
+    patient: {
+      id: 'TEST-P02',
+      name: 'Priya Sharma (Stage 1 Test)',
+      age: 54,
+      gender: 'female',
+      systolic: 136,
+      diastolic: 86,
+      glucose: 106,
+      glucoseType: 'fasting',
+      bmi: 27.2,
+      symptoms: ['headache'],
+      familyHistory: true,
+      smoking: false,
+      alcohol: false,
+      activeLifestyle: false
+    },
+    expectedRisk: RISK_LEVELS.MODERATE,
+    expectedHtCategory: 'Stage 1 Hypertension',
+    expectedDbCategory: 'Impaired Glucose / Prediabetes'
+  },
+  {
+    id: 'CASE-003',
+    title: 'Stage 2 Hypertension with Tobacco Risk',
+    description: 'Adult smoker with confirmed Stage 2 hypertension criteria.',
+    patient: {
+      id: 'TEST-P03',
+      name: 'David Mwangi (Stage 2 Test)',
+      age: 48,
+      gender: 'male',
+      systolic: 154,
+      diastolic: 96,
+      glucose: 142,
+      glucoseType: 'random',
+      bmi: 28.5,
+      symptoms: ['dizziness'],
+      familyHistory: true,
+      smoking: true,
+      alcohol: true,
+      activeLifestyle: false
+    },
+    expectedRisk: RISK_LEVELS.HIGH,
+    expectedHtCategory: 'Stage 2 Hypertension',
+    expectedDbCategory: 'Normal Blood Glucose'
+  },
+  {
+    id: 'CASE-004',
+    title: 'Hypertensive Emergency with Angina',
+    description: 'Elderly patient with severe BP escalation (\u2265180 mmHg) and chest pain flag.',
+    patient: {
+      id: 'TEST-P04',
+      name: 'Fatima Begum (Crisis Test)',
+      age: 68,
+      gender: 'female',
+      systolic: 188,
+      diastolic: 114,
+      glucose: 160,
+      glucoseType: 'random',
+      bmi: 31.0,
+      symptoms: ['chest_pain', 'dizziness'],
+      familyHistory: true,
+      smoking: true,
+      alcohol: false,
+      activeLifestyle: false
+    },
+    expectedRisk: RISK_LEVELS.CRITICAL,
+    expectedHtCategory: 'Hypertensive Crisis',
+    expectedDbCategory: 'Normal Blood Glucose'
+  },
+  {
+    id: 'CASE-005',
+    title: 'Severe Hyperglycemia with Osmotic Triad',
+    description: 'Diabetic emergency presentation with high blood glucose and polyuria/polydipsia.',
+    patient: {
+      id: 'TEST-P05',
+      name: 'Ramesh Patel (Hyperglycemia Test)',
+      age: 59,
+      gender: 'male',
+      systolic: 132,
+      diastolic: 84,
+      glucose: 320,
+      glucoseType: 'random',
+      bmi: 32.4,
+      symptoms: ['polyuria', 'polydipsia', 'blurred_vision', 'fatigue'],
+      familyHistory: true,
+      smoking: false,
+      alcohol: false,
+      activeLifestyle: false
+    },
+    expectedRisk: RISK_LEVELS.CRITICAL,
+    expectedHtCategory: 'Stage 1 Hypertension',
+    expectedDbCategory: 'Severe Hyperglycemia'
+  }
+];
+

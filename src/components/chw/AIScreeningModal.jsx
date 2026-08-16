@@ -1,50 +1,57 @@
 import React, { useState } from 'react';
-import { X, BrainCircuit, Activity, Heart, ShieldAlert, CheckCircle, Hospital } from 'lucide-react';
+import { X, BrainCircuit, Activity, Heart, CheckCircle2, Hospital, Sparkles } from 'lucide-react';
 import { assessPatientRisk, ML_MODELS } from '../../utils/predictionEngine';
 
 export default function AIScreeningModal({ patient, onClose, onOpenReferral }) {
-  const [selectedModel, setSelectedModel] = useState(ML_MODELS.RANDOM_FOREST);
+  const [selectedModel, setSelectedModel] = useState(ML_MODELS.ENSEMBLE_CLINICAL);
   
   if (!patient) return null;
 
-  // Run assessment dynamically with chosen ML model algorithm
+  // Run assessment dynamically with chosen clinical model
   const result = assessPatientRisk(patient, selectedModel);
   const overall = result.overallRiskLevel;
   const ht = result.hypertension;
   const db = result.diabetes;
 
-  const getRiskClass = (level) => {
+  const getRiskBadge = (level) => {
     switch (level) {
-      case 'Critical': return 'badge-risk-critical';
-      case 'High': return 'badge-risk-high';
-      case 'Moderate': return 'badge-risk-moderate';
-      default: return 'badge-risk-low';
+      case 'Critical': return <span className="badge badge-risk-critical">Critical Risk</span>;
+      case 'High': return <span className="badge badge-risk-high">High Risk</span>;
+      case 'Moderate': return <span className="badge badge-risk-moderate">Moderate</span>;
+      default: return <span className="badge badge-risk-low">Low Risk</span>;
     }
   };
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal-dialog modal-lg" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header">
-          <div className="flex items-center gap-2">
-            <BrainCircuit className="text-cyan-200" size={24} />
+      <div 
+        className="card-box w-full max-w-3xl max-h-[90vh] bg-white rounded-2xl shadow-2xl p-0 flex flex-col overflow-hidden" 
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex justify-between items-center px-6 py-4 border-b border-slate-200 bg-slate-50">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-sky-100 text-sky-700 flex items-center justify-center">
+              <BrainCircuit size={20} />
+            </div>
             <div>
-              <h2>AI Disease Prediction & Health Assessment</h2>
-              <p className="text-xs text-sky-100">Clinical Risk Support Engine for {patient.name} ({patient.id})</p>
+              <h2 className="text-base font-bold text-slate-900">Clinical Risk Stratification & Assessment</h2>
+              <p className="text-2xs text-slate-500">Decision Support Engine for {patient.name} ({patient.id})</p>
             </div>
           </div>
-          <button className="close-btn" onClick={onClose}><X size={20} /></button>
+          <button className="btn-icon-xs" onClick={onClose}><X size={16} /></button>
         </div>
 
-        <div className="modal-body">
+        {/* Body */}
+        <div className="p-6 overflow-y-auto space-y-4 flex-1">
           {/* Model Selector Bar */}
-          <div className="card-box bg-sky-50 border-sky-200 mb-4">
-            <span className="text-xs font-bold text-slate-700">Choose Machine Learning Model:</span>
-            <div className="flex gap-2 mt-2">
+          <div className="p-3.5 rounded-xl border border-sky-200 bg-sky-50 flex justify-between items-center flex-wrap gap-2">
+            <span className="text-xs font-bold text-sky-950">Clinical Scoring Model:</span>
+            <div className="flex gap-1.5 flex-wrap">
               {Object.values(ML_MODELS).map((m) => (
                 <button 
                   key={m}
-                  className={`btn text-xs ${selectedModel === m ? 'btn-primary' : 'btn-secondary'}`}
+                  className={`btn text-2xs py-1 px-2.5 ${selectedModel === m ? 'btn-primary font-bold' : 'btn-secondary bg-white'}`}
                   onClick={() => setSelectedModel(m)}
                 >
                   {m}
@@ -54,112 +61,102 @@ export default function AIScreeningModal({ patient, onClose, onOpenReferral }) {
           </div>
 
           {/* Top Metric Cards */}
-          <div className="grid-3-col mb-4 gap-3">
-            <div className="metric-box border-l-4 border-sky-600">
-              <span className="metric-label">Overall Patient Risk</span>
+          <div className="grid-3-col gap-3">
+            <div className="metric-box border-l-4 border-l-sky-600">
+              <span className="metric-label">Overall Risk Tier</span>
               <div className="flex items-center gap-2 mt-1">
-                <span className={`badge ${getRiskClass(overall)}`}>{overall}</span>
-                <span className="text-xs text-slate-600 font-semibold">({result.riskPercentage}% Score)</span>
+                {getRiskBadge(overall)}
+                <span className="text-xs text-slate-600 font-mono font-bold">({result.riskPercentage}%)</span>
               </div>
             </div>
 
-            <div className="metric-box border-l-4 border-emerald-600">
-              <span className="metric-label">AI Model Accuracy</span>
-              <div className="metric-value text-emerald-700 mt-1">{result.confidenceScore}%</div>
-              <span className="metric-sub">Calibrated Clinical Cross-Validation</span>
+            <div className="metric-box border-l-4 border-l-emerald-600">
+              <span className="metric-label">Engine Confidence</span>
+              <div className="text-xl font-extrabold text-emerald-800 mt-1">{result.confidenceScore}%</div>
+              <span className="metric-sub">Guideline Cross-Validation</span>
             </div>
 
-            <div className="metric-box border-l-4 border-amber-600">
-              <span className="metric-label">Suggested Follow-Up Visit</span>
-              <div className="metric-value text-amber-700 mt-1">{result.followUpDays} Days</div>
-              <span className="metric-sub">{result.requiresReferral ? 'Hospital Referral Recommended' : 'Standard Routine Monitoring'}</span>
+            <div className="metric-box border-l-4 border-l-amber-600">
+              <span className="metric-label">Suggested Recall</span>
+              <div className="text-xl font-extrabold text-amber-800 mt-1">{result.followUpDays} Days</div>
+              <span className="metric-sub">{result.requiresReferral ? 'Hospital Referral Advised' : 'Community Monitoring'}</span>
             </div>
           </div>
 
           {/* Disease Risk Breakdown */}
           <div className="grid-2-col gap-4">
             {/* Hypertension */}
-            <div className="card-box bg-white border-slate-200">
-              <div className="flex justify-between items-center mb-2">
-                <h4 className="flex items-center gap-1 text-rose-700 font-bold">
-                  <Heart size={18} /> Hypertension (BP) Risk
-                </h4>
-                <span className={`badge ${getRiskClass(ht.riskLevel)}`}>{ht.riskLevel} ({ht.riskScore}%)</span>
+            <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 space-y-3">
+              <div className="flex justify-between items-center">
+                <strong className="text-xs text-slate-900 flex items-center gap-1.5">
+                  <Heart size={16} className="text-sky-600" /> Hypertension Risk
+                </strong>
+                <span className="badge badge-risk-high">{ht.riskScore}%</span>
               </div>
-              <div className="text-xs text-slate-700 mb-3">Category: <strong className="text-slate-900">{ht.category}</strong></div>
+              <p className="text-2xs text-slate-600">Category: <strong>{ht.category}</strong></p>
 
-              <h5 className="text-xs font-bold text-sky-800 mb-2">Key Risk Factors Identified (SHAP Analysis):</h5>
-              <div className="shap-list">
-                {ht.explanations && ht.explanations.map((exp, idx) => (
-                  <div key={idx} className="shap-row">
-                    <div className="flex justify-between text-xs font-medium text-slate-800">
-                      <span>{exp.feature}</span>
-                      <span className="text-rose-700 font-bold">{exp.impact}</span>
+              <div>
+                <strong className="text-2xs text-slate-700 block mb-1">Key Contributing Factors:</strong>
+                <div className="space-y-1">
+                  {ht.explanations?.map((exp, idx) => (
+                    <div key={idx} className="p-2 bg-white rounded border border-slate-200 text-2xs flex justify-between items-center">
+                      <span className="text-slate-900">{exp.feature}: {exp.detail}</span>
+                      <span className="badge badge-risk-moderate text-3xs">{exp.impact}</span>
                     </div>
-                    <div className="shap-bar-bg">
-                      <div className="shap-bar-fill bg-rose-500" style={{ width: exp.impact.replace('+', '') }}></div>
-                    </div>
-                    <span className="text-2xs text-slate-500">{exp.detail}</span>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             </div>
 
             {/* Diabetes */}
-            <div className="card-box bg-white border-slate-200">
-              <div className="flex justify-between items-center mb-2">
-                <h4 className="flex items-center gap-1 text-amber-700 font-bold">
-                  <Activity size={18} /> Diabetes (Sugar) Risk
-                </h4>
-                <span className={`badge ${getRiskClass(db.riskLevel)}`}>{db.riskLevel} ({db.riskScore}%)</span>
+            <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 space-y-3">
+              <div className="flex justify-between items-center">
+                <strong className="text-xs text-slate-900 flex items-center gap-1.5">
+                  <Activity size={16} className="text-amber-600" /> Diabetes Risk
+                </strong>
+                <span className="badge badge-risk-moderate">{db.riskScore}%</span>
               </div>
-              <div className="text-xs text-slate-700 mb-3">Category: <strong className="text-slate-900">{db.category}</strong></div>
+              <p className="text-2xs text-slate-600">Category: <strong>{db.category}</strong></p>
 
-              <h5 className="text-xs font-bold text-sky-800 mb-2">Key Risk Factors Identified (SHAP Analysis):</h5>
-              <div className="shap-list">
-                {db.explanations && db.explanations.map((exp, idx) => (
-                  <div key={idx} className="shap-row">
-                    <div className="flex justify-between text-xs font-medium text-slate-800">
-                      <span>{exp.feature}</span>
-                      <span className="text-amber-700 font-bold">{exp.impact}</span>
+              <div>
+                <strong className="text-2xs text-slate-700 block mb-1">Key Contributing Factors:</strong>
+                <div className="space-y-1">
+                  {db.explanations?.map((exp, idx) => (
+                    <div key={idx} className="p-2 bg-white rounded border border-slate-200 text-2xs flex justify-between items-center">
+                      <span className="text-slate-900">{exp.feature}: {exp.detail}</span>
+                      <span className="badge badge-risk-moderate text-3xs">{exp.impact}</span>
                     </div>
-                    <div className="shap-bar-bg">
-                      <div className="shap-bar-fill bg-amber-500" style={{ width: exp.impact.replace('+', '') }}></div>
-                    </div>
-                    <span className="text-2xs text-slate-500">{exp.detail}</span>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             </div>
           </div>
 
-          {/* Action Recommendations */}
-          <div className="card-box bg-sky-50 border-sky-300 mt-4">
-            <h4 className="text-sky-900 font-bold mb-2">💡 Recommended Actions for Healthcare Worker:</h4>
-            <ul className="text-xs text-slate-800 space-y-1.5 pl-4 list-disc font-medium">
-              {result.suggestedActions.map((act, idx) => (
-                <li key={idx}>{act}</li>
-              ))}
-            </ul>
+          {/* Plain Language Clinical Recommendation */}
+          <div className="p-4 rounded-xl border border-slate-200 bg-white space-y-1">
+            <strong className="text-xs text-slate-900 block flex items-center gap-1.5">
+              <Sparkles size={14} className="text-sky-600" /> Clinical Assessment Summary:
+            </strong>
+            <p className="text-xs text-slate-700 leading-relaxed">
+              {result.whyThisResult}
+            </p>
           </div>
         </div>
 
-        <div className="modal-footer flex justify-between items-center">
-          <span className="text-xs text-slate-500">ML Engine: {selectedModel}</span>
-          <div className="flex gap-2">
-            <button className="btn btn-secondary" onClick={onClose}>Close</button>
-            {result.requiresReferral && (
-              <button 
-                className="btn btn-primary flex items-center gap-1"
-                onClick={() => {
-                  onClose();
-                  onOpenReferral(patient);
-                }}
-              >
-                <Hospital size={16} /> Create Hospital Referral
-              </button>
-            )}
-          </div>
+        {/* Footer */}
+        <div className="px-6 py-3 bg-slate-50 border-t border-slate-200 flex justify-between items-center">
+          <button className="btn btn-secondary text-xs" onClick={onClose}>Close</button>
+          {result.requiresReferral && onOpenReferral && (
+            <button 
+              className="btn btn-primary text-xs flex items-center gap-1.5 font-bold"
+              onClick={() => {
+                onClose();
+                onOpenReferral(patient);
+              }}
+            >
+              <Hospital size={14} /> Dispatch Hospital Referral
+            </button>
+          )}
         </div>
       </div>
     </div>

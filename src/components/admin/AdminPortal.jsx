@@ -10,12 +10,29 @@ import {
   Trash2, 
   Edit3, 
   Sliders, 
-  Activity 
+  Activity,
+  BrainCircuit,
+  Download,
+  CheckCircle2,
+  FlaskConical
 } from 'lucide-react';
-import { INITIAL_HOSPITALS, INITIAL_CHWS, INITIAL_DOCTORS, INITIAL_AUDIT_LOGS, INITIAL_PATIENTS } from '../../data/initialData';
+import { 
+  INITIAL_HOSPITALS, 
+  INITIAL_CHWS, 
+  INITIAL_DOCTORS, 
+  INITIAL_AUDIT_LOGS, 
+  INITIAL_PATIENTS 
+} from '../../data/initialData';
+import PredictionTestLab from './PredictionTestLab';
+import { useToast } from '../shared/ToastContainer';
 
-export default function AdminPortal({ auditLogs = INITIAL_AUDIT_LOGS, patients = INITIAL_PATIENTS }) {
-  const [activeTab, setActiveTab] = useState('analytics');
+export default function AdminPortal({ 
+  auditLogs = INITIAL_AUDIT_LOGS, 
+  patients = INITIAL_PATIENTS,
+  activeSection = 'analytics'
+}) {
+  const { toastSuccess, toastInfo } = useToast();
+  const [activeTab, setActiveTab] = useState('analytics'); // analytics | users | hospitals | test_lab | ml_config | audit
   const [hospitals, setHospitals] = useState(INITIAL_HOSPITALS);
   const [chwUsers, setChwUsers] = useState(INITIAL_CHWS);
   const [doctorUsers, setDoctorUsers] = useState(INITIAL_DOCTORS);
@@ -31,11 +48,23 @@ export default function AdminPortal({ auditLogs = INITIAL_AUDIT_LOGS, patients =
   const [newHospBeds, setNewHospBeds] = useState(10);
   const [newHospPhone, setNewHospPhone] = useState('+91 98765 00000');
 
+  React.useEffect(() => {
+    if (activeSection) {
+      if (activeSection === 'overview') {
+        setActiveTab('analytics');
+      } else if (activeSection === 'fhir') {
+        setActiveTab('analytics');
+        handleExportFHIR();
+      } else {
+        setActiveTab(activeSection);
+      }
+    }
+  }, [activeSection]);
+
   // FHIR R4 Collection Bundle Exporter
   const handleExportFHIR = () => {
     const targetPatients = Array.isArray(patients) && patients.length > 0 ? patients : INITIAL_PATIENTS;
     const fhirEntries = targetPatients.flatMap(p => {
-      // 1. Patient Resource
       const patientResource = {
         fullUrl: `urn:uuid:patient-${p.id}`,
         resource: {
@@ -50,7 +79,6 @@ export default function AdminPortal({ auditLogs = INITIAL_AUDIT_LOGS, patients =
         }
       };
 
-      // 2. BP Observation Resource
       const bpObservation = {
         fullUrl: `urn:uuid:obs-bp-${p.id}`,
         resource: {
@@ -58,7 +86,7 @@ export default function AdminPortal({ auditLogs = INITIAL_AUDIT_LOGS, patients =
           id: `obs-bp-${p.id}`,
           status: "final",
           category: [{ coding: [{ system: "http://terminology.hl7.org/CodeSystem/observation-category", code: "vital-signs" }] }],
-          code: { coding: [{ system: "http://loinc.org", code: "85354-9", display: "Blood pressure panel" }] },
+          code: { coding: [{ system: "http://loinc.org", code: "85354-9", display: "Blood pressure panel with all children optional" }] },
           subject: { reference: `urn:uuid:patient-${p.id}`, display: p.name },
           component: [
             {
@@ -73,7 +101,6 @@ export default function AdminPortal({ auditLogs = INITIAL_AUDIT_LOGS, patients =
         }
       };
 
-      // 3. Glucose Observation Resource
       const glucoseObservation = {
         fullUrl: `urn:uuid:obs-glucose-${p.id}`,
         resource: {
@@ -108,6 +135,7 @@ export default function AdminPortal({ auditLogs = INITIAL_AUDIT_LOGS, patients =
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+    toastSuccess('HL7 FHIR R4 Bundle JSON downloaded successfully!');
   };
 
   const handleAddHospital = (e) => {
@@ -118,13 +146,13 @@ export default function AdminPortal({ auditLogs = INITIAL_AUDIT_LOGS, patients =
       id: 'HOSP-' + Math.floor(100 + Math.random() * 900),
       name: newHospName,
       type: 'Community Health Center',
-      address: 'Sector Health Zone',
+      address: 'Primary Health Sector',
       phone: newHospPhone,
       distanceKm: 5.0,
       emergencyRoute: 'Direct Sub-District Corridor',
       bedsAvailable: parseInt(newHospBeds),
-      specialties: ['General Medicine', 'Diabetes Care'],
-      leadDoctor: 'Dr. Clinical Lead',
+      specialties: ['General Medicine', 'Diabetes Care', 'Cardiology Triage'],
+      leadDoctor: 'Dr. Medical Lead',
       latitude: 18.52,
       longitude: 73.85
     };
@@ -132,275 +160,243 @@ export default function AdminPortal({ auditLogs = INITIAL_AUDIT_LOGS, patients =
     setHospitals(prev => [...prev, hospObj]);
     setNewHospName('');
     setShowAddHospital(false);
+    toastSuccess(`Facility ${newHospName} added to registry!`);
   };
 
   return (
-    <div className="portal-container">
+    <div className="portal-content-container space-y-6">
       {/* Top Banner */}
-      <div className="portal-header-banner bg-gradient-to-r from-purple-950 via-slate-900 to-indigo-950 flex justify-between items-center">
+      <div className="card-box bg-white p-5 flex justify-between items-center flex-wrap gap-4 border-slate-200">
         <div className="flex items-center gap-3">
-          <div className="portal-badge-icon bg-purple-500/20 text-purple-400">
-            <Settings size={28} />
+          <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-700 flex items-center justify-center">
+            <Settings size={22} />
           </div>
           <div>
-            <h1 className="portal-title">Administrator System Portal</h1>
-            <p className="portal-subtitle">Manage User Roles, Hospital Infrastructure, ML Model Rules & System Audit Logs</p>
+            <h1 className="text-xl font-bold text-slate-900">System Administration & Governance</h1>
+            <p className="text-xs text-slate-500">Manage hospital facilities, user access roles, CDSS cutoffs, and FHIR interoperability</p>
           </div>
         </div>
+
         <button 
-          className="btn btn-primary text-xs flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 shadow-md"
+          className="btn btn-primary text-xs flex items-center gap-2 shadow-sm font-bold"
           onClick={handleExportFHIR}
-          title="Export Patient & Clinical Data to HL7 FHIR R4 JSON standard format"
         >
-          <Database size={16} /> Export FHIR R4 JSON
+          <Database size={15} /> Export HL7 FHIR R4 JSON
         </button>
       </div>
 
       {/* Tabs */}
-      <div className="detail-tabs mt-4">
-        <button className={`tab-btn ${activeTab === 'analytics' ? 'active' : ''}`} onClick={() => setActiveTab('analytics')}>
-          📊 System Monitoring & District Analytics
+      <div className="flex gap-2 bg-slate-100 p-1 rounded-xl w-fit flex-wrap">
+        <button className={`btn text-xs ${activeTab === 'analytics' ? 'btn-primary' : 'text-slate-600'}`} onClick={() => setActiveTab('analytics')}>
+          System Overview
         </button>
-        <button className={`tab-btn ${activeTab === 'users' ? 'active' : ''}`} onClick={() => setActiveTab('users')}>
-          👥 User & Role Management
+        <button className={`btn text-xs ${activeTab === 'test_lab' ? 'btn-primary' : 'text-slate-600'}`} onClick={() => setActiveTab('test_lab')}>
+          🧪 Prediction Test Lab
         </button>
-        <button className={`tab-btn ${activeTab === 'hospitals' ? 'active' : ''}`} onClick={() => setActiveTab('hospitals')}>
-          🏥 Hospital Registry Management
+        <button className={`btn text-xs ${activeTab === 'users' ? 'btn-primary' : 'text-slate-600'}`} onClick={() => setActiveTab('users')}>
+          Users & Access ({chwUsers.length + doctorUsers.length})
         </button>
-        <button className={`tab-btn ${activeTab === 'ml_config' ? 'active' : ''}`} onClick={() => setActiveTab('ml_config')}>
-          ⚙️ AI Model Threshold Configuration
+        <button className={`btn text-xs ${activeTab === 'hospitals' ? 'btn-primary' : 'text-slate-600'}`} onClick={() => setActiveTab('hospitals')}>
+          Hospital Registry ({hospitals.length})
         </button>
-        <button className={`tab-btn ${activeTab === 'audit' ? 'active' : ''}`} onClick={() => setActiveTab('audit')}>
-          🔒 System Audit & Access Logs
+        <button className={`btn text-xs ${activeTab === 'ml_config' ? 'btn-primary' : 'text-slate-600'}`} onClick={() => setActiveTab('ml_config')}>
+          Clinical Cutoffs
+        </button>
+        <button className={`btn text-xs ${activeTab === 'audit' ? 'btn-primary' : 'text-slate-600'}`} onClick={() => setActiveTab('audit')}>
+          Audit Logs ({auditLogs.length})
         </button>
       </div>
 
-      <div className="tab-content mt-4">
-        {activeTab === 'analytics' && (
-          <div className="space-y-4">
-            {/* System KPIs Grid */}
-            <div className="grid-4-col gap-3">
-              <div className="card-box bg-slate-900 border-indigo-800">
-                <span className="text-2xs uppercase text-slate-400 font-semibold">Total Registered Patients</span>
-                <div className="text-2xl font-extrabold text-white mt-1">{(patients || INITIAL_PATIENTS).length}</div>
-                <span className="text-2xs text-emerald-400">↑ 2 Registrations Today</span>
-              </div>
-              <div className="card-box bg-slate-900 border-indigo-800">
-                <span className="text-2xs uppercase text-slate-400 font-semibold">Active CHWs & Doctors</span>
-                <div className="text-2xl font-extrabold text-white mt-1">{chwUsers.length + doctorUsers.length}</div>
-                <span className="text-2xs text-sky-400">{chwUsers.length} CHWs • {doctorUsers.length} Doctors</span>
-              </div>
-              <div className="card-box bg-slate-900 border-rose-800">
-                <span className="text-2xs uppercase text-slate-400 font-semibold">High Risk Cases & Referrals</span>
-                <div className="text-2xl font-extrabold text-rose-400 mt-1">1 Critical</div>
-                <span className="text-2xs text-slate-400">1 Pending • 2 Completed</span>
-              </div>
-              <div className="card-box bg-slate-900 border-emerald-800">
-                <span className="text-2xs uppercase text-slate-400 font-semibold">Follow-up Compliance & Health</span>
-                <div className="text-2xl font-extrabold text-emerald-400 mt-1">94.2%</div>
-                <span className="text-2xs text-emerald-300">0 Offline Devices Waiting Sync</span>
-              </div>
+      {/* TAB CONTENT */}
+      {activeTab === 'analytics' && (
+        <div className="space-y-6">
+          <div className="grid-4-col gap-4">
+            <div className="metric-box border-l-4 border-l-purple-600">
+              <span className="metric-label">Registered Cohort</span>
+              <div className="metric-value">{patients.length}</div>
+              <span className="metric-sub">Active community records</span>
             </div>
 
-            {/* District Analytics & Disease Statistics */}
-            <div className="grid-2-col gap-4">
-              <div className="card-box bg-secondary">
-                <h3 className="text-sm font-bold text-white mb-2">District-wise Coverage & Performance</h3>
-                <div className="space-y-2 text-xs">
-                  <div className="card-box bg-slate-900 border-slate-800 flex justify-between">
-                    <div>
-                      <strong className="text-white">Vimanapura Sector 3</strong>
-                      <div className="text-2xs text-slate-400">CHW: Sunita Patil</div>
-                    </div>
-                    <span className="badge badge-success text-2xs">3 Patients • 100% Synced</span>
-                  </div>
-                  <div className="card-box bg-slate-900 border-slate-800 flex justify-between">
-                    <div>
-                      <strong className="text-white">Health Zone East</strong>
-                      <div className="text-2xs text-slate-400">CHW: Rajesh Kumar</div>
-                    </div>
-                    <span className="badge badge-success text-2xs">2 Patients • 100% Synced</span>
-                  </div>
-                </div>
-              </div>
+            <div className="metric-box border-l-4 border-l-sky-600">
+              <span className="metric-label">Field Staff Users</span>
+              <div className="metric-value text-sky-700">{chwUsers.length + doctorUsers.length}</div>
+              <span className="metric-sub">{chwUsers.length} CHWs • {doctorUsers.length} Clinicians</span>
+            </div>
 
-              <div className="card-box bg-secondary">
-                <h3 className="text-sm font-bold text-white mb-2">Disease Distribution Analytics</h3>
-                <div className="space-y-3 text-xs">
-                  <div>
-                    <div className="flex justify-between text-slate-300 mb-1">
-                      <span>Hypertension Risk (Stage 1 & 2)</span>
-                      <span className="font-bold text-sky-400">60% (3 Patients)</span>
-                    </div>
-                    <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
-                      <div className="bg-sky-500 h-full w-3/5"></div>
-                    </div>
-                  </div>
+            <div className="metric-box border-l-4 border-l-indigo-600">
+              <span className="metric-label">Hospital Facilities</span>
+              <div className="metric-value text-indigo-700">{hospitals.length}</div>
+              <span className="metric-sub">{hospitals.reduce((acc, h) => acc + h.bedsAvailable, 0)} Total Beds</span>
+            </div>
 
-                  <div>
-                    <div className="flex justify-between text-slate-300 mb-1">
-                      <span>Diabetes & High Glucose</span>
-                      <span className="font-bold text-indigo-400">40% (2 Patients)</span>
-                    </div>
-                    <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
-                      <div className="bg-indigo-500 h-full w-2/5"></div>
-                    </div>
-                  </div>
-                </div>
-              </div>
+            <div className="metric-box border-l-4 border-l-emerald-600">
+              <span className="metric-label">FHIR R4 Schema Health</span>
+              <div className="metric-value text-emerald-700">100%</div>
+              <span className="metric-sub">LOINC 85354-9 / 2339-0 Validated</span>
             </div>
           </div>
-        )}
+        </div>
+      )}
 
-        {activeTab === 'users' && (
-          <div className="space-y-4">
-            <div className="card-box bg-secondary">
-              <h3 className="text-sm font-bold text-white mb-3">Community Health Workers (CHWs)</h3>
-              <div className="grid-3-col gap-3">
+      {/* TAB: PREDICTION TEST LAB */}
+      {activeTab === 'test_lab' && (
+        <div className="card-box p-5 space-y-4">
+          <PredictionTestLab />
+        </div>
+      )}
+
+      {/* TAB: USERS */}
+      {activeTab === 'users' && (
+        <div className="card-box space-y-4">
+          <h3 className="text-base font-bold text-slate-900">User Access & Role Management</h3>
+          <div className="table-responsive">
+            <table className="custom-table">
+              <thead>
+                <tr>
+                  <th>Staff Name & ID</th>
+                  <th>Operating Role</th>
+                  <th>Assigned Village / Facility</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
                 {chwUsers.map(u => (
-                  <div key={u.id} className="card-box bg-slate-900 border-slate-700">
-                    <strong className="text-white text-sm">{u.name}</strong>
-                    <div className="text-2xs text-gray-400 mt-1">{u.zone} • {u.phone}</div>
-                    <span className="badge badge-primary text-2xs mt-2">Role: CHW</span>
-                  </div>
+                  <tr key={u.id}>
+                    <td><strong>{u.name}</strong> ({u.id})</td>
+                    <td><span className="badge badge-primary">Community Health Worker</span></td>
+                    <td>{u.village}</td>
+                    <td><span className="badge badge-risk-low">Active</span></td>
+                  </tr>
                 ))}
-              </div>
-            </div>
+                {doctorUsers.map(u => (
+                  <tr key={u.id}>
+                    <td><strong>{u.name}</strong> ({u.id})</td>
+                    <td><span className="badge badge-risk-moderate">Medical Officer</span></td>
+                    <td>{u.hospital}</td>
+                    <td><span className="badge badge-risk-low">Active</span></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
-            <div className="card-box bg-secondary">
-              <h3 className="text-sm font-bold text-white mb-3">Assigned Doctors & Clinicians</h3>
+      {/* TAB: HOSPITALS */}
+      {activeTab === 'hospitals' && (
+        <div className="card-box space-y-4">
+          <div className="flex justify-between items-center">
+            <h3 className="text-base font-bold text-slate-900">Hospital Facilities Registry</h3>
+            <button className="btn btn-primary text-xs" onClick={() => setShowAddHospital(!showAddHospital)}>
+              <Plus size={14} /> Add Facility
+            </button>
+          </div>
+
+          {showAddHospital && (
+            <form onSubmit={handleAddHospital} className="p-4 rounded-xl border border-slate-200 bg-slate-50 space-y-3">
               <div className="grid-3-col gap-3">
-                {doctorUsers.map(d => (
-                  <div key={d.id} className="card-box bg-slate-900 border-slate-700">
-                    <strong className="text-white text-sm">{d.name}</strong>
-                    <div className="text-2xs text-gray-400 mt-1">{d.specialty} • {d.hospital}</div>
-                    <span className="badge badge-success text-2xs mt-2">Role: Doctor</span>
-                  </div>
+                <div className="form-group">
+                  <label className="form-label">Hospital Name</label>
+                  <input type="text" value={newHospName} onChange={(e) => setNewHospName(e.target.value)} className="form-input text-xs" placeholder="e.g. Sub-District Hospital" required />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Available Beds</label>
+                  <input type="number" value={newHospBeds} onChange={(e) => setNewHospBeds(e.target.value)} className="form-input text-xs" />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Emergency Phone</label>
+                  <input type="text" value={newHospPhone} onChange={(e) => setNewHospPhone(e.target.value)} className="form-input text-xs" />
+                </div>
+              </div>
+              <button type="submit" className="btn btn-primary text-xs">Register Facility</button>
+            </form>
+          )}
+
+          <div className="grid-2-col gap-4">
+            {hospitals.map(h => (
+              <div key={h.id} className="p-4 rounded-xl border border-slate-200 bg-slate-50 space-y-2">
+                <div className="flex justify-between items-start">
+                  <strong className="text-sm text-slate-900">{h.name}</strong>
+                  <span className="badge badge-primary">{h.bedsAvailable} Beds</span>
+                </div>
+                <p className="text-xs text-slate-500">{h.address} • Phone: {h.phone}</p>
+                <div className="text-2xs text-slate-600">Lead: {h.leadDoctor} • Route: {h.emergencyRoute}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* TAB: ML THRESHOLDS */}
+      {activeTab === 'ml_config' && (
+        <div className="card-box space-y-4">
+          <h3 className="text-base font-bold text-slate-900">Clinical Decision Support System (CDSS) Cutoffs</h3>
+          <p className="text-xs text-slate-500">Calibrate systolic and blood glucose alert triggers aligned with AHA/ADA guidelines.</p>
+
+          <div className="grid-2-col gap-4">
+            <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 space-y-3">
+              <strong className="text-xs text-slate-900 block">Hypertensive Crisis Threshold</strong>
+              <div className="flex items-center gap-3">
+                <input 
+                  type="range" 
+                  min="160" 
+                  max="200" 
+                  value={mlThresholds.htCrisisSystolic} 
+                  onChange={(e) => setMlThresholds({ ...mlThresholds, htCrisisSystolic: parseInt(e.target.value) })}
+                  className="flex-1"
+                />
+                <span className="badge badge-risk-critical font-mono text-xs">{mlThresholds.htCrisisSystolic} mmHg</span>
+              </div>
+            </div>
+
+            <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 space-y-3">
+              <strong className="text-xs text-slate-900 block">Diabetic Glucose Threshold (Fasting)</strong>
+              <div className="flex items-center gap-3">
+                <input 
+                  type="range" 
+                  min="100" 
+                  max="160" 
+                  value={mlThresholds.dbDiabeticGlucose} 
+                  onChange={(e) => setMlThresholds({ ...mlThresholds, dbDiabeticGlucose: parseInt(e.target.value) })}
+                  className="flex-1"
+                />
+                <span className="badge badge-risk-moderate font-mono text-xs">{mlThresholds.dbDiabeticGlucose} mg/dL</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TAB: AUDIT LOGS */}
+      {activeTab === 'audit' && (
+        <div className="card-box space-y-4">
+          <h3 className="text-base font-bold text-slate-900">Immutable Security & Clinical Audit Trail</h3>
+          <div className="table-responsive">
+            <table className="custom-table">
+              <thead>
+                <tr>
+                  <th>Timestamp</th>
+                  <th>Action Type</th>
+                  <th>Staff Member</th>
+                  <th>Patient Target</th>
+                  <th>Verification</th>
+                </tr>
+              </thead>
+              <tbody>
+                {auditLogs.map(log => (
+                  <tr key={log.id}>
+                    <td><span className="text-xs text-slate-500 font-mono">{log.timestamp}</span></td>
+                    <td><strong>{log.action}</strong></td>
+                    <td>{log.user}</td>
+                    <td>{log.patient}</td>
+                    <td><span className="badge badge-risk-low flex items-center gap-1"><CheckCircle2 size={12} /> {log.status}</span></td>
+                  </tr>
                 ))}
-              </div>
-            </div>
+              </tbody>
+            </table>
           </div>
-        )}
-
-        {activeTab === 'hospitals' && (
-          <div className="card-box bg-secondary">
-            <div className="flex justify-between items-center mb-3">
-              <h3 className="text-sm font-bold text-white">Registered Healthcare Facilities & Hospitals</h3>
-              <button className="btn btn-primary text-xs flex items-center gap-1" onClick={() => setShowAddHospital(!showAddHospital)}>
-                <Plus size={14} /> Add New Hospital
-              </button>
-            </div>
-
-            {showAddHospital && (
-              <form onSubmit={handleAddHospital} className="card-box bg-slate-900 mb-4 border-indigo-500">
-                <h4 className="text-xs font-bold text-indigo-400 mb-2">Register Hospital</h4>
-                <div className="grid-3-col gap-2">
-                  <div className="form-group">
-                    <label>Hospital Name</label>
-                    <input type="text" value={newHospName} onChange={(e) => setNewHospName(e.target.value)} className="form-input text-xs" required />
-                  </div>
-                  <div className="form-group">
-                    <label>Available Beds</label>
-                    <input type="number" value={newHospBeds} onChange={(e) => setNewHospBeds(e.target.value)} className="form-input text-xs" required />
-                  </div>
-                  <div className="form-group">
-                    <label>Contact Phone</label>
-                    <input type="text" value={newHospPhone} onChange={(e) => setNewHospPhone(e.target.value)} className="form-input text-xs" required />
-                  </div>
-                </div>
-                <div className="flex justify-end gap-2 mt-3">
-                  <button type="button" className="btn btn-secondary text-xs" onClick={() => setShowAddHospital(false)}>Cancel</button>
-                  <button type="submit" className="btn btn-primary text-xs">Save Hospital</button>
-                </div>
-              </form>
-            )}
-
-            <div className="grid-3-col gap-3">
-              {hospitals.map(h => (
-                <div key={h.id} className="card-box bg-slate-900 border-slate-700">
-                  <h4 className="font-bold text-white text-sm">{h.name}</h4>
-                  <div className="text-2xs text-gray-400 mt-1">{h.type} • {h.address}</div>
-                  <div className="text-xs text-emerald-400 mt-2 font-bold">{h.bedsAvailable} Beds Available</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'ml_config' && (
-          <div className="card-box bg-secondary">
-            <h3 className="text-sm font-bold text-white mb-2">Machine Learning Decision Rule Tuning</h3>
-            <p className="text-xs text-gray-400 mb-4">Adjust clinical thresholds used by Random Forest, Logistic Regression, and Decision Tree engines.</p>
-
-            <div className="grid-2-col gap-4">
-              <div className="card-box bg-slate-900 border-slate-700">
-                <h4 className="text-xs font-bold text-rose-400 mb-2">Hypertension Risk Boundaries</h4>
-                <div className="form-group">
-                  <label className="text-2xs text-gray-300">Crisis Systolic Cutoff (mmHg)</label>
-                  <input 
-                    type="number" 
-                    value={mlThresholds.htCrisisSystolic} 
-                    onChange={(e) => setMlThresholds({ ...mlThresholds, htCrisisSystolic: parseInt(e.target.value) })}
-                    className="form-input text-xs"
-                  />
-                </div>
-                <div className="form-group mt-2">
-                  <label className="text-2xs text-gray-300">Stage 2 Systolic Cutoff (mmHg)</label>
-                  <input 
-                    type="number" 
-                    value={mlThresholds.htStage2Systolic} 
-                    onChange={(e) => setMlThresholds({ ...mlThresholds, htStage2Systolic: parseInt(e.target.value) })}
-                    className="form-input text-xs"
-                  />
-                </div>
-              </div>
-
-              <div className="card-box bg-slate-900 border-slate-700">
-                <h4 className="text-xs font-bold text-amber-400 mb-2">Diabetes Risk Boundaries</h4>
-                <div className="form-group">
-                  <label className="text-2xs text-gray-300">Severe Hyperglycemia Glucose Cutoff (mg/dL)</label>
-                  <input 
-                    type="number" 
-                    value={mlThresholds.dbCriticalGlucose} 
-                    onChange={(e) => setMlThresholds({ ...mlThresholds, dbCriticalGlucose: parseInt(e.target.value) })}
-                    className="form-input text-xs"
-                  />
-                </div>
-                <div className="form-group mt-2">
-                  <label className="text-2xs text-gray-300">Fasting Diabetic Threshold (mg/dL)</label>
-                  <input 
-                    type="number" 
-                    value={mlThresholds.dbDiabeticGlucose} 
-                    onChange={(e) => setMlThresholds({ ...mlThresholds, dbDiabeticGlucose: parseInt(e.target.value) })}
-                    className="form-input text-xs"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'audit' && (
-          <div className="card-box bg-secondary">
-            <h3 className="text-sm font-bold text-white mb-3">System Security & Audit Activity Trail</h3>
-            <div className="space-y-2">
-              {auditLogs.map(log => (
-                <div key={log.id} className="card-box bg-slate-900 border-slate-800 text-xs flex justify-between items-center">
-                  <div>
-                    <span className="font-mono text-indigo-400 font-bold mr-2">{log.id}</span>
-                    <strong className="text-white">{log.user}</strong> ({log.role})
-                    <p className="text-gray-300 mt-0.5">{log.details}</p>
-                  </div>
-                  <div className="text-right">
-                    <span className="badge badge-neutral">{log.action}</span>
-                    <div className="text-2xs text-gray-500 mt-1">{log.timestamp}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

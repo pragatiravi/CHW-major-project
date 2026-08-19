@@ -13,7 +13,7 @@ import { exportPatientSummaryPDF } from '../../utils/pdfExport';
 export default function PatientDetailModal({
   patient,
   onClose,
-  onOpenAIScreening,
+  onOpenDecisionSupport,
   onOpenCounselling,
   onOpenReferral,
   onOpenMedicationModal,
@@ -82,7 +82,7 @@ export default function PatientDetailModal({
 
         {/* Action Toolbar */}
         <div className="flex gap-2 p-3 px-6 bg-slate-50 border-b border-slate-200 overflow-x-auto">
-          {userRole === 'chw' && <button className="btn btn-primary text-xs" onClick={() => onOpenAIScreening(patient)}>
+          {userRole === 'chw' && <button className="btn btn-primary text-xs" onClick={() => onOpenDecisionSupport(patient)}>
             <BrainCircuit size={14} /> Run Screening
           </button>}
           {userRole === 'chw' && <button className="btn btn-secondary text-xs" onClick={() => onOpenCounselling(patient)}>
@@ -181,7 +181,7 @@ export default function PatientDetailModal({
               <div className="p-4 rounded-xl border border-slate-200 bg-white space-y-2">
                 <div className="flex justify-between items-center">
                   <strong className="text-xs text-slate-900 flex items-center gap-1.5">
-                    <BrainCircuit size={16} className="text-sky-600" /> AI Risk Stratification Summary
+                    <BrainCircuit size={16} className="text-sky-600" /> Clinical Risk Stratification Summary
                   </strong>
                   <span className="badge badge-neutral text-2xs font-mono">Confidence: {evalData.confidenceScore || 95}%</span>
                 </div>

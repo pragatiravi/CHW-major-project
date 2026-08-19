@@ -38,6 +38,7 @@ export default function AppShell({
   userRole,
   onLogout,
   onSwitchRole,
+  demoAccessEnabled = false,
   isOffline,
   toggleOffline,
   offlineQueueCount,
@@ -113,7 +114,7 @@ export default function AppShell({
     patient: [
       { id: 'overview', label: t('navHealthOverview'), icon: Home },
       { id: 'medicines', label: t('navDailyMeds'), icon: Pill },
-      { id: 'chatbot', label: t('navAssistant'), icon: Bot, badge: 'AI' },
+      { id: 'chatbot', label: t('navAssistant'), icon: Bot, badge: 'Guide' },
       { id: 'ocr', label: t('navPrescriptionScanner'), icon: Camera },
       { id: 'family', label: t('navFamily'), icon: Users },
       { id: 'appointments', label: t('navAppointments'), icon: Hospital }
@@ -348,7 +349,7 @@ export default function AppShell({
           </nav>
 
           {/* ISOLATED DEMO SANDBOX DRAWER AT BOTTOM */}
-          <div className="sidebar-demo-box">
+          {demoAccessEnabled && <div className="sidebar-demo-box">
             <span className="metric-label text-3xs text-slate-400 block mb-1">Evaluator Sandbox</span>
             <button
               className="btn btn-secondary text-xs w-full justify-between"
@@ -394,7 +395,7 @@ export default function AppShell({
                 </button>
               </div>
             )}
-          </div>
+          </div>}
         </aside>
 
         {/* MAIN WORKSPACE CONTENT */}

@@ -269,15 +269,15 @@ export default function PatientPortal({ patientRecord, patients = [], onSavePati
         </div>
         )}
 
-        {/* AI Health Assistant (Bilingual) */}
+        {/* Scripted Health Guidance Assistant (Bilingual) */}
         {activeTab !== 'medicines' && (
         <div className="card-box flex flex-col justify-between space-y-4">
           <div className="card-box-header">
             <div>
               <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                <Bot size={18} className="text-indigo-600" /> AI Health Assistant
+                <Bot size={18} className="text-indigo-600" /> Health Guidance Assistant
               </h3>
-              <p className="text-xs text-slate-500 mt-0.5">Ask questions in English or Kannada</p>
+              <p className="text-xs text-slate-500 mt-0.5">Scripted guidance in English or Kannada; not a live clinical service</p>
             </div>
             <span className="badge badge-neutral font-mono">Bilingual</span>
           </div>

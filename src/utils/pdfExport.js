@@ -2,6 +2,15 @@
  * PDF & CSV Export Utilities for CHW Healthcare Platform
  */
 
+export function escapeHTML(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 /**
  * Downloads data as a formatted CSV file
  * @param {Array} data - Array of objects
@@ -33,6 +42,7 @@ export function exportToCSV(data, filename = 'report.csv') {
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
+  URL.revokeObjectURL(url);
 }
 
 /**
@@ -43,12 +53,13 @@ export function exportToCSV(data, filename = 'report.csv') {
 export function printPDFReport(title, htmlContent) {
   const printWindow = window.open('', '_blank', 'width=900,height=800');
   if (!printWindow) return;
+  const safeTitle = escapeHTML(title);
 
   printWindow.document.write(`
     <!DOCTYPE html>
     <html>
       <head>
-        <title>${title}</title>
+        <title>${safeTitle}</title>
         <style>
           body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 24px; color: #1e293b; }
           .header { display: flex; justify-content: space-between; border-bottom: 2px solid #2563eb; padding-bottom: 12px; margin-bottom: 20px; }
@@ -68,8 +79,8 @@ export function printPDFReport(title, htmlContent) {
       <body>
         <div class="header">
           <div>
-            <div class="title">${title}</div>
-            <div class="meta">AI-Powered Community Health Worker Platform | Date: ${new Date().toLocaleDateString()}</div>
+            <div class="title">${safeTitle}</div>
+            <div class="meta">Guideline-Informed Community Health Platform | Date: ${new Date().toLocaleDateString()}</div>
           </div>
           <div>
             <strong>Confidential Medical Document</strong>
@@ -94,11 +105,12 @@ export function printPDFReport(title, htmlContent) {
  */
 export function exportPatientSummaryPDF(patient) {
   if (!patient) return;
+  const safe = (value) => escapeHTML(value);
   const html = `
     <div style="padding: 10px;">
-      <h3 style="color: #0284c7;">Clinical Profile: ${patient.name} (ID: ${patient.id})</h3>
-      <p><strong>Demographics:</strong> ${patient.age} Yrs | ${patient.gender} | ${patient.village || 'Community Sector'}</p>
-      <p><strong>Contact:</strong> ${patient.phone || '+91 98765 00000'}</p>
+      <h3 style="color: #0284c7;">Clinical Profile: ${safe(patient.name)} (ID: ${safe(patient.id)})</h3>
+      <p><strong>Demographics:</strong> ${safe(patient.age)} Yrs | ${safe(patient.gender)} | ${safe(patient.village || patient.address || 'Community Sector')}</p>
+      <p><strong>Contact:</strong> ${safe(patient.phone || 'Not recorded')}</p>
       <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 12px 0;"/>
       <h4 style="color: #1e3a8a;">Latest Clinical Vitals & Risk Score</h4>
       <table>
@@ -109,26 +121,26 @@ export function exportPatientSummaryPDF(patient) {
         </tr>
         <tr>
           <td>Blood Pressure</td>
-          <td>${patient.systolic}/${patient.diastolic} mmHg</td>
-          <td><span class="badge badge-warning">${patient.evaluation?.hypertension?.category || 'Stage 1 Hypertension'}</span></td>
+          <td>${safe(patient.systolic)}/${safe(patient.diastolic)} mmHg</td>
+          <td><span class="badge badge-warning">${safe(patient.evaluation?.hypertension?.category || 'Not assessed')}</span></td>
         </tr>
         <tr>
-          <td>Blood Glucose (${patient.glucoseType || 'fasting'})</td>
-          <td>${patient.glucose} mg/dL</td>
-          <td><span class="badge badge-high">${patient.evaluation?.diabetes?.category || 'Diabetic Threshold'}</span></td>
+          <td>Blood Glucose (${safe(patient.glucoseType || 'not recorded')})</td>
+          <td>${safe(patient.glucose)} mg/dL</td>
+          <td><span class="badge badge-high">${safe(patient.evaluation?.diabetes?.category || 'Not assessed')}</span></td>
         </tr>
         <tr>
           <td>BMI Index</td>
-          <td>${patient.bmi || '24.5'}</td>
-          <td><span class="badge badge-low">Normal Range</span></td>
+          <td>${safe(patient.bmi || 'Not recorded')}</td>
+          <td><span class="badge badge-low">Recorded</span></td>
         </tr>
       </table>
       <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 12px 0;"/>
       <h4 style="color: #1e3a8a;">Prescribed Medications</h4>
       <ul>
-        ${(patient.medicines || []).map(m => `<li><strong>${m.name}</strong> ${m.dosage} - ${m.frequency} (Scheduled: ${m.time})</li>`).join('')}
+        ${(patient.medicines || []).map(m => `<li><strong>${safe(m.name)}</strong> ${safe(m.dosage)} - ${safe(m.frequency)} (Scheduled: ${safe(m.time)})</li>`).join('')}
       </ul>
     </div>
   `;
-  printPDFReport(`Patient Health Passport - ${patient.name}`, html);
+  printPDFReport(`Patient Health Passport - ${patient.name || 'Patient'}`, html);
 }

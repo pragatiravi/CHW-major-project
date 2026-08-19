@@ -1,0 +1,2 @@
+-- Synthetic application data is provisioned through scripts/seedSupabase.mjs.
+-- This file intentionally contains no privileged credentials or auth user inserts.

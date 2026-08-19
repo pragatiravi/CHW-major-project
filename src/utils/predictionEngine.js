@@ -12,17 +12,17 @@ export const RISK_LEVELS = {
   CRITICAL: 'Critical'
 };
 
-export const ML_MODELS = {
-  RANDOM_FOREST: 'Ensemble Risk Scoring (AHA/ADA Guidelines)',
-  LOGISTIC_REGRESSION: 'Multivariate Logistic Logit Model',
-  DECISION_TREE: 'Hierarchical Clinical Decision Tree'
+export const RISK_SCORING_MODELS = {
+  GUIDELINE_ENSEMBLE: 'Guideline Ensemble Score (AHA/ADA)',
+  LOGISTIC_FORMULA: 'Logistic Risk Formula',
+  CLINICAL_DECISION_TREE: 'Hierarchical Clinical Decision Tree'
 };
 
 export const ALGORITHM_METADATA = {
   name: 'Community Health Decision Support Engine (CHW-CDSS v2.4)',
   version: '2.4.1-clinical',
   standards: ['AHA 2017 Hypertension Guidelines', 'ADA 2024 Standards of Care', 'WHO PEN Guidelines'],
-  type: 'Rule-Based & Model-Inspired Clinical Decision Support System',
+  type: 'Deterministic Guideline-Informed Clinical Decision Support System',
   disclaimer: 'This algorithmic scoring tool provides decision support for trained community health personnel. It is not an autonomous diagnostic instrument and does not substitute for qualified clinical evaluation or laboratory diagnostics.'
 };
 
@@ -32,7 +32,7 @@ export const ALGORITHM_METADATA = {
  * @param {string} selectedModel - Selected risk algorithm model
  * @returns {Object} Comprehensive Clinical Risk Assessment Report
  */
-export function assessPatientRisk(patient = {}, selectedModel = ML_MODELS.RANDOM_FOREST) {
+export function assessPatientRisk(patient = {}, selectedModel = RISK_SCORING_MODELS.GUIDELINE_ENSEMBLE) {
   const age = parseFloat(patient.age) || 0;
   const bmi = parseFloat(patient.bmi) || 22;
   const systolic = parseFloat(patient.systolic) || 120;
@@ -46,6 +46,7 @@ export function assessPatientRisk(patient = {}, selectedModel = ML_MODELS.RANDOM
   const activeLifestyle = !!patient.activeLifestyle;
 
   const isFasting = glucoseType === 'fasting';
+  const isPostprandial = glucoseType === 'postprandial';
 
   // -------------------------------------------------------------
   // 1. HYPERTENSION ASSESSMENT (AHA 2017 Guidelines)
@@ -180,11 +181,11 @@ export function assessPatientRisk(patient = {}, selectedModel = ML_MODELS.RANDOM
   let htProbability;
   let htConfidence;
 
-  if (selectedModel === ML_MODELS.LOGISTIC_REGRESSION) {
+  if (selectedModel === RISK_SCORING_MODELS.LOGISTIC_FORMULA) {
     const logit = -3.5 + (0.035 * systolic) + (0.04 * diastolic) + (0.03 * age) + (0.04 * bmi) + (smoking ? 0.8 : 0);
     htProbability = Math.round((1 / (1 + Math.exp(-logit))) * 100);
     htConfidence = 90;
-  } else if (selectedModel === ML_MODELS.DECISION_TREE) {
+  } else if (selectedModel === RISK_SCORING_MODELS.CLINICAL_DECISION_TREE) {
     if (systolic >= 180 || symptoms.includes('chest_pain')) {
       htProbability = 95;
     } else if (systolic >= 140 && age >= 45) {
@@ -205,9 +206,9 @@ export function assessPatientRisk(patient = {}, selectedModel = ML_MODELS.RANDOM
   let htRiskLevel = RISK_LEVELS.LOW;
   if (systolic >= 180 || diastolic >= 120 || (symptoms.includes('chest_pain') && systolic >= 140)) {
     htRiskLevel = RISK_LEVELS.CRITICAL;
-  } else if (htProbability >= 65 || systolic >= 140 || diastolic >= 90) {
+  } else if (systolic >= 140 || diastolic >= 90) {
     htRiskLevel = RISK_LEVELS.HIGH;
-  } else if (htProbability >= 35 || systolic >= 130 || diastolic >= 80) {
+  } else if (systolic >= 130 || diastolic >= 80 || htProbability >= 35) {
     htRiskLevel = RISK_LEVELS.MODERATE;
   }
 
@@ -234,7 +235,7 @@ export function assessPatientRisk(patient = {}, selectedModel = ML_MODELS.RANDOM
       impact: '+38%',
       detail: `Blood glucose (${glucose} mg/dL, ${glucoseType}) meets diagnostic criteria (\u2265126 fasting / \u2265200 random).`
     });
-  } else if ((isFasting && glucose >= 100 && glucose <= 125) || (!isFasting && glucose >= 140 && glucose <= 199)) {
+  } else if ((isFasting && glucose >= 100 && glucose <= 125) || (isPostprandial && glucose >= 140 && glucose <= 199)) {
     dbCategory = 'Impaired Glucose / Prediabetes';
     dbScore += 20;
     dbFeatureContributions.push({
@@ -328,11 +329,11 @@ export function assessPatientRisk(patient = {}, selectedModel = ML_MODELS.RANDOM
   let dbProbability;
   let dbConfidence;
 
-  if (selectedModel === ML_MODELS.LOGISTIC_REGRESSION) {
+  if (selectedModel === RISK_SCORING_MODELS.LOGISTIC_FORMULA) {
     const logit = -3.8 + (0.022 * glucose) + (0.05 * bmi) + (0.025 * age) + (familyHistory ? 0.9 : 0);
     dbProbability = Math.round((1 / (1 + Math.exp(-logit))) * 100);
     dbConfidence = 91;
-  } else if (selectedModel === ML_MODELS.DECISION_TREE) {
+  } else if (selectedModel === RISK_SCORING_MODELS.CLINICAL_DECISION_TREE) {
     if (glucose >= 200 || (isFasting && glucose >= 126)) {
       dbProbability = 92;
     } else if (glucose >= 140 && bmi >= 27) {
@@ -345,7 +346,8 @@ export function assessPatientRisk(patient = {}, selectedModel = ML_MODELS.RANDOM
     dbConfidence = 89;
   } else {
     // Ensemble Risk Scoring
-    const rawScore = dbScore + Math.max(0, (glucose - (isFasting ? 100 : 140)) * 0.38);
+    const scoringBaseline = isFasting ? 100 : (isPostprandial ? 140 : 200);
+    const rawScore = dbScore + Math.max(0, (glucose - scoringBaseline) * 0.38);
     dbProbability = Math.min(99, Math.max(5, Math.round(rawScore)));
     dbConfidence = 97;
   }
@@ -353,9 +355,9 @@ export function assessPatientRisk(patient = {}, selectedModel = ML_MODELS.RANDOM
   let dbRiskLevel = RISK_LEVELS.LOW;
   if (glucose >= 300 || (glucose >= 200 && (symptoms.includes('polyuria') || symptoms.includes('polydipsia')))) {
     dbRiskLevel = RISK_LEVELS.CRITICAL;
-  } else if (dbProbability >= 60 || (isFasting && glucose >= 126) || (!isFasting && glucose >= 200)) {
+  } else if ((isFasting && glucose >= 126) || (!isFasting && glucose >= 200)) {
     dbRiskLevel = RISK_LEVELS.HIGH;
-  } else if (dbProbability >= 35 || (isFasting && glucose >= 100) || (!isFasting && glucose >= 140)) {
+  } else if ((isFasting && glucose >= 100) || (isPostprandial && glucose >= 140) || dbProbability >= 35) {
     dbRiskLevel = RISK_LEVELS.MODERATE;
   }
 

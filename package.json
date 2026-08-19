@@ -7,9 +7,13 @@
     "dev": "node ./node_modules/vite/bin/vite.js",
     "build": "node ./node_modules/vite/bin/vite.js build",
     "lint": "node ./node_modules/eslint/bin/eslint.js .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "seed:supabase": "node --env-file=.env.supabase.local scripts/seedSupabase.mjs",
     "preview": "node ./node_modules/vite/bin/vite.js preview"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.112.3",
     "lucide-react": "^1.27.0",
     "react": "^19.2.6",
     "react-dom": "^19.2.6"
@@ -23,6 +27,11 @@
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.2",
     "globals": "^17.6.0",
-    "vite": "^8.0.12"
+    "supabase": "^2.115.0",
+    "vite": "^8.0.12",
+    "vitest": "^4.1.11"
+  },
+  "optionalDependencies": {
+    "@supabase/cli-windows-x64": "2.115.0"
   }
 }

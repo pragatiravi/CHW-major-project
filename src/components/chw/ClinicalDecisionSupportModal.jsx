@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { X, BrainCircuit, Activity, Heart, Hospital, Sparkles } from 'lucide-react';
-import { assessPatientRisk, ML_MODELS } from '../../utils/predictionEngine';
+import { assessPatientRisk, RISK_SCORING_MODELS } from '../../utils/predictionEngine';
 
-export default function AIScreeningModal({ patient, onClose, onOpenReferral }) {
-  const [selectedModel, setSelectedModel] = useState(ML_MODELS.ENSEMBLE_CLINICAL);
+export default function ClinicalDecisionSupportModal({ patient, onClose, onOpenReferral }) {
+  const [selectedModel, setSelectedModel] = useState(RISK_SCORING_MODELS.GUIDELINE_ENSEMBLE);
   
   if (!patient) return null;
 
@@ -48,7 +48,7 @@ export default function AIScreeningModal({ patient, onClose, onOpenReferral }) {
           <div className="p-3.5 rounded-xl border border-sky-200 bg-sky-50 flex justify-between items-center flex-wrap gap-2">
             <span className="text-xs font-bold text-sky-950">Clinical Scoring Model:</span>
             <div className="flex gap-1.5 flex-wrap">
-              {Object.values(ML_MODELS).map((m) => (
+              {Object.values(RISK_SCORING_MODELS).map((m) => (
                 <button 
                   key={m}
                   className={`btn text-2xs py-1 px-2.5 ${selectedModel === m ? 'btn-primary font-bold' : 'btn-secondary bg-white'}`}

@@ -11,7 +11,7 @@ import {
   Search
 } from 'lucide-react';
 import AnalyticsCharts from './AnalyticsCharts';
-import { exportToCSV, printPDFReport } from '../../utils/pdfExport';
+import { escapeHTML, exportToCSV, printPDFReport } from '../../utils/pdfExport';
 import { useToast } from '../shared/ToastContainer';
 import PatientDetailModal from '../shared/PatientDetailModal';
 
@@ -60,16 +60,17 @@ export default function SupervisorDashboard({
   };
 
   const handlePrintPDF = () => {
+    const safe = (value) => escapeHTML(value);
     const tableRows = filteredPatients.map(p => `
       <tr>
-        <td><strong>${p.id}</strong></td>
-        <td>${p.name}</td>
-        <td>${p.age} yrs (${p.gender})</td>
-        <td>${p.systolic}/${p.diastolic} mmHg</td>
-        <td>${p.glucose} mg/dL</td>
-        <td><span class="badge badge-${(p.evaluation?.overallRiskLevel || 'Low').toLowerCase()}">${p.evaluation?.overallRiskLevel || 'Low'}</span></td>
-        <td>${p.referral?.status || 'None'}</td>
-        <td>${p.assignedCHW || 'Sunita Patil'}</td>
+        <td><strong>${safe(p.id)}</strong></td>
+        <td>${safe(p.name)}</td>
+        <td>${safe(p.age)} yrs (${safe(p.gender)})</td>
+        <td>${safe(p.systolic)}/${safe(p.diastolic)} mmHg</td>
+        <td>${safe(p.glucose)} mg/dL</td>
+        <td><span class="badge badge-${safe((p.evaluation?.overallRiskLevel || 'Low').toLowerCase())}">${safe(p.evaluation?.overallRiskLevel || 'Low')}</span></td>
+        <td>${safe(p.referral?.status || 'None')}</td>
+        <td>${safe(p.assignedCHW || 'Sunita Patil')}</td>
       </tr>
     `).join('');
 
@@ -319,7 +320,7 @@ export default function SupervisorDashboard({
         <PatientDetailModal 
           patient={inspectedPatient}
           onClose={() => setInspectedPatient(null)}
-          onOpenAIScreening={() => {}}
+          onOpenDecisionSupport={() => {}}
           onOpenCounselling={() => {}}
           onOpenReferral={() => {}}
           onOpenMedicationModal={() => {}}

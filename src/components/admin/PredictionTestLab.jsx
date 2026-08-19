@@ -8,16 +8,16 @@ import {
 } from 'lucide-react';
 import { 
   assessPatientRisk, 
-  ML_MODELS, 
+  RISK_SCORING_MODELS,
   CLINICAL_BENCHMARK_TEST_CASES, 
   ALGORITHM_METADATA 
 } from '../../utils/predictionEngine';
 
 export default function PredictionTestLab() {
-  const [selectedModel, setSelectedModel] = useState(ML_MODELS.RANDOM_FOREST);
+  const [selectedModel, setSelectedModel] = useState(RISK_SCORING_MODELS.GUIDELINE_ENSEMBLE);
   const [testResults, setTestResults] = useState(() => {
     return CLINICAL_BENCHMARK_TEST_CASES.map(tc => {
-      const actual = assessPatientRisk(tc.patient, ML_MODELS.RANDOM_FOREST);
+      const actual = assessPatientRisk(tc.patient, RISK_SCORING_MODELS.GUIDELINE_ENSEMBLE);
       const isRiskMatch = actual.overallRiskLevel === tc.expectedRisk;
       return {
         ...tc,
@@ -72,7 +72,7 @@ export default function PredictionTestLab() {
         <div>
           <div className="flex items-center gap-2">
             <FlaskConical className="text-cyan-400" size={24} />
-            <h2 className="text-base font-bold text-white">Clinical Prediction Engine Verification Lab</h2>
+            <h2 className="text-base font-bold text-white">Clinical Scoring Engine Verification Lab</h2>
             <span className="badge badge-primary text-2xs">Admin CDSS Quality Assurance</span>
           </div>
           <p className="text-xs text-slate-300 mt-1">
@@ -104,7 +104,7 @@ export default function PredictionTestLab() {
             onChange={(e) => handleModelChange(e.target.value)}
             className="form-input text-xs py-1 font-semibold"
           >
-            {Object.values(ML_MODELS).map(m => (
+            {Object.values(RISK_SCORING_MODELS).map(m => (
               <option key={m} value={m}>{m}</option>
             ))}
           </select>

@@ -276,7 +276,7 @@ export default function AdminPortal({
         </div>
       )}
 
-      {/* TAB: ML THRESHOLDS */}
+      {/* TAB: CLINICAL SCORING THRESHOLDS */}
       {activeTab === 'ml_config' && (
         <div className="card-box space-y-4">
           <h3 className="text-base font-bold text-slate-900">Clinical Decision Support System (CDSS) Cutoffs</h3>

@@ -4,12 +4,13 @@ import { SYSTEM_MEDICINES } from '../../data/initialData';
 import { useToast } from '../shared/ToastContainer';
 
 export default function MedicationTrackerModal({ patient, onClose, onUpdatePatientMedicines }) {
-  const { toastSuccess, toastWarning } = useToast();
+  const { toastSuccess, toastWarning, toastError } = useToast();
   const [showAddForm, setShowAddForm] = useState(false);
   const [medName, setMedName] = useState(SYSTEM_MEDICINES[0].name);
   const [dosage, setDosage] = useState(SYSTEM_MEDICINES[0].defaultDosage);
   const [frequency, setFrequency] = useState('Once Daily (Morning)');
   const [durationDays, setDurationDays] = useState(90);
+  const [isSaving, setIsSaving] = useState(false);
 
   if (!patient) return null;
 
@@ -23,7 +24,7 @@ export default function MedicationTrackerModal({ patient, onClose, onUpdatePatie
     }
   };
 
-  const handleAddMedicine = (e) => {
+  const handleAddMedicine = async (e) => {
     e.preventDefault();
     const today = new Date();
     const endDate = new Date();
@@ -41,12 +42,19 @@ export default function MedicationTrackerModal({ patient, onClose, onUpdatePatie
     };
 
     const nextMeds = [...(patient.medicines || []), newMed];
-    onUpdatePatientMedicines(patient.id, nextMeds);
-    toastSuccess(`Prescribed ${medName} (${dosage}) for ${patient.name}`);
-    setShowAddForm(false);
+    setIsSaving(true);
+    try {
+      await onUpdatePatientMedicines(patient.id, nextMeds);
+      toastSuccess(`Prescribed ${medName} (${dosage}) for ${patient.name}`);
+      setShowAddForm(false);
+    } catch (error) {
+      toastError(error.message || 'Unable to save the medication order.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  const handleLogDose = (medId, isMissed = false) => {
+  const handleLogDose = async (medId, isMissed = false) => {
     const updated = (patient.medicines || []).map(m => {
       if (m.id === medId) {
         return {
@@ -56,15 +64,22 @@ export default function MedicationTrackerModal({ patient, onClose, onUpdatePatie
       }
       return m;
     });
-    onUpdatePatientMedicines(patient.id, updated);
-    if (isMissed) {
-      toastWarning(`Missed dose reported for patient medication.`);
-    } else {
-      toastSuccess(`Daily dose recorded as taken!`);
+    setIsSaving(true);
+    try {
+      await onUpdatePatientMedicines(patient.id, updated);
+      if (isMissed) {
+        toastWarning('Missed dose reported for patient medication.');
+      } else {
+        toastSuccess('Daily dose recorded as taken.');
+      }
+    } catch (error) {
+      toastError(error.message || 'Unable to update medication adherence.');
+    } finally {
+      setIsSaving(false);
     }
   };
 
-  const handleRefillMedicine = (medId) => {
+  const handleRefillMedicine = async (medId) => {
     const today = new Date();
     const newEnd = new Date();
     newEnd.setDate(today.getDate() + 90);
@@ -80,8 +95,15 @@ export default function MedicationTrackerModal({ patient, onClose, onUpdatePatie
       }
       return m;
     });
-    onUpdatePatientMedicines(patient.id, updated);
-    toastSuccess('90-day prescription refill authorized.');
+    setIsSaving(true);
+    try {
+      await onUpdatePatientMedicines(patient.id, updated);
+      toastSuccess('90-day prescription refill authorized.');
+    } catch (error) {
+      toastError(error.message || 'Unable to authorize the refill.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -111,6 +133,7 @@ export default function MedicationTrackerModal({ patient, onClose, onUpdatePatie
             <button 
               className="btn btn-primary text-xs flex items-center gap-1.5"
               onClick={() => setShowAddForm(!showAddForm)}
+              disabled={isSaving}
             >
               <Plus size={14} /> Prescribe Medicine
             </button>
@@ -154,7 +177,9 @@ export default function MedicationTrackerModal({ patient, onClose, onUpdatePatie
 
               <div className="flex justify-end gap-2 pt-2">
                 <button type="button" className="btn btn-secondary text-xs" onClick={() => setShowAddForm(false)}>Cancel</button>
-                <button type="submit" className="btn btn-primary text-xs font-bold">Save Prescription</button>
+                <button type="submit" className="btn btn-primary text-xs font-bold" disabled={isSaving}>
+                  {isSaving ? 'Saving...' : 'Save Prescription'}
+                </button>
               </div>
             </form>
           )}
@@ -193,12 +218,14 @@ export default function MedicationTrackerModal({ patient, onClose, onUpdatePatie
                       <button 
                         className="btn btn-secondary text-2xs flex items-center gap-1"
                         onClick={() => handleLogDose(m.id, false)}
+                        disabled={isSaving}
                       >
                         <CheckCircle2 size={12} className="text-emerald-600" /> Log Dose Taken
                       </button>
                       <button 
                         className="btn btn-danger-outline text-2xs flex items-center gap-1"
                         onClick={() => handleLogDose(m.id, true)}
+                        disabled={isSaving}
                       >
                         <AlertTriangle size={12} /> Report Missed
                       </button>
@@ -206,6 +233,7 @@ export default function MedicationTrackerModal({ patient, onClose, onUpdatePatie
                         className="btn btn-secondary text-2xs flex items-center gap-1"
                         onClick={() => handleRefillMedicine(m.id)}
                         title="Authorize 90-day Refill"
+                        disabled={isSaving}
                       >
                         <RefreshCw size={12} className="text-sky-600" /> Refill
                       </button>

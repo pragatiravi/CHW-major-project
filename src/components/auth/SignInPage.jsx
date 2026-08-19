@@ -14,12 +14,21 @@ import {
   ArrowRight
 } from 'lucide-react';
 
-export default function SignInPage({ onLogin, onBackToLanding, initialRole = 'chw' }) {
+export default function SignInPage({
+  onLogin,
+  onAuthenticate,
+  onResetPassword,
+  onBackToLanding,
+  initialRole = 'chw',
+  demoAccessEnabled = false,
+}) {
   const [email, setEmail] = useState('sunita.patil@communityhealth.org');
-  const [password, setPassword] = useState('clinical@123');
+  const [password, setPassword] = useState('');
   const [selectedRole, setSelectedRole] = useState(initialRole);
   const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [resetSent, setResetSent] = useState(false);
+  const [authError, setAuthError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const demoAccounts = [
     {
@@ -75,30 +84,40 @@ export default function SignInPage({ onLogin, onBackToLanding, initialRole = 'ch
       color: 'text-purple-600',
       bgColor: 'bg-purple-50',
       borderHover: 'hover:border-purple-400',
-      desc: 'Hospital facility registry, ML thresholds & HL7 FHIR R4 export'
+      desc: 'Hospital facility registry, clinical cutoffs & HL7 FHIR R4 export'
     }
   ];
 
-  const handleStandardSubmit = (e) => {
+  const handleStandardSubmit = async (e) => {
     e.preventDefault();
-    if (isForgotPassword) {
-      setResetSent(true);
-      return;
-    }
+    setAuthError('');
+    setIsSubmitting(true);
 
-    const matchedDemo = demoAccounts.find(d => d.role === selectedRole);
-    onLogin({
-      name: matchedDemo ? matchedDemo.name : 'Authorized Staff Member',
-      email: email,
-      role: selectedRole
-    });
+    try {
+      if (isForgotPassword) {
+        await onResetPassword(email);
+        setResetSent(true);
+        return;
+      }
+
+      await onAuthenticate({
+        email: email.trim().toLowerCase(),
+        password,
+        role: selectedRole,
+      });
+    } catch (error) {
+      setAuthError(error.message || 'Authentication failed. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleQuickDemoLogin = (account) => {
     onLogin({
       name: account.name,
       email: account.email,
-      role: account.role
+      role: account.role,
+      source: 'demo',
     });
   };
 
@@ -164,7 +183,7 @@ export default function SignInPage({ onLogin, onBackToLanding, initialRole = 'ch
             <div className="signin-security-note">
               <ShieldCheck size={16} className="text-slate-400 flex-shrink-0" />
               <span>
-                Authorized healthcare personnel only. All access events and clinical actions are recorded in immutable audit logs.
+                Authorized users only. This prototype stores a local demonstration audit trail; production deployments require server-side, tamper-evident logging.
               </span>
             </div>
           </div>
@@ -173,12 +192,54 @@ export default function SignInPage({ onLogin, onBackToLanding, initialRole = 'ch
         {/* Right Column: Sign In Form & Demo Personas */}
         <div className="signin-right-col">
           <div className="signin-form-card">
-            {!isForgotPassword ? (
+            {demoAccessEnabled ? (
+              <>
+                <div className='signin-header'>
+                  <div className='auth-badge mb-3'>
+                    <ShieldCheck size={14} className='text-sky-600' aria-hidden='true' />
+                    <span>Demonstration access</span>
+                  </div>
+                  <h3 className='text-xl font-bold text-slate-900'>Choose a Demo Workspace</h3>
+                  <p className='text-xs text-slate-500 mt-1'>
+                    No email or password is required. Select a role to open its workspace.
+                  </p>
+                </div>
+
+                <div className='demo-personas-grid mt-5'>
+                  {demoAccounts.map((account) => {
+                    const IconComponent = account.icon;
+                    return (
+                      <button
+                        key={account.role}
+                        type='button'
+                        className={'demo-persona-card ' + account.borderHover}
+                        onClick={() => handleQuickDemoLogin(account)}
+                        aria-label={'Open ' + account.title + ' demo workspace'}
+                      >
+                        <div className={'demo-icon-box ' + account.bgColor + ' ' + account.color}>
+                          <IconComponent size={16} aria-hidden='true' />
+                        </div>
+                        <div className='demo-info'>
+                          <strong className='demo-name'>{account.name}</strong>
+                          <span className='demo-role'>{account.title}</span>
+                          <span className='demo-desc'>{account.desc}</span>
+                        </div>
+                        <ArrowRight className='demo-arrow text-slate-400' size={15} aria-hidden='true' />
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <p className='text-2xs text-slate-500 mt-4 leading-relaxed'>
+                  Demo workspaces use synthetic records and store the evaluator session only in this browser tab.
+                </p>
+              </>
+            ) : !isForgotPassword ? (
               <>
                 <div className="signin-header">
                   <h3 className="text-xl font-bold text-slate-900">Sign In to Your Workspace</h3>
                   <p className="text-xs text-slate-500 mt-1">
-                    Enter institutional credentials or launch an evaluator demo persona below.
+                    Enter your Supabase-authenticated institutional credentials.
                   </p>
                 </div>
 
@@ -191,6 +252,7 @@ export default function SignInPage({ onLogin, onBackToLanding, initialRole = 'ch
                       onChange={(e) => {
                         const newRole = e.target.value;
                         setSelectedRole(newRole);
+                        setAuthError('');
                         const matched = demoAccounts.find(d => d.role === newRole);
                         if (matched) setEmail(matched.email);
                       }}
@@ -212,7 +274,7 @@ export default function SignInPage({ onLogin, onBackToLanding, initialRole = 'ch
                         id="signin-email"
                         type="email" 
                         value={email}
-                        onChange={(e) => setEmail(e.target.value)}
+                        onChange={(e) => { setEmail(e.target.value); setAuthError(''); }}
                         placeholder="e.g. staff.id@communityhealth.org"
                         className="form-input text-xs pl-9"
                         required
@@ -238,54 +300,69 @@ export default function SignInPage({ onLogin, onBackToLanding, initialRole = 'ch
                         id="signin-password"
                         type="password" 
                         value={password}
-                        onChange={(e) => setPassword(e.target.value)}
+                        onChange={(e) => { setPassword(e.target.value); setAuthError(''); }}
                         placeholder="••••••••••••"
                         className="form-input text-xs pl-9"
                         required
                         autoComplete="current-password"
+                        aria-invalid={Boolean(authError)}
+                        aria-describedby={authError ? 'signin-auth-error' : undefined}
                       />
                     </div>
                   </div>
 
-                  <button type="submit" className="btn btn-primary w-full text-xs font-semibold py-2.5 shadow-sm">
-                    Authenticate & Enter Workspace
+                  {authError && (
+                    <div id="signin-auth-error" className="form-error-message" role="alert">
+                      {authError}
+                    </div>
+                  )}
+
+                  <button
+                    type="submit"
+                    className="btn btn-primary w-full text-xs font-semibold py-2.5 shadow-sm"
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting ? 'Authenticating...' : 'Authenticate & Enter Workspace'}
                   </button>
                 </form>
 
-                {/* Visually Separated Demo Personas Section */}
-                <div className="demo-access-divider">
-                  <span>OR SELECT AN EVALUATION PERSONA</span>
-                </div>
+                {demoAccessEnabled && (
+                  <>
+                    <div className="demo-access-divider">
+                      <span>OR SELECT AN EVALUATION PERSONA</span>
+                    </div>
 
-                <div className="demo-personas-grid">
-                  {demoAccounts.map((account) => {
-                    const IconComponent = account.icon;
-                    return (
-                      <button
-                        key={account.role}
-                        type="button"
-                        className={`demo-persona-card ${account.borderHover}`}
-                        onClick={() => handleQuickDemoLogin(account)}
-                      >
-                        <div className={`demo-icon-box ${account.bgColor} ${account.color}`}>
-                          <IconComponent size={16} />
-                        </div>
-                        <div className="demo-info">
-                          <strong className="demo-name">{account.name}</strong>
-                          <span className="demo-role">{account.title}</span>
-                          <span className="demo-desc">{account.desc}</span>
-                        </div>
-                        <ArrowRight className="demo-arrow text-slate-400" size={15} aria-hidden="true" />
-                      </button>
-                    );
-                  })}
-                </div>
+                    <div className="demo-personas-grid">
+                      {demoAccounts.map((account) => {
+                        const IconComponent = account.icon;
+                        return (
+                          <button
+                            key={account.role}
+                            type="button"
+                            className={`demo-persona-card ${account.borderHover}`}
+                            onClick={() => handleQuickDemoLogin(account)}
+                          >
+                            <div className={`demo-icon-box ${account.bgColor} ${account.color}`}>
+                              <IconComponent size={16} />
+                            </div>
+                            <div className="demo-info">
+                              <strong className="demo-name">{account.name}</strong>
+                              <span className="demo-role">{account.title}</span>
+                              <span className="demo-desc">{account.desc}</span>
+                            </div>
+                            <ArrowRight className="demo-arrow text-slate-400" size={15} aria-hidden="true" />
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
               </>
             ) : (
               <div className="password-reset-view">
                 <h3 className="text-lg font-bold text-slate-900">Password Recovery</h3>
                 <p className="text-xs text-slate-500 mt-1">
-                  Enter your registered institutional email to dispatch a secure password reset link.
+                  Enter your registered institutional email to receive a secure recovery link.
                 </p>
 
                 {resetSent ? (
@@ -293,7 +370,7 @@ export default function SignInPage({ onLogin, onBackToLanding, initialRole = 'ch
                     <CheckCircle2 size={28} className="text-emerald-600 mx-auto mb-2" />
                     <strong className="text-xs text-slate-800 block">Recovery Instructions Sent</strong>
                     <p className="text-2xs text-slate-600 mt-1">
-                      A secure password reset link has been dispatched to <strong>{email}</strong>.
+                      Supabase sent recovery instructions to <strong>{email}</strong>, if the account exists.
                     </p>
                     <button 
                       className="btn btn-primary text-xs w-full mt-4"
@@ -327,8 +404,8 @@ export default function SignInPage({ onLogin, onBackToLanding, initialRole = 'ch
                       >
                         Cancel
                       </button>
-                      <button type="submit" className="btn btn-primary text-xs flex-1">
-                        Send Recovery Link
+                      <button type="submit" className="btn btn-primary text-xs flex-1" disabled={isSubmitting}>
+                        {isSubmitting ? 'Sending...' : 'Send Recovery Link'}
                       </button>
                     </div>
                   </form>

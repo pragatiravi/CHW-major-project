@@ -308,7 +308,7 @@ export default function LandingPage({
                 </p>
               </div>
               <button className="btn btn-secondary text-xs mt-4 w-full" onClick={() => handleDemoLaunch('chw')}>
-                Open CHW Demo <ArrowRight size={14} />
+                Sign in as CHW <ArrowRight size={14} />
               </button>
             </div>
 
@@ -324,7 +324,7 @@ export default function LandingPage({
                 </p>
               </div>
               <button className="btn btn-secondary text-xs mt-4 w-full" onClick={() => handleDemoLaunch('doctor')}>
-                Open Doctor Demo <ArrowRight size={14} />
+                Sign in as Doctor <ArrowRight size={14} />
               </button>
             </div>
 
@@ -340,7 +340,7 @@ export default function LandingPage({
                 </p>
               </div>
               <button className="btn btn-secondary text-xs mt-4 w-full" onClick={() => handleDemoLaunch('patient')}>
-                Open Patient Demo <ArrowRight size={14} />
+                Sign in as Patient <ArrowRight size={14} />
               </button>
             </div>
 
@@ -356,7 +356,7 @@ export default function LandingPage({
                 </p>
               </div>
               <button className="btn btn-secondary text-xs mt-4 w-full" onClick={() => handleDemoLaunch('supervisor')}>
-                Open Supervisor Demo <ArrowRight size={14} />
+                Sign in as Supervisor <ArrowRight size={14} />
               </button>
             </div>
 
@@ -368,11 +368,11 @@ export default function LandingPage({
                 </div>
                 <h4 className="font-bold text-slate-900 text-sm">System Administrator</h4>
                 <p className="text-xs text-slate-600 mt-2">
-                  Prediction Test Lab benchmark validation, HL7 FHIR R4 Bundle exports, CDSS threshold calibration, and audit trails.
+                  Clinical Scoring Test Lab validation, HL7 FHIR R4 Bundle exports, CDSS threshold calibration, and audit trails.
                 </p>
               </div>
               <button className="btn btn-secondary text-xs mt-4 w-full" onClick={() => handleDemoLaunch('admin')}>
-                Open Admin Demo <ArrowRight size={14} />
+                Sign in as Admin <ArrowRight size={14} />
               </button>
             </div>
           </div>

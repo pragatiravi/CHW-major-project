@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import PatientRegistrationModal from './PatientRegistrationModal';
 import GuidedScreeningWizard from './GuidedScreeningWizard';
-import AIScreeningModal from './AIScreeningModal';
+import ClinicalDecisionSupportModal from './ClinicalDecisionSupportModal';
 import ThinkLetsCounsellingModal from './ThinkLetsCounsellingModal';
 import MedicationTrackerModal from './MedicationTrackerModal';
 import OfflineSyncQueueModal from './OfflineSyncQueueModal';
@@ -50,7 +50,7 @@ export default function CHWPortal({
   const [showWizardModal, setShowWizardModal] = useState(false);
   const [selectedPatientForEdit, setSelectedPatientForEdit] = useState(null);
   const [showDetailPatient, setShowDetailPatient] = useState(null);
-  const [showAIScreeningPatient, setShowAIScreeningPatient] = useState(null);
+  const [showDecisionSupportPatient, setShowDecisionSupportPatient] = useState(null);
   const [showCounsellingPatient, setShowCounsellingPatient] = useState(null);
   const [showMedicationPatient, setShowMedicationPatient] = useState(null);
   const [showMapModal, setShowMapModal] = useState(false);
@@ -410,7 +410,7 @@ export default function CHWPortal({
                   <div><strong className="text-sm text-slate-900 block">{patient.name}</strong><span className="text-xs text-slate-500">{patient.id} · {patient.age} years</span></div>
                   {getRiskBadge(patient.evaluation?.overallRiskLevel || 'Low')}
                 </div>
-                <button type="button" className="btn btn-secondary text-xs w-full" onClick={() => setShowAIScreeningPatient(patient)}>Review latest assessment</button>
+                <button type="button" className="btn btn-secondary text-xs w-full" onClick={() => setShowDecisionSupportPatient(patient)}>Review latest assessment</button>
               </article>
             ))}
           </div>
@@ -584,7 +584,7 @@ export default function CHWPortal({
         <PatientDetailModal 
           patient={showDetailPatient}
           onClose={() => setShowDetailPatient(null)}
-          onOpenAIScreening={(p) => { setShowDetailPatient(null); setShowAIScreeningPatient(p); }}
+          onOpenDecisionSupport={(p) => { setShowDetailPatient(null); setShowDecisionSupportPatient(p); }}
           onOpenCounselling={(p) => { setShowDetailPatient(null); setShowCounsellingPatient(p); }}
           onOpenReferral={(p) => { setShowDetailPatient(null); handleOpenReferralForm(p); }}
           onOpenMedicationModal={(p) => { setShowDetailPatient(null); setShowMedicationPatient(p); }}
@@ -594,11 +594,11 @@ export default function CHWPortal({
         />
       )}
 
-      {showAIScreeningPatient && (
-        <AIScreeningModal 
-          patient={showAIScreeningPatient}
-          onClose={() => setShowAIScreeningPatient(null)}
-          onOpenReferral={(p) => { setShowAIScreeningPatient(null); handleOpenReferralForm(p); }}
+      {showDecisionSupportPatient && (
+        <ClinicalDecisionSupportModal
+          patient={showDecisionSupportPatient}
+          onClose={() => setShowDecisionSupportPatient(null)}
+          onOpenReferral={(p) => { setShowDecisionSupportPatient(null); handleOpenReferralForm(p); }}
         />
       )}
 

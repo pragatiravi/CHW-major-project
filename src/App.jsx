@@ -18,12 +18,26 @@ import {
   INITIAL_AUDIT_LOGS 
 } from './data/initialData';
 import { assessPatientRisk } from './utils/predictionEngine';
+import {
+  requestPasswordReset,
+  restoreAuthenticatedUser,
+  signInWithRole,
+  signOutAuthenticatedUser,
+} from './lib/auth';
+import {
+  fetchMedicalOfficerPatients,
+  reviewMedicalOfficerReferral,
+  syncMedicalOfficerMedicationOrders,
+} from './lib/medicalOfficerData';
+
+const DEMO_ACCESS_ENABLED = import.meta.env.VITE_ENABLE_DEMO_ACCESS !== 'false';
 
 function AppContent() {
-  const { toastSuccess, toastInfo, toastWarning } = useToast();
+  const { toastSuccess, toastInfo, toastWarning, toastError } = useToast();
 
   // Session State: Default to null on fresh load (Public Landing)
   const [currentUser, setCurrentUser] = useState(() => {
+    if (!DEMO_ACCESS_ENABLED) return null;
     try {
       const savedSession = sessionStorage.getItem('chw_auth_session');
       return savedSession ? JSON.parse(savedSession) : null;
@@ -33,6 +47,7 @@ function AppContent() {
   });
 
   const [currentView, setCurrentView] = useState(() => {
+    if (!DEMO_ACCESS_ENABLED) return 'landing';
     try {
       const savedSession = sessionStorage.getItem('chw_auth_session');
       return savedSession ? 'app' : 'landing'; // 'landing' | 'auth' | 'app'
@@ -42,6 +57,7 @@ function AppContent() {
   });
 
   const [userRole, setUserRole] = useState(() => {
+    if (!DEMO_ACCESS_ENABLED) return 'chw';
     try {
       const savedSession = sessionStorage.getItem('chw_auth_session');
       if (savedSession) {
@@ -55,6 +71,31 @@ function AppContent() {
   });
 
   const [activeNavSection, setActiveNavSection] = useState('home');
+  const [authReady, setAuthReady] = useState(false);
+  const [medicalDataLoading, setMedicalDataLoading] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+
+    restoreAuthenticatedUser()
+      .then((restoredUser) => {
+        if (!active || !restoredUser) return;
+        setCurrentUser(restoredUser);
+        setUserRole(restoredUser.role);
+        setActiveNavSection(restoredUser.role === 'doctor' ? 'triage' : 'overview');
+        setCurrentView('app');
+      })
+      .catch((error) => {
+        if (active) toastError(error.message);
+      })
+      .finally(() => {
+        if (active) setAuthReady(true);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [toastError]);
 
   // Theme State with localStorage persistence
   const [theme, setTheme] = useState(() => {
@@ -107,14 +148,43 @@ function AppContent() {
 
   const [auditLogs] = useState(INITIAL_AUDIT_LOGS);
 
+  useEffect(() => {
+    if (currentUser?.source !== 'supabase' || userRole !== 'doctor') return undefined;
+
+    let active = true;
+    const loadSecuredPatients = async () => {
+      await Promise.resolve();
+      if (!active) return;
+
+      setMedicalDataLoading(true);
+      setPatients([]);
+
+      try {
+        const securedPatients = await fetchMedicalOfficerPatients();
+        if (active) setPatients(securedPatients);
+      } catch (error) {
+        if (active) toastError(error.message, 7000);
+      } finally {
+        if (active) setMedicalDataLoading(false);
+      }
+    };
+
+    loadSecuredPatients();
+
+    return () => {
+      active = false;
+    };
+  }, [currentUser?.id, currentUser?.source, userRole, toastError]);
+
   // Sync state changes to localStorage
   useEffect(() => {
+    if (currentUser?.source === 'supabase') return;
     try {
       localStorage.setItem('chw_patients', JSON.stringify(patients));
     } catch (e) {
       console.error('Failed to persist patients:', e);
     }
-  }, [patients]);
+  }, [patients, currentUser?.source]);
 
   useEffect(() => {
     try {
@@ -191,12 +261,31 @@ function AppContent() {
     }
   };
 
-  const handleLogout = () => {
+  const handleAuthenticate = async (credentials) => {
+    const authenticatedUser = await signInWithRole(credentials);
+    handleLogin(authenticatedUser);
+  };
+
+  const handlePasswordReset = async (email) => {
+    await requestPasswordReset(email);
+  };
+
+  const handleLogout = async () => {
+    if (currentUser?.source === 'supabase') {
+      try {
+        await signOutAuthenticatedUser();
+      } catch (error) {
+        toastError(error.message);
+        return;
+      }
+    }
+
     setCurrentUser(null);
     setUserRole('chw');
     setActiveNavSection('home');
     setCurrentView('landing');
     setShowNotificationsDrawer(false);
+    setPatients(INITIAL_PATIENTS);
     toastInfo('You have been securely signed out.');
     try {
       sessionStorage.removeItem('chw_auth_session');
@@ -206,6 +295,13 @@ function AppContent() {
   };
 
   const handleQuickDemoLogin = (role) => {
+    if (!DEMO_ACCESS_ENABLED) {
+      setUserRole(role || 'chw');
+      setCurrentView('auth');
+      toastInfo('One-click evaluator access is disabled. Enter the matching demo credentials to continue.');
+      return;
+    }
+
     const demoAccounts = {
       chw: { name: 'Sunita Patil (CHW)', email: 'sunita.patil@communityhealth.org', role: 'chw' },
       doctor: { name: 'Dr. Ananya Roy (M.D.)', email: 'ananya.roy@districtmed.org', role: 'doctor' },
@@ -218,7 +314,7 @@ function AppContent() {
   };
 
   const handleSwitchDemoRole = (newRole) => {
-    handleQuickDemoLogin(newRole);
+    if (DEMO_ACCESS_ENABLED) handleQuickDemoLogin(newRole);
   };
 
   // -------------------------------------------------------------
@@ -282,7 +378,19 @@ function AppContent() {
     }
   };
 
-  const handleUpdatePatientMedicines = (patientId, newMedicines) => {
+  const handleUpdatePatientMedicines = async (patientId, newMedicines) => {
+    if (currentUser?.source === 'supabase' && userRole === 'doctor') {
+      const patient = patients.find((record) => record.id === patientId);
+      const savedMedicines = await syncMedicalOfficerMedicationOrders(patient, newMedicines);
+      setPatients((current) =>
+        current.map((record) =>
+          record.id === patientId ? { ...record, medicines: savedMedicines } : record,
+        ),
+      );
+      toastSuccess('Medication orders securely saved to Supabase.');
+      return savedMedicines;
+    }
+
     setPatients(prev => prev.map(p => {
       if (p.id === patientId) {
         return { ...p, medicines: newMedicines };
@@ -290,6 +398,7 @@ function AppContent() {
       return p;
     }));
     toastSuccess('Medication orders updated.');
+    return newMedicines;
   };
 
   const handleAddReport = (patientId, newReport) => {
@@ -332,7 +441,28 @@ function AppContent() {
     toastSuccess(`Hospital referral submitted to ${referralObj.hospitalName}`);
   };
 
-  const handleApproveReferral = (patientId, doctorNotes) => {
+  const handleApproveReferral = async (patientId, doctorNotes) => {
+    if (currentUser?.source === 'supabase' && userRole === 'doctor') {
+      try {
+        const patient = patients.find((record) => record.id === patientId);
+        const referral = await reviewMedicalOfficerReferral(
+          patient,
+          'approved',
+          doctorNotes,
+        );
+        setPatients((current) =>
+          current.map((record) =>
+            record.id === patientId ? { ...record, referral } : record,
+          ),
+        );
+        toastSuccess('Referral treatment plan securely approved.');
+        return true;
+      } catch (error) {
+        toastError(error.message, 7000);
+        return false;
+      }
+    }
+
     setPatients(prev => prev.map(p => {
       if (p.id === patientId && p.referral) {
         return {
@@ -347,9 +477,31 @@ function AppContent() {
       return p;
     }));
     toastSuccess(`Referral treatment plan approved for patient ID ${patientId}`);
+    return true;
   };
 
-  const handleRejectReferral = (patientId, doctorNotes) => {
+  const handleRejectReferral = async (patientId, doctorNotes) => {
+    if (currentUser?.source === 'supabase' && userRole === 'doctor') {
+      try {
+        const patient = patients.find((record) => record.id === patientId);
+        const referral = await reviewMedicalOfficerReferral(
+          patient,
+          'declined',
+          doctorNotes,
+        );
+        setPatients((current) =>
+          current.map((record) =>
+            record.id === patientId ? { ...record, referral } : record,
+          ),
+        );
+        toastInfo('Referral securely declined for community care management.');
+        return true;
+      } catch (error) {
+        toastError(error.message, 7000);
+        return false;
+      }
+    }
+
     setPatients(prev => prev.map(p => {
       if (p.id === patientId && p.referral) {
         return {
@@ -364,6 +516,7 @@ function AppContent() {
       return p;
     }));
     toastInfo('Referral marked for community primary care management.');
+    return true;
   };
 
   const handleSyncOfflineData = () => {
@@ -398,6 +551,17 @@ function AppContent() {
   // CONDITIONAL RENDERING FLOW
   // -------------------------------------------------------------
 
+  if (!authReady) {
+    return (
+      <main className="min-h-screen flex items-center justify-center bg-slate-50" aria-live="polite">
+        <div className="card-box text-center p-8">
+          <strong className="text-sm text-slate-900 block">Verifying secure session</strong>
+          <span className="text-xs text-slate-500 mt-1 block">Connecting to the health data service...</span>
+        </div>
+      </main>
+    );
+  }
+
   // 1. PUBLIC LANDING PAGE
   if (!currentUser && currentView === 'landing') {
     return (
@@ -416,8 +580,11 @@ function AppContent() {
     return (
       <SignInPage 
         onLogin={handleLogin}
+        onAuthenticate={handleAuthenticate}
+        onResetPassword={handlePasswordReset}
         onBackToLanding={() => setCurrentView('landing')}
         initialRole={userRole}
+        demoAccessEnabled={DEMO_ACCESS_ENABLED}
       />
     );
   }
@@ -428,6 +595,7 @@ function AppContent() {
       currentUser={currentUser}
       userRole={userRole}
       onSwitchRole={handleSwitchDemoRole}
+      demoAccessEnabled={DEMO_ACCESS_ENABLED}
       onLogout={handleLogout}
       isOffline={isOffline}
       toggleOffline={() => {
@@ -489,6 +657,7 @@ function AppContent() {
           onAddReport={handleAddReport}
           onSaveReferral={handleSaveReferral}
           activeSection={activeNavSection}
+          isLoading={medicalDataLoading}
         />
       )}
 

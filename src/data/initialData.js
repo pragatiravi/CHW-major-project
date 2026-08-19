@@ -2,7 +2,7 @@
  * Initial Comprehensive Seed Data for CHW Healthcare Platform
  */
 
-import { assessPatientRisk } from '../utils/predictionEngine';
+import { assessPatientRisk } from '../utils/predictionEngine.js';
 
 export const INITIAL_HOSPITALS = [
   {
@@ -261,7 +261,7 @@ export const SYSTEM_MEDICINES = [
 ];
 
 export const INITIAL_AUDIT_LOGS = [
-  { id: 'LOG-501', timestamp: '2026-06-12 10:14 AM', user: 'Sunita Patil (CHW)', role: 'CHW', action: 'PATIENT_SCREENING', details: 'Completed AI Screening for P5012 (Maria Chen). Risk: Moderate.' },
+  { id: 'LOG-501', timestamp: '2026-06-12 10:14 AM', user: 'Sunita Patil (CHW)', role: 'CHW', action: 'PATIENT_SCREENING', details: 'Completed clinical decision-support screening for P5012 (Maria Chen). Risk: Moderate.' },
   { id: 'LOG-502', timestamp: '2026-06-11 03:45 PM', user: 'Dr. Ananya Roy', role: 'Doctor', action: 'REFERRAL_APPROVED', details: 'Approved Referral for P7204 (Priya Sharma). Prescribed Amlodipine 5mg.' },
   { id: 'LOG-503', timestamp: '2026-06-10 04:20 PM', user: 'Ramesh Kumar (CHW)', role: 'CHW', action: 'EMERGENCY_REFERRAL', details: 'Generated Urgent Referral for P4389 (Fatima Begum) - Critical Crisis.' },
   { id: 'LOG-504', timestamp: '2026-06-08 11:30 AM', user: 'System Sync Engine', role: 'System', action: 'OFFLINE_BATCH_SYNC', details: 'Synchronized 3 offline records from Handheld Tablet #2.' }

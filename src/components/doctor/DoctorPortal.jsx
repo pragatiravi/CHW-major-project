@@ -18,7 +18,8 @@ export default function DoctorPortal({
   onRejectReferral,
   onUpdatePatientMedicines,
   onAddReport,
-  activeSection = 'triage'
+  activeSection = 'triage',
+  isLoading = false,
 }) {
   const [activeTab, setActiveTab] = useState('pending'); // 'pending' | 'approved'
   const [selectedPatientId, setSelectedPatientId] = useState(null);
@@ -26,6 +27,7 @@ export default function DoctorPortal({
   const [searchTerm, setSearchTerm] = useState('');
   const [showMedModalPatient, setShowMedModalPatient] = useState(null);
   const [showDetailPatient, setShowDetailPatient] = useState(null);
+  const [isReviewSaving, setIsReviewSaving] = useState(false);
   const recordPanelRef = useRef(null);
   const lastOpenButtonRef = useRef(null);
 
@@ -55,6 +57,9 @@ export default function DoctorPortal({
   );
 
   const selectedPatient = filteredList.find(p => p.id === selectedPatientId) || null;
+  const medicationModalPatient = showMedModalPatient
+    ? patients.find((patient) => patient.id === showMedModalPatient.id) || showMedModalPatient
+    : null;
   const openRecordLabel = activeSection === 'prescriptions'
     ? 'Open medication orders'
     : activeSection === 'patients'
@@ -74,14 +79,24 @@ export default function DoctorPortal({
     window.requestAnimationFrame(() => lastOpenButtonRef.current?.focus());
   };
 
-  const handleApprove = (patientId) => {
-    onApproveReferral(patientId, doctorNotes || 'Approved by attending clinician. Treatment plan initiated.');
-    setDoctorNotes('');
+  const handleApprove = async (patientId) => {
+    setIsReviewSaving(true);
+    const saved = await onApproveReferral(
+      patientId,
+      doctorNotes || 'Approved by attending clinician. Treatment plan initiated.',
+    );
+    if (saved) setDoctorNotes('');
+    setIsReviewSaving(false);
   };
 
-  const handleReject = (patientId) => {
-    onRejectReferral(patientId, doctorNotes || 'Referral reviewed. Managed under primary community care protocol.');
-    setDoctorNotes('');
+  const handleReject = async (patientId) => {
+    setIsReviewSaving(true);
+    const saved = await onRejectReferral(
+      patientId,
+      doctorNotes || 'Referral reviewed. Managed under primary community care protocol.',
+    );
+    if (saved) setDoctorNotes('');
+    setIsReviewSaving(false);
   };
 
   const getRiskBadge = (level) => {
@@ -154,7 +169,12 @@ export default function DoctorPortal({
           </div>
 
           <div className="space-y-2 max-h-[600px] overflow-y-auto pr-1">
-            {filteredList.length > 0 ? (
+            {isLoading ? (
+              <div className="empty-state py-12 text-center text-slate-500" role="status">
+                <p className="text-xs font-semibold">Loading secured patient records...</p>
+                <p className="text-2xs text-slate-400 mt-0.5">Applying facility access policies.</p>
+              </div>
+            ) : filteredList.length > 0 ? (
               filteredList.map(p => {
                 const isSelected = selectedPatient?.id === p.id;
                 const risk = p.evaluation?.overallRiskLevel || 'High';
@@ -279,7 +299,7 @@ export default function DoctorPortal({
               </div>
             </div>
 
-            {/* AI Decision Support & Key Contributing Factors */}
+            {/* Clinical Decision Support & Key Contributing Factors */}
             <div className="card-box bg-slate-50 p-4 space-y-3">
               <div className="flex justify-between items-center">
                 <h4 className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
@@ -375,14 +395,16 @@ export default function DoctorPortal({
                   <button 
                     className="btn btn-danger-outline text-xs"
                     onClick={() => handleReject(selectedPatient.id)}
+                    disabled={isReviewSaving}
                   >
-                    Decline Referral
+                    {isReviewSaving ? 'Saving...' : 'Decline Referral'}
                   </button>
                   <button 
                     className="btn btn-primary text-xs font-bold shadow-sm"
                     onClick={() => handleApprove(selectedPatient.id)}
+                    disabled={isReviewSaving}
                   >
-                    <CheckCircle2 size={14} /> Approve Treatment Plan
+                    <CheckCircle2 size={14} /> {isReviewSaving ? 'Saving...' : 'Approve Treatment Plan'}
                   </button>
                 </div>
               </div>
@@ -395,8 +417,8 @@ export default function DoctorPortal({
 
       {/* Medication Order Modal */}
       {showMedModalPatient && (
-        <MedicationTrackerModal 
-          patient={showMedModalPatient}
+        <MedicationTrackerModal
+          patient={medicationModalPatient}
           onClose={() => setShowMedModalPatient(null)}
           onUpdatePatientMedicines={onUpdatePatientMedicines}
         />
@@ -407,7 +429,7 @@ export default function DoctorPortal({
         <PatientDetailModal 
           patient={showDetailPatient}
           onClose={() => setShowDetailPatient(null)}
-          onOpenAIScreening={() => {}}
+          onOpenDecisionSupport={() => {}}
           onOpenCounselling={() => {}}
           onOpenReferral={() => {}}
           onOpenMedicationModal={(p) => setShowMedModalPatient(p)}

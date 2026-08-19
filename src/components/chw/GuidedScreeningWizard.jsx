@@ -12,7 +12,7 @@ import {
   Save,
   Sparkles
 } from 'lucide-react';
-import { assessPatientRisk, ML_MODELS } from '../../utils/predictionEngine';
+import { assessPatientRisk, RISK_SCORING_MODELS } from '../../utils/predictionEngine';
 
 export default function GuidedScreeningWizard({
   patients = [],
@@ -23,7 +23,7 @@ export default function GuidedScreeningWizard({
 }) {
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedPatientId, setSelectedPatientId] = useState('');
-  const [selectedModel] = useState(ML_MODELS.ENSEMBLE_CLINICAL);
+  const [selectedModel] = useState(RISK_SCORING_MODELS.GUIDELINE_ENSEMBLE);
 
   // Form State
   const [formData, setFormData] = useState(() => ({
@@ -468,7 +468,7 @@ export default function GuidedScreeningWizard({
             </div>
           )}
 
-          {/* STEP 6: CRYSTAL-CLEAR AI ASSESSMENT RESULT */}
+          {/* STEP 6: CRYSTAL-CLEAR CLINICAL DECISION SUPPORT RESULT */}
           {currentStep === 6 && (
             <div className="space-y-5 max-w-2xl mx-auto">
               <div className="text-center mb-4">

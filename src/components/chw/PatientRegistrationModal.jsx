@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
-import { X, UserPlus, Save, Activity, AlertCircle } from 'lucide-react';
+import { useState } from 'react';
+import { X, UserPlus, Save } from 'lucide-react';
 import { assessPatientRisk } from '../../utils/predictionEngine';
 import { useToast } from '../shared/ToastContainer';
 
 export default function PatientRegistrationModal({ onClose, onSavePatient, initialData = null }) {
-  const { toastError, toastSuccess } = useToast();
-  const [formData, setFormData] = useState({
+  const { toastError } = useToast();
+  const [formData, setFormData] = useState(() => ({
     id: initialData?.id || 'P' + Math.floor(1000 + Math.random() * 9000),
     name: initialData?.name || '',
     age: initialData?.age || 45,
@@ -32,7 +32,7 @@ export default function PatientRegistrationModal({ onClose, onSavePatient, initi
     referral: initialData?.referral || null,
     reports: initialData?.reports || [],
     counsellingHistory: initialData?.counsellingHistory || []
-  });
+  }));
 
   const availableSymptoms = [
     { id: 'chest_pain', label: 'Chest Pain / Angina', critical: true },
@@ -101,7 +101,7 @@ export default function PatientRegistrationModal({ onClose, onSavePatient, initi
               <p className="text-2xs text-slate-500">Record community member demographic and baseline health profile</p>
             </div>
           </div>
-          <button className="btn-icon-xs" onClick={onClose}><X size={16} /></button>
+          <button className="btn-icon-xs" onClick={onClose} aria-label="Close patient registration"><X size={16} /></button>
         </div>
 
         {/* Body */}

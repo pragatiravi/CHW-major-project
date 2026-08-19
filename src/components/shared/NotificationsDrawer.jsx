@@ -1,4 +1,3 @@
-import React from 'react';
 import { Bell, AlertTriangle, Pill, Calendar, CheckCircle2, X } from 'lucide-react';
 
 export default function NotificationsDrawer({ notifications = [], onClose, onMarkAllRead, onSelectNotification }) {
@@ -22,6 +21,9 @@ export default function NotificationsDrawer({ notifications = [], onClose, onMar
         className="drawer-panel" 
         style={{ width: '420px', maxWidth: '90vw' }}
         onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="notifications-title"
       >
         {/* Header */}
         <div className="drawer-header flex justify-between items-center">
@@ -30,7 +32,7 @@ export default function NotificationsDrawer({ notifications = [], onClose, onMar
               <Bell size={18} />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-slate-900">Clinical Alerts & Notifications</h3>
+              <h3 id="notifications-title" className="text-sm font-bold text-slate-900">Clinical Alerts & Notifications</h3>
               <p className="text-3xs text-slate-500">System events and field triage alerts</p>
             </div>
           </div>
@@ -42,7 +44,7 @@ export default function NotificationsDrawer({ notifications = [], onClose, onMar
             >
               Mark all read
             </button>
-            <button className="btn-icon-xs" onClick={onClose}><X size={14} /></button>
+            <button className="btn-icon-xs" onClick={onClose} aria-label="Close notifications"><X size={14} /></button>
           </div>
         </div>
 
@@ -56,9 +58,10 @@ export default function NotificationsDrawer({ notifications = [], onClose, onMar
             </div>
           ) : (
             notifications.map((n) => (
-              <div 
+              <button
+                type="button"
                 key={n.id} 
-                className={`p-3 rounded-xl border transition-all cursor-pointer ${
+                className={`notification-list-item p-3 rounded-xl border transition-all cursor-pointer ${
                   n.read ? 'border-slate-200 bg-white opacity-80' : 'border-sky-300 bg-sky-50/60 shadow-xs'
                 }`}
                 onClick={() => onSelectNotification && onSelectNotification(n)}
@@ -73,7 +76,7 @@ export default function NotificationsDrawer({ notifications = [], onClose, onMar
                     <p className="text-2xs text-slate-600 mt-1 leading-relaxed">{n.message}</p>
                   </div>
                 </div>
-              </div>
+              </button>
             ))
           )}
         </div>

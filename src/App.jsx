@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import LandingPage from './components/public/LandingPage';
 import SignInPage from './components/auth/SignInPage';
 import AppShell from './components/layout/AppShell';
@@ -10,20 +10,17 @@ import AdminPortal from './components/admin/AdminPortal';
 import PatientPortal from './components/patient/PatientPortal';
 import NotificationsDrawer from './components/shared/NotificationsDrawer';
 import { ToastProvider, useToast } from './components/shared/ToastContainer';
-import { LanguageProvider, useLanguage } from './components/shared/LanguageContext';
+import { LanguageProvider } from './components/shared/LanguageContext';
 
 import { 
   INITIAL_PATIENTS, 
-  INITIAL_CHWS, 
-  INITIAL_DOCTORS, 
-  INITIAL_HOSPITALS, 
+  INITIAL_CHWS,
   INITIAL_AUDIT_LOGS 
 } from './data/initialData';
 import { assessPatientRisk } from './utils/predictionEngine';
 
 function AppContent() {
-  const { toastSuccess, toastInfo, toastWarning, toastError } = useToast();
-  const { t, language } = useLanguage();
+  const { toastSuccess, toastInfo, toastWarning } = useToast();
 
   // Session State: Default to null on fresh load (Public Landing)
   const [currentUser, setCurrentUser] = useState(() => {
@@ -82,7 +79,7 @@ function AppContent() {
     }
   });
 
-  const [chwList, setChwList] = useState(INITIAL_CHWS);
+  const [chwList] = useState(INITIAL_CHWS);
 
   const [offlineQueue, setOfflineQueue] = useState(() => {
     try {
@@ -108,7 +105,7 @@ function AppContent() {
     }
   });
 
-  const [auditLogs, setAuditLogs] = useState(INITIAL_AUDIT_LOGS);
+  const [auditLogs] = useState(INITIAL_AUDIT_LOGS);
 
   // Sync state changes to localStorage
   useEffect(() => {
@@ -153,7 +150,7 @@ function AppContent() {
   const [notifications, setNotifications] = useState([
     {
       id: 'n-1',
-      title: '🚨 Critical Hypertensive Crisis Alert',
+      title: 'Critical hypertensive crisis alert',
       message: 'Fatima Begum (P4389) BP 185/112 mmHg with chest pain. Urgent referral generated.',
       time: '10 mins ago',
       type: 'CRITICAL_ALERT',
@@ -161,7 +158,7 @@ function AppContent() {
     },
     {
       id: 'n-2',
-      title: '💊 Missed Medication Alert',
+      title: 'Missed medication alert',
       message: 'Priya Sharma (P7204) logged 1 missed dose for Amlodipine 5mg.',
       time: '1 hour ago',
       type: 'MEDICATION_ALERT',
@@ -169,7 +166,7 @@ function AppContent() {
     },
     {
       id: 'n-3',
-      title: '🏥 Doctor Referral Approved',
+      title: 'Doctor referral approved',
       message: 'Dr. Ananya Roy approved referral treatment plan for Priya Sharma (P7204).',
       time: '3 hours ago',
       type: 'REFERRAL_UPDATE',
@@ -241,7 +238,7 @@ function AppContent() {
     if (isHighRisk) {
       const highRiskNotif = {
         id: 'n-' + Date.now(),
-        title: `🚨 HIGH RISK ALERT: ${evaluatedRecord.name} (${evaluatedRecord.id})`,
+        title: `High risk alert: ${evaluatedRecord.name} (${evaluatedRecord.id})`,
         message: `Clinical engine flagged ${evaluation.overallRiskLevel} Risk (BP ${evaluatedRecord.systolic}/${evaluatedRecord.diastolic} mmHg). Priority follow-up required.`,
         time: 'Just now',
         type: 'CRITICAL_ALERT',
@@ -325,7 +322,7 @@ function AppContent() {
 
     const newNotif = {
       id: 'n-' + Date.now(),
-      title: '🏥 Hospital Referral Dispatched',
+      title: 'Hospital referral dispatched',
       message: `Referral submitted for patient ID ${patientId} to ${referralObj.hospitalName}.`,
       time: 'Just now',
       type: 'REFERRAL_UPDATE',
@@ -517,6 +514,15 @@ function AppContent() {
         <NotificationsDrawer 
           notifications={notifications}
           onClose={() => setShowNotificationsDrawer(false)}
+          onSelectNotification={(notification) => {
+            setNotifications((current) => current.map((item) => item.id === notification.id ? { ...item, read: true } : item));
+            setShowNotificationsDrawer(false);
+            if (notification.type === 'CRITICAL_ALERT' || notification.type === 'MEDICATION_ALERT') {
+              setActiveNavSection(userRole === 'patient' ? 'medicines' : 'patients');
+            } else if (notification.type === 'REFERRAL_UPDATE' && userRole === 'chw') {
+              setActiveNavSection('referrals');
+            }
+          }}
           onMarkAllRead={() => {
             setNotifications(prev => prev.map(n => ({ ...n, read: true })));
             toastInfo('All notifications marked as read.');

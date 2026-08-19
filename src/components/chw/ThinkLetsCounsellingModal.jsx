@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { X, BookOpen, Volume2, VolumeX, CheckSquare, Square, Save, MessageSquare, CheckCircle2, ChevronRight, ChevronLeft } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { X, BookOpen, Volume2, VolumeX, CheckSquare, Square, MessageSquare, CheckCircle2, ChevronRight, ChevronLeft } from 'lucide-react';
 import { THINKLETS_SCRIPTS } from '../../data/counsellingScripts';
 import { useToast } from '../shared/ToastContainer';
 
@@ -9,7 +9,7 @@ export default function ThinkLetsCounsellingModal({ patient, onClose, onSaveCoun
   const [completedStepIds, setCompletedStepIds] = useState([]);
   const [sessionNotes, setSessionNotes] = useState('');
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
-  const [activeSpeakingStepId, setActiveSpeakingStepId] = useState(null);
+  const [, setActiveSpeakingStepId] = useState(null);
   const [speechRate, setSpeechRate] = useState(1.0);
   const [activeStepIndex, setActiveStepIndex] = useState(0);
 
@@ -86,8 +86,6 @@ export default function ThinkLetsCounsellingModal({ patient, onClose, onSaveCoun
     .replace(/\[BP_Diastolic\]/g, patient.diastolic || '85');
 
   const isStepDone = completedStepIds.includes(activeStep.id);
-  const isSpeaking = activeSpeakingStepId === activeStep.id;
-
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div 
@@ -105,7 +103,7 @@ export default function ThinkLetsCounsellingModal({ patient, onClose, onSaveCoun
               <p className="text-2xs text-slate-500">Structured patient guidance protocols for {patient.name} ({patient.id})</p>
             </div>
           </div>
-          <button className="btn-icon-xs" onClick={onClose}><X size={16} /></button>
+          <button className="btn-icon-xs" onClick={onClose} aria-label="Close counselling session"><X size={16} /></button>
         </div>
 
         {/* Modal Body */}
@@ -127,7 +125,7 @@ export default function ThinkLetsCounsellingModal({ patient, onClose, onSaveCoun
                   setActiveStepIndex(0);
                 }}
               >
-                <span className="text-xl">{script.icon}</span>
+                <BookOpen size={18} aria-hidden="true" />
                 <div>
                   <strong className="text-xs block leading-tight">{script.category}</strong>
                   <span className="text-3xs text-slate-500">{script.steps.length} Protocol Steps</span>

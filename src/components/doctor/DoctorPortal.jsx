@@ -1,18 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import { useRef, useState } from 'react';
 import { 
   Stethoscope, 
   CheckCircle2, 
-  XCircle, 
   Hospital, 
   BrainCircuit, 
   Pill, 
-  Search, 
-  Clock, 
-  ArrowRight, 
-  Sparkles, 
-  FileText,
-  AlertTriangle,
-  CheckCircle
+  Search,
+  Eye,
+  X
 } from 'lucide-react';
 import MedicationTrackerModal from '../chw/MedicationTrackerModal';
 import PatientDetailModal from '../shared/PatientDetailModal';
@@ -23,7 +18,6 @@ export default function DoctorPortal({
   onRejectReferral,
   onUpdatePatientMedicines,
   onAddReport,
-  onSaveReferral,
   activeSection = 'triage'
 }) {
   const [activeTab, setActiveTab] = useState('pending'); // 'pending' | 'approved'
@@ -32,12 +26,8 @@ export default function DoctorPortal({
   const [searchTerm, setSearchTerm] = useState('');
   const [showMedModalPatient, setShowMedModalPatient] = useState(null);
   const [showDetailPatient, setShowDetailPatient] = useState(null);
-
-  useEffect(() => {
-    if (activeSection === 'triage') {
-      setActiveTab('pending');
-    }
-  }, [activeSection]);
+  const recordPanelRef = useRef(null);
+  const lastOpenButtonRef = useRef(null);
 
   const referredPatients = patients.filter(p => p.referral);
   
@@ -54,13 +44,35 @@ export default function DoctorPortal({
   const pendingReferrals = sortCriticalFirst(referredPatients.filter(p => p.referral && p.referral.status === 'Pending'));
   const approvedReferrals = sortCriticalFirst(referredPatients.filter(p => p.referral && p.referral.status === 'Approved'));
 
-  const currentList = activeTab === 'pending' ? pendingReferrals : approvedReferrals;
+  const currentList = activeSection === 'patients'
+    ? sortCriticalFirst(patients)
+    : activeSection === 'prescriptions'
+      ? sortCriticalFirst(patients.filter((patient) => (patient.medicines || []).length > 0))
+      : activeTab === 'pending' ? pendingReferrals : approvedReferrals;
   const filteredList = currentList.filter(p => 
     p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     p.id.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const selectedPatient = patients.find(p => p.id === selectedPatientId) || filteredList[0] || null;
+  const selectedPatient = filteredList.find(p => p.id === selectedPatientId) || null;
+  const openRecordLabel = activeSection === 'prescriptions'
+    ? 'Open medication orders'
+    : activeSection === 'patients'
+      ? 'Open patient record'
+      : 'Open clinical review';
+
+  const handleOpenPatient = (patientId, trigger) => {
+    lastOpenButtonRef.current = trigger;
+    setSelectedPatientId(patientId);
+    setDoctorNotes('');
+    window.requestAnimationFrame(() => recordPanelRef.current?.focus());
+  };
+
+  const handleClosePatient = () => {
+    setSelectedPatientId(null);
+    setDoctorNotes('');
+    window.requestAnimationFrame(() => lastOpenButtonRef.current?.focus());
+  };
 
   const handleApprove = (patientId) => {
     onApproveReferral(patientId, doctorNotes || 'Approved by attending clinician. Treatment plan initiated.');
@@ -90,11 +102,16 @@ export default function DoctorPortal({
             <Stethoscope size={22} />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-slate-900">Clinical Referral Review Desk</h1>
-            <p className="text-xs text-slate-500">Triage incoming community health worker referrals and authorize care plans</p>
+            <h1 className="text-xl font-bold text-slate-900">
+              {activeSection === 'patients' ? 'Clinical Patient Records' : activeSection === 'prescriptions' ? 'Prescription Management' : 'Clinical Referral Review Desk'}
+            </h1>
+            <p className="text-xs text-slate-500">
+              {activeSection === 'patients' ? 'Review longitudinal community records and recent risk assessments' : activeSection === 'prescriptions' ? 'Review active medicines and update patient treatment orders' : 'Triage incoming community health worker referrals and authorize care plans'}
+            </p>
           </div>
         </div>
 
+        {activeSection === 'triage' && (
         <div className="flex items-center gap-3">
           <div className="flex gap-1 bg-slate-100 p-1 rounded-lg">
             <button 
@@ -111,15 +128,16 @@ export default function DoctorPortal({
             </button>
           </div>
         </div>
+        )}
       </div>
 
       {/* Main Workspace Split Layout */}
-      <div className="grid-3-7-col gap-6">
+      <div className={`${selectedPatient ? 'grid-3-7-col' : 'grid'} gap-6`}>
         {/* Left Column: Priority Triage Queue */}
         <div className="card-box space-y-4">
           <div className="flex justify-between items-center">
             <h3 className="text-sm font-bold text-slate-900">
-              {activeTab === 'pending' ? 'Priority Triage Queue' : 'Approved Referrals'}
+              {activeSection === 'patients' ? 'Patient Directory' : activeSection === 'prescriptions' ? 'Patients with Active Medicines' : activeTab === 'pending' ? 'Priority Triage Queue' : 'Approved Referrals'}
             </h3>
             <span className="text-2xs text-slate-400 font-mono">Sorted by urgency</span>
           </div>
@@ -128,7 +146,7 @@ export default function DoctorPortal({
             <Search size={14} className="text-slate-400" />
             <input 
               type="text" 
-              placeholder="Search referral queue..."
+              placeholder={activeSection === 'triage' ? 'Search referral queue...' : 'Search patient records...'}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="form-input text-xs"
@@ -142,14 +160,13 @@ export default function DoctorPortal({
                 const risk = p.evaluation?.overallRiskLevel || 'High';
 
                 return (
-                  <div 
+                  <article
                     key={p.id}
-                    className={`p-3.5 rounded-xl border transition-all cursor-pointer ${
+                    className={`p-3.5 rounded-xl border transition-all ${
                       isSelected 
                         ? 'border-indigo-400 bg-indigo-50/70 shadow-sm' 
                         : 'border-slate-200 bg-white hover:bg-slate-50'
                     }`}
-                    onClick={() => setSelectedPatientId(p.id)}
                   >
                     <div className="flex justify-between items-start mb-1.5">
                       <div>
@@ -167,7 +184,16 @@ export default function DoctorPortal({
                       <span>CHW: {p.assignedCHW || 'Sunita Patil'}</span>
                       <span>{p.referral?.dateGenerated || 'Recent'}</span>
                     </div>
-                  </div>
+                    <button
+                      type="button"
+                      className="btn btn-secondary text-xs w-full mt-3"
+                      onClick={(event) => handleOpenPatient(p.id, event.currentTarget)}
+                      disabled={isSelected}
+                    >
+                      <Eye size={14} aria-hidden="true" />
+                      {isSelected ? 'Record open' : openRecordLabel}
+                    </button>
+                  </article>
                 );
               })
             ) : (
@@ -182,12 +208,17 @@ export default function DoctorPortal({
 
         {/* Right Column: Selected Patient Clinical Review Workspace */}
         {selectedPatient ? (
-          <div className="card-box space-y-5">
+          <div
+            ref={recordPanelRef}
+            className="card-box space-y-5"
+            tabIndex="-1"
+            aria-labelledby="doctor-selected-patient-heading"
+          >
             {/* Patient Header */}
             <div className="flex justify-between items-start border-b border-slate-100 pb-4 flex-wrap gap-3">
               <div>
                 <div className="flex items-center gap-2.5">
-                  <h2 className="text-xl font-bold text-slate-900">{selectedPatient.name}</h2>
+                  <h2 id="doctor-selected-patient-heading" className="text-xl font-bold text-slate-900">{selectedPatient.name}</h2>
                   <span className="badge badge-primary font-mono">ID: {selectedPatient.id}</span>
                   {getRiskBadge(selectedPatient.evaluation?.overallRiskLevel || 'High')}
                 </div>
@@ -196,12 +227,23 @@ export default function DoctorPortal({
                 </p>
               </div>
 
-              <button 
-                className="btn btn-secondary text-xs"
-                onClick={() => setShowDetailPatient(selectedPatient)}
-              >
-                View Full Patient Record
-              </button>
+              <div className="flex gap-2 flex-wrap">
+                <button
+                  type="button"
+                  className="btn btn-secondary text-xs"
+                  onClick={() => setShowDetailPatient(selectedPatient)}
+                >
+                  <Eye size={14} aria-hidden="true" /> View Full Patient Record
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-secondary text-xs"
+                  onClick={handleClosePatient}
+                >
+                  <X size={14} aria-hidden="true" />
+                  {activeSection === 'prescriptions' ? 'Close medication orders' : 'Close record'}
+                </button>
+              </div>
             </div>
 
             {/* Vitals Summary Card */}
@@ -273,7 +315,28 @@ export default function DoctorPortal({
               </div>
             </div>
 
+            {activeSection === 'prescriptions' && (
+              <section className="card-box bg-slate-50 p-4 space-y-3" aria-labelledby="active-orders-heading">
+                <div className="flex justify-between items-center gap-3">
+                  <h3 id="active-orders-heading" className="text-sm font-bold text-slate-900 flex items-center gap-2"><Pill size={16} className="text-indigo-600" /> Active Medication Orders</h3>
+                  <button type="button" className="btn btn-primary text-xs" onClick={() => setShowMedModalPatient(selectedPatient)}>Adjust medicines</button>
+                </div>
+                {(selectedPatient.medicines || []).length ? (
+                  <div className="grid-2-col gap-3">
+                    {selectedPatient.medicines.map((medicine, index) => (
+                      <div key={`${medicine.name}-${index}`} className="p-3 rounded-lg border border-slate-200 bg-white">
+                        <strong className="text-xs text-slate-900 block">{medicine.name} {medicine.dosage}</strong>
+                        <span className="text-2xs text-slate-500">{medicine.frequency || 'As directed'} · {medicine.time || 'Schedule not set'}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : <p className="text-xs text-slate-500">No active medication orders.</p>}
+              </section>
+            )}
+
             {/* CHW Referral Intake Notes */}
+            {activeSection === 'triage' && (
+            <>
             <div className="p-3.5 rounded-xl border border-slate-200 bg-slate-50 text-xs text-slate-700 space-y-1">
               <div className="flex justify-between items-center mb-1">
                 <strong className="text-slate-900 flex items-center gap-1.5">
@@ -324,14 +387,10 @@ export default function DoctorPortal({
                 </div>
               </div>
             </div>
+            </>
+            )}
           </div>
-        ) : (
-          <div className="card-box empty-state py-16 text-center text-slate-400">
-            <Stethoscope size={48} className="mx-auto mb-3 text-slate-300" />
-            <p className="text-sm font-semibold text-slate-600">No Patient Selected</p>
-            <p className="text-xs text-slate-400 mt-1">Choose a referral from the triage queue on the left to start clinical review.</p>
-          </div>
-        )}
+        ) : null}
       </div>
 
       {/* Medication Order Modal */}

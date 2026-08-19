@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { X, Lock, Mail, User, Key, CheckCircle } from 'lucide-react';
+import { useState } from 'react';
+import { X, Lock } from 'lucide-react';
 
 export default function AuthModal({ onClose, currentUser, onLogin, onLogout, userRole, setUserRole }) {
   const [email, setEmail] = useState(currentUser ? currentUser.email : 'chw.agent@communityhealth.org');
@@ -40,7 +40,7 @@ export default function AuthModal({ onClose, currentUser, onLogin, onLogout, use
             <Lock className="text-indigo-400" size={20} />
             <h2>{isResetting ? 'Password Recovery' : 'Firebase Auth & User Session'}</h2>
           </div>
-          <button className="close-btn" onClick={onClose}><X size={20} /></button>
+          <button className="close-btn" onClick={onClose} aria-label="Close sign-in dialog"><X size={20} /></button>
         </div>
 
         <form onSubmit={handleSubmit} className="modal-body">
@@ -53,11 +53,11 @@ export default function AuthModal({ onClose, currentUser, onLogin, onLogout, use
                   onChange={(e) => setSelectedRole(e.target.value)}
                   className="form-input text-xs"
                 >
-                  <option value="chw">👩‍⚕️ Community Health Worker (CHW)</option>
-                  <option value="patient">👤 Patient Portal & Mobile App</option>
-                  <option value="doctor">👨‍⚕️ Doctor / Clinician</option>
+                  <option value="chw">Community Health Worker (CHW)</option>
+                  <option value="patient">Patient Portal & Mobile App</option>
+                  <option value="doctor">Doctor / Clinician</option>
                   <option value="supervisor">🖥️ Supervisor</option>
-                  <option value="admin">⚙️ System Administrator</option>
+                  <option value="admin">System Administrator</option>
                 </select>
               </div>
 

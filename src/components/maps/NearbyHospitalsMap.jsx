@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { MapPin, Navigation, Phone, Hospital, CheckCircle2, Car, X } from 'lucide-react';
+import { useState } from 'react';
+import { MapPin, Navigation, Hospital, CheckCircle2, Car, X } from 'lucide-react';
 import { INITIAL_HOSPITALS } from '../../data/initialData';
 
 export default function NearbyHospitalsMap({ patient, onSelectHospitalForReferral, onClose }) {
@@ -23,7 +23,7 @@ export default function NearbyHospitalsMap({ patient, onSelectHospitalForReferra
               <p className="text-2xs text-slate-500">Route planning for {patient ? patient.name : 'Community Patient'}</p>
             </div>
           </div>
-          <button className="btn-icon-xs" onClick={onClose}><X size={16} /></button>
+          <button className="btn-icon-xs" onClick={onClose} aria-label="Close hospital map"><X size={16} /></button>
         </div>
 
         {/* Body */}

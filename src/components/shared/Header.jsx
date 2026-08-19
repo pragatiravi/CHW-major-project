@@ -1,20 +1,13 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { 
   Heart, 
-  Activity, 
   Wifi, 
   WifiOff, 
   RefreshCw, 
   Bell, 
   Sun, 
-  Moon, 
-  User, 
-  LogOut, 
-  ShieldCheck, 
-  MapPin, 
+  Moon,
   Search,
-  PlusCircle,
-  FileText
 } from 'lucide-react';
 
 export default function Header({
@@ -37,10 +30,10 @@ export default function Header({
 
   const roleLabels = {
     chw: { label: 'Community Health Worker (CHW)', badge: 'Field Care', icon: '🩺' },
-    patient: { label: 'Patient Portal & Mobile App', badge: 'Personal Care', icon: '👤' },
-    doctor: { label: 'Doctor / Medical Officer', badge: 'Clinical Triage', icon: '👨‍⚕️' },
-    supervisor: { label: 'Health Supervisor', badge: 'Analytics & Ops', icon: '📊' },
-    admin: { label: 'System Administrator', badge: 'System Config', icon: '⚙️' }
+    patient: { label: 'Patient Portal & Mobile App', badge: 'Personal Care', icon: 'PT' },
+    doctor: { label: 'Doctor / Medical Officer', badge: 'Clinical Triage', icon: 'MD' },
+    supervisor: { label: 'Health Supervisor', badge: 'Analytics & Ops', icon: 'HS' },
+    admin: { label: 'System Administrator', badge: 'System Config', icon: 'AD' }
   };
 
   return (

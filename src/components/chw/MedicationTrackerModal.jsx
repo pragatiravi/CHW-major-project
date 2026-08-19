@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
-import { X, Pill, Plus, CheckCircle2, AlertTriangle, Clock, RefreshCw } from 'lucide-react';
+import { useState } from 'react';
+import { X, Pill, Plus, CheckCircle2, AlertTriangle, RefreshCw } from 'lucide-react';
 import { SYSTEM_MEDICINES } from '../../data/initialData';
 import { useToast } from '../shared/ToastContainer';
 
 export default function MedicationTrackerModal({ patient, onClose, onUpdatePatientMedicines }) {
-  const { toastSuccess, toastWarning, toastInfo } = useToast();
+  const { toastSuccess, toastWarning } = useToast();
   const [showAddForm, setShowAddForm] = useState(false);
   const [medName, setMedName] = useState(SYSTEM_MEDICINES[0].name);
   const [dosage, setDosage] = useState(SYSTEM_MEDICINES[0].defaultDosage);
@@ -101,7 +101,7 @@ export default function MedicationTrackerModal({ patient, onClose, onUpdatePatie
               <p className="text-2xs text-slate-500">Prescriptions & Reminders for {patient.name} ({patient.id})</p>
             </div>
           </div>
-          <button className="btn-icon-xs" onClick={onClose}><X size={16} /></button>
+          <button className="btn-icon-xs" onClick={onClose} aria-label="Close medication tracker"><X size={16} /></button>
         </div>
 
         {/* Modal Body */}

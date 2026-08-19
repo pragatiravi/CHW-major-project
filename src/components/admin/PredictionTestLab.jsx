@@ -1,14 +1,8 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { 
   FlaskConical, 
-  Play, 
-  CheckCircle2, 
-  AlertCircle, 
-  Info, 
-  Sliders, 
-  Heart, 
-  Activity, 
-  RotateCcw,
+  Play,
+  Sliders,
   Sparkles,
   ShieldCheck
 } from 'lucide-react';
@@ -33,7 +27,6 @@ export default function PredictionTestLab() {
     });
   });
 
-  const [activeCustomTab, setActiveCustomTab] = useState(false);
   const [customInput, setCustomInput] = useState({
     name: 'Custom Laboratory Case',
     age: 50,

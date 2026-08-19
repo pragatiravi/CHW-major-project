@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { 
   Heart, 
   Wifi, 
@@ -7,8 +7,7 @@ import {
   Bell, 
   Sun, 
   Moon, 
-  LogOut, 
-  User, 
+  LogOut,
   Users, 
   BrainCircuit, 
   BookOpen, 
@@ -21,17 +20,15 @@ import {
   ShieldCheck, 
   Camera, 
   Bot, 
-  Home, 
-  CheckCircle2, 
-  ChevronRight, 
-  AlertTriangle, 
+  Home,
   Stethoscope, 
   FlaskConical, 
   Database,
   Search,
   Languages,
   Layers,
-  Sparkles
+  Menu,
+  X
 } from 'lucide-react';
 import { useLanguage } from '../shared/LanguageContext';
 
@@ -57,6 +54,7 @@ export default function AppShell({
   const { t, language, setLanguage, languages } = useLanguage();
   const [showLanguageMenu, setShowLanguageMenu] = useState(false);
   const [showDemoRoleMenu, setShowDemoRoleMenu] = useState(false);
+  const [showMobileNav, setShowMobileNav] = useState(false);
 
   const roleMeta = {
     chw: {
@@ -144,8 +142,20 @@ export default function AppShell({
 
   return (
     <div className="authenticated-app-shell">
+      <a className="skip-link" href="#main-content">Skip to main content</a>
       {/* TOPBAR */}
       <header className="shell-topbar">
+        <button
+          className="shell-mobile-menu-btn"
+          type="button"
+          onClick={() => setShowMobileNav((open) => !open)}
+          aria-label={showMobileNav ? 'Close navigation menu' : 'Open navigation menu'}
+          aria-expanded={showMobileNav}
+          aria-controls="primary-sidebar"
+        >
+          {showMobileNav ? <X size={20} /> : <Menu size={20} />}
+        </button>
+
         <div className="shell-brand">
           <div className="brand-icon-box" style={{ width: 34, height: 34 }}>
             <Heart size={18} />
@@ -169,8 +179,10 @@ export default function AppShell({
             />
             {globalSearch && (
               <button 
+                type="button"
                 onClick={() => setGlobalSearch('')}
-                style={{ position: 'absolute', right: 10, color: '#94a3b8', fontSize: '14px' }}
+                className="shell-search-clear"
+                aria-label="Clear search"
               >
                 ✕
               </button>
@@ -204,9 +216,12 @@ export default function AppShell({
           {/* Language Selector Dropdown */}
           <div style={{ position: 'relative' }}>
             <button 
+              type="button"
               className="shell-icon-btn"
               onClick={() => setShowLanguageMenu(!showLanguageMenu)}
               title="Change Application Language"
+              aria-label={`Change language. Current language: ${currentLangObj.label}`}
+              aria-expanded={showLanguageMenu}
               style={{ width: 'auto', padding: '0 10px', gap: '6px', fontSize: '0.78rem', fontWeight: 600 }}
             >
               <Languages size={15} />
@@ -236,9 +251,11 @@ export default function AppShell({
 
           {/* Notifications Trigger */}
           <button 
+            type="button"
             className="shell-icon-btn"
             onClick={onOpenNotifications}
             title="Clinical Alerts & Notifications"
+            aria-label={`Open notifications${unreadNotifications ? `, ${unreadNotifications} unread` : ''}`}
           >
             <Bell size={16} />
             {unreadNotifications > 0 && (
@@ -248,9 +265,11 @@ export default function AppShell({
 
           {/* Theme Toggle */}
           <button 
+            type="button"
             className="shell-icon-btn"
             onClick={toggleTheme}
             title="Toggle Light/Dark Theme"
+            aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}
           >
             {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
           </button>
@@ -279,7 +298,15 @@ export default function AppShell({
       {/* APP BODY */}
       <div className="shell-body">
         {/* SIDEBAR NAVIGATION */}
-        <aside className="shell-sidebar">
+        {showMobileNav && (
+          <button
+            type="button"
+            className="shell-sidebar-backdrop"
+            onClick={() => setShowMobileNav(false)}
+            aria-label="Close navigation menu"
+          />
+        )}
+        <aside id="primary-sidebar" className={`shell-sidebar ${showMobileNav ? 'is-open' : ''}`}>
           <div className="sidebar-role-header">
             <span className="metric-label text-2xs block mb-1">Active Workspace</span>
             <div className="p-2.5 rounded-lg bg-sky-50 border border-sky-200 flex items-center gap-2.5">
@@ -301,8 +328,13 @@ export default function AppShell({
               return (
                 <button
                   key={item.id}
+                  type="button"
                   className={`sidebar-nav-item ${isActive ? 'active' : ''}`}
-                  onClick={() => setActiveNav(item.id)}
+                  onClick={() => {
+                    setActiveNav(item.id);
+                    setShowMobileNav(false);
+                  }}
+                  aria-current={isActive ? 'page' : undefined}
                 >
                   <Icon size={16} />
                   <span className="flex-1 text-left">{item.label}</span>
@@ -334,31 +366,31 @@ export default function AppShell({
                   className={`demo-role-item ${userRole === 'chw' ? 'active' : ''}`}
                   onClick={() => { onSwitchRole('chw'); setShowDemoRoleMenu(false); }}
                 >
-                  👩‍⚕️ CHW Field Worker
+                  CHW Field Worker
                 </button>
                 <button 
                   className={`demo-role-item ${userRole === 'doctor' ? 'active' : ''}`}
                   onClick={() => { onSwitchRole('doctor'); setShowDemoRoleMenu(false); }}
                 >
-                  👨‍⚕️ Medical Officer / Doctor
+                  Medical Officer / Doctor
                 </button>
                 <button 
                   className={`demo-role-item ${userRole === 'patient' ? 'active' : ''}`}
                   onClick={() => { onSwitchRole('patient'); setShowDemoRoleMenu(false); }}
                 >
-                  👤 Patient Health Hub
+                  Patient Health Hub
                 </button>
                 <button 
                   className={`demo-role-item ${userRole === 'supervisor' ? 'active' : ''}`}
                   onClick={() => { onSwitchRole('supervisor'); setShowDemoRoleMenu(false); }}
                 >
-                  📊 Health Supervisor
+                  Health Supervisor
                 </button>
                 <button 
                   className={`demo-role-item ${userRole === 'admin' ? 'active' : ''}`}
                   onClick={() => { onSwitchRole('admin'); setShowDemoRoleMenu(false); }}
                 >
-                  ⚙️ System Administrator
+                  System Administrator
                 </button>
               </div>
             )}
@@ -366,7 +398,7 @@ export default function AppShell({
         </aside>
 
         {/* MAIN WORKSPACE CONTENT */}
-        <main className="shell-main-content">
+        <main id="main-content" className="shell-main-content" tabIndex="-1">
           {children}
         </main>
       </div>

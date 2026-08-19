@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { X, BrainCircuit, Activity, Heart, CheckCircle2, Hospital, Sparkles } from 'lucide-react';
+import { useState } from 'react';
+import { X, BrainCircuit, Activity, Heart, Hospital, Sparkles } from 'lucide-react';
 import { assessPatientRisk, ML_MODELS } from '../../utils/predictionEngine';
 
 export default function AIScreeningModal({ patient, onClose, onOpenReferral }) {
@@ -39,7 +39,7 @@ export default function AIScreeningModal({ patient, onClose, onOpenReferral }) {
               <p className="text-2xs text-slate-500">Decision Support Engine for {patient.name} ({patient.id})</p>
             </div>
           </div>
-          <button className="btn-icon-xs" onClick={onClose}><X size={16} /></button>
+          <button className="btn-icon-xs" onClick={onClose} aria-label="Close screening assessment"><X size={16} /></button>
         </div>
 
         {/* Body */}

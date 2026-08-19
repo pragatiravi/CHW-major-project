@@ -1,5 +1,4 @@
-import React from 'react';
-import { PieChart, BarChart2, TrendingUp, Users } from 'lucide-react';
+import { PieChart, BarChart2, Users } from 'lucide-react';
 
 export default function AnalyticsCharts({ patients, chwList }) {
   // 1. Calculate Disease Prevalence

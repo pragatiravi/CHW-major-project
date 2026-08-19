@@ -1,4 +1,3 @@
-import React from 'react';
 import { X, RefreshCw, WifiOff, HardDrive, Download, Upload, CheckCircle2, Clock } from 'lucide-react';
 import { useToast } from '../shared/ToastContainer';
 
@@ -10,7 +9,7 @@ export default function OfflineSyncQueueModal({
   patients = [],
   onRestoreBackup
 }) {
-  const { toastSuccess, toastError, toastWarning } = useToast();
+  const { toastSuccess, toastError } = useToast();
 
   const handleExportBackup = () => {
     const backupData = JSON.stringify({ patients, syncLogs, timestamp: new Date().toISOString() }, null, 2);
@@ -38,7 +37,7 @@ export default function OfflineSyncQueueModal({
         } else {
           toastError('Invalid backup file format.');
         }
-      } catch (err) {
+      } catch {
         toastError('Failed to parse backup JSON file.');
       }
     };
@@ -62,7 +61,7 @@ export default function OfflineSyncQueueModal({
               <p className="text-2xs text-slate-500">Local database synchronization & backup management</p>
             </div>
           </div>
-          <button className="btn-icon-xs" onClick={onClose}><X size={16} /></button>
+          <button className="btn-icon-xs" onClick={onClose} aria-label="Close sync manager"><X size={16} /></button>
         </div>
 
         {/* Body */}

@@ -1,20 +1,15 @@
-import React, { useState } from 'react';
+import { Fragment, useState } from 'react';
 import { 
   X, 
   BrainCircuit, 
   Heart, 
-  Activity, 
-  AlertTriangle, 
+  Activity,
   CheckCircle2, 
   Hospital, 
   BookOpen, 
   ArrowRight, 
-  ArrowLeft, 
-  UserPlus, 
-  Save, 
-  ShieldCheck, 
-  Info,
-  Clock,
+  ArrowLeft,
+  Save,
   Sparkles
 } from 'lucide-react';
 import { assessPatientRisk, ML_MODELS } from '../../utils/predictionEngine';
@@ -28,10 +23,10 @@ export default function GuidedScreeningWizard({
 }) {
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedPatientId, setSelectedPatientId] = useState('');
-  const [selectedModel, setSelectedModel] = useState(ML_MODELS.ENSEMBLE_CLINICAL);
+  const [selectedModel] = useState(ML_MODELS.ENSEMBLE_CLINICAL);
 
   // Form State
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState(() => ({
     id: 'P' + Math.floor(1000 + Math.random() * 9000),
     name: '',
     age: 48,
@@ -58,7 +53,7 @@ export default function GuidedScreeningWizard({
     referral: null,
     reports: [],
     counsellingHistory: []
-  });
+  }));
 
   const availableSymptoms = [
     { id: 'chest_pain', label: 'Chest Pain / Angina', critical: true, desc: 'Potential myocardial strain' },
@@ -157,7 +152,7 @@ export default function GuidedScreeningWizard({
               <p className="text-2xs text-slate-500">7-Step Frontline Decision Support Protocol</p>
             </div>
           </div>
-          <button className="btn-icon-xs" onClick={onClose}><X size={16} /></button>
+          <button className="btn-icon-xs" onClick={onClose} aria-label="Close screening wizard"><X size={16} /></button>
         </div>
 
         {/* Stepper Progress Bar */}
@@ -166,7 +161,7 @@ export default function GuidedScreeningWizard({
             const isCompleted = currentStep > s.num;
             const isActive = currentStep === s.num;
             return (
-              <React.Fragment key={s.num}>
+              <Fragment key={s.num}>
                 <div className={`wizard-step-item ${isActive ? 'active' : ''} ${isCompleted ? 'completed' : ''}`}>
                   <div className="wizard-step-circle">
                     {isCompleted ? <CheckCircle2 size={16} /> : s.num}
@@ -174,7 +169,7 @@ export default function GuidedScreeningWizard({
                   <span className="wizard-step-title">{s.title}</span>
                 </div>
                 {idx < steps.length - 1 && <div className="wizard-step-divider" />}
-              </React.Fragment>
+              </Fragment>
             );
           })}
         </div>

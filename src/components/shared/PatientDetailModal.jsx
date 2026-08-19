@@ -1,22 +1,12 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { 
   X, 
-  User, 
-  Heart, 
-  Activity, 
-  Calendar, 
   Pill, 
-  FileText, 
-  MapPin, 
-  Phone, 
-  AlertTriangle, 
-  CheckCircle2, 
   Hospital, 
   BookOpen, 
   BrainCircuit,
-  Clock,
   Printer,
-  Sparkles
+  Trash2
 } from 'lucide-react';
 import { exportPatientSummaryPDF } from '../../utils/pdfExport';
 
@@ -69,7 +59,7 @@ export default function PatientDetailModal({
 
   return (
     <div className="drawer-overlay" onClick={onClose}>
-      <div className="drawer-panel" onClick={(e) => e.stopPropagation()}>
+      <div className="drawer-panel" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="patient-detail-title">
         {/* Drawer Header */}
         <div className="drawer-header">
           <div className="flex items-center gap-3">
@@ -78,7 +68,7 @@ export default function PatientDetailModal({
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-lg font-bold text-slate-900">{patient.name}</h2>
+                <h2 id="patient-detail-title" className="text-lg font-bold text-slate-900">{patient.name}</h2>
                 <span className="badge badge-primary font-mono text-2xs">ID: {patient.id}</span>
                 {getRiskBadge(overallRisk)}
               </div>
@@ -87,26 +77,29 @@ export default function PatientDetailModal({
               </p>
             </div>
           </div>
-          <button className="btn-icon-xs" onClick={onClose}><X size={16} /></button>
+          <button className="btn-icon-xs" onClick={onClose} aria-label="Close patient details"><X size={16} /></button>
         </div>
 
         {/* Action Toolbar */}
         <div className="flex gap-2 p-3 px-6 bg-slate-50 border-b border-slate-200 overflow-x-auto">
-          <button className="btn btn-primary text-xs" onClick={() => onOpenAIScreening(patient)}>
+          {userRole === 'chw' && <button className="btn btn-primary text-xs" onClick={() => onOpenAIScreening(patient)}>
             <BrainCircuit size={14} /> Run Screening
-          </button>
-          <button className="btn btn-secondary text-xs" onClick={() => onOpenCounselling(patient)}>
+          </button>}
+          {userRole === 'chw' && <button className="btn btn-secondary text-xs" onClick={() => onOpenCounselling(patient)}>
             <BookOpen size={14} /> Counselling
-          </button>
-          <button className="btn btn-secondary text-xs" onClick={() => onOpenReferral(patient)}>
+          </button>}
+          {userRole === 'chw' && <button className="btn btn-secondary text-xs" onClick={() => onOpenReferral(patient)}>
             <Hospital size={14} /> Refer
-          </button>
-          <button className="btn btn-secondary text-xs" onClick={() => onOpenMedicationModal(patient)}>
+          </button>}
+          {(userRole === 'chw' || userRole === 'doctor') && <button className="btn btn-secondary text-xs" onClick={() => onOpenMedicationModal(patient)}>
             <Pill size={14} /> Medicines
-          </button>
+          </button>}
           <button className="btn btn-secondary text-xs" onClick={() => exportPatientSummaryPDF(patient)}>
             <Printer size={14} /> PDF Passport
           </button>
+          {userRole === 'chw' && <button className="btn btn-danger-outline text-xs ml-auto" onClick={() => onDeletePatient(patient.id)}>
+            <Trash2 size={14} /> Delete
+          </button>}
         </div>
 
         {/* Drawer Tabs */}

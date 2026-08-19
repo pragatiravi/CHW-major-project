@@ -1,20 +1,10 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { 
   Settings, 
-  Users, 
-  Hospital, 
   Database, 
-  ShieldCheck, 
-  FileText, 
   Plus, 
-  Trash2, 
-  Edit3, 
-  Sliders, 
-  Activity,
-  BrainCircuit,
   Download,
-  CheckCircle2,
-  FlaskConical
+  CheckCircle2
 } from 'lucide-react';
 import { 
   INITIAL_HOSPITALS, 
@@ -29,13 +19,13 @@ import { useToast } from '../shared/ToastContainer';
 export default function AdminPortal({ 
   auditLogs = INITIAL_AUDIT_LOGS, 
   patients = INITIAL_PATIENTS,
-  activeSection = 'analytics'
+  activeSection = 'overview'
 }) {
-  const { toastSuccess, toastInfo } = useToast();
-  const [activeTab, setActiveTab] = useState('analytics'); // analytics | users | hospitals | test_lab | ml_config | audit
+  const { toastSuccess } = useToast();
+  const activeTab = activeSection === 'overview' ? 'analytics' : activeSection;
   const [hospitals, setHospitals] = useState(INITIAL_HOSPITALS);
-  const [chwUsers, setChwUsers] = useState(INITIAL_CHWS);
-  const [doctorUsers, setDoctorUsers] = useState(INITIAL_DOCTORS);
+  const [chwUsers] = useState(INITIAL_CHWS);
+  const [doctorUsers] = useState(INITIAL_DOCTORS);
   const [mlThresholds, setMlThresholds] = useState({
     htCrisisSystolic: 180,
     htStage2Systolic: 140,
@@ -47,19 +37,6 @@ export default function AdminPortal({
   const [newHospName, setNewHospName] = useState('');
   const [newHospBeds, setNewHospBeds] = useState(10);
   const [newHospPhone, setNewHospPhone] = useState('+91 98765 00000');
-
-  React.useEffect(() => {
-    if (activeSection) {
-      if (activeSection === 'overview') {
-        setActiveTab('analytics');
-      } else if (activeSection === 'fhir') {
-        setActiveTab('analytics');
-        handleExportFHIR();
-      } else {
-        setActiveTab(activeSection);
-      }
-    }
-  }, [activeSection]);
 
   // FHIR R4 Collection Bundle Exporter
   const handleExportFHIR = () => {
@@ -177,34 +154,6 @@ export default function AdminPortal({
           </div>
         </div>
 
-        <button 
-          className="btn btn-primary text-xs flex items-center gap-2 shadow-sm font-bold"
-          onClick={handleExportFHIR}
-        >
-          <Database size={15} /> Export HL7 FHIR R4 JSON
-        </button>
-      </div>
-
-      {/* Tabs */}
-      <div className="flex gap-2 bg-slate-100 p-1 rounded-xl w-fit flex-wrap">
-        <button className={`btn text-xs ${activeTab === 'analytics' ? 'btn-primary' : 'text-slate-600'}`} onClick={() => setActiveTab('analytics')}>
-          System Overview
-        </button>
-        <button className={`btn text-xs ${activeTab === 'test_lab' ? 'btn-primary' : 'text-slate-600'}`} onClick={() => setActiveTab('test_lab')}>
-          🧪 Prediction Test Lab
-        </button>
-        <button className={`btn text-xs ${activeTab === 'users' ? 'btn-primary' : 'text-slate-600'}`} onClick={() => setActiveTab('users')}>
-          Users & Access ({chwUsers.length + doctorUsers.length})
-        </button>
-        <button className={`btn text-xs ${activeTab === 'hospitals' ? 'btn-primary' : 'text-slate-600'}`} onClick={() => setActiveTab('hospitals')}>
-          Hospital Registry ({hospitals.length})
-        </button>
-        <button className={`btn text-xs ${activeTab === 'ml_config' ? 'btn-primary' : 'text-slate-600'}`} onClick={() => setActiveTab('ml_config')}>
-          Clinical Cutoffs
-        </button>
-        <button className={`btn text-xs ${activeTab === 'audit' ? 'btn-primary' : 'text-slate-600'}`} onClick={() => setActiveTab('audit')}>
-          Audit Logs ({auditLogs.length})
-        </button>
       </div>
 
       {/* TAB CONTENT */}
@@ -365,6 +314,27 @@ export default function AdminPortal({
             </div>
           </div>
         </div>
+      )}
+
+      {activeTab === 'fhir' && (
+        <section className="card-box space-y-4" aria-labelledby="fhir-heading">
+          <div className="card-box-header">
+            <div>
+              <h2 id="fhir-heading" className="text-lg font-bold text-slate-900 flex items-center gap-2"><Database size={19} className="text-sky-600" /> HL7 FHIR R4 Interoperability</h2>
+              <p className="text-xs text-slate-500 mt-1">Export standards-based Patient and Observation resources for downstream health systems.</p>
+            </div>
+            <span className="badge badge-risk-low">Schema ready</span>
+          </div>
+          <div className="grid-3-col gap-4">
+            <div className="metric-box"><span className="metric-label">Patient resources</span><div className="metric-value">{patients.length}</div><span className="metric-sub">FHIR Patient profiles</span></div>
+            <div className="metric-box"><span className="metric-label">Observations</span><div className="metric-value">{patients.length * 2}</div><span className="metric-sub">Blood pressure and glucose</span></div>
+            <div className="metric-box"><span className="metric-label">Bundle type</span><div className="metric-value text-base">Collection</div><span className="metric-sub">FHIR R4 JSON</span></div>
+          </div>
+          <div className="p-4 rounded-xl border border-sky-200 bg-sky-50 text-xs text-slate-700">
+            Uses LOINC 85354-9 for the blood pressure panel, 8480-6 / 8462-4 for systolic and diastolic readings, and 2339-0 for blood glucose.
+          </div>
+          <button type="button" className="btn btn-primary" onClick={handleExportFHIR}><Download size={15} /> Download FHIR bundle</button>
+        </section>
       )}
 
       {/* TAB: AUDIT LOGS */}

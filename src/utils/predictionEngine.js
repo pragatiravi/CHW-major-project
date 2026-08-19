@@ -50,7 +50,7 @@ export function assessPatientRisk(patient = {}, selectedModel = ML_MODELS.RANDOM
   // -------------------------------------------------------------
   // 1. HYPERTENSION ASSESSMENT (AHA 2017 Guidelines)
   // -------------------------------------------------------------
-  let htCategory = 'Normal';
+  let htCategory;
   let htScore = 0;
   let htFeatureContributions = [];
 
@@ -177,8 +177,8 @@ export function assessPatientRisk(patient = {}, selectedModel = ML_MODELS.RANDOM
   }
 
   // Model-specific mathematical calculation
-  let htProbability = 0;
-  let htConfidence = 94;
+  let htProbability;
+  let htConfidence;
 
   if (selectedModel === ML_MODELS.LOGISTIC_REGRESSION) {
     const logit = -3.5 + (0.035 * systolic) + (0.04 * diastolic) + (0.03 * age) + (0.04 * bmi) + (smoking ? 0.8 : 0);
@@ -214,7 +214,7 @@ export function assessPatientRisk(patient = {}, selectedModel = ML_MODELS.RANDOM
   // -------------------------------------------------------------
   // 2. DIABETES ASSESSMENT (ADA 2024 Guidelines)
   // -------------------------------------------------------------
-  let dbCategory = 'Normal Glucose';
+  let dbCategory;
   let dbScore = 0;
   let dbFeatureContributions = [];
 
@@ -325,8 +325,8 @@ export function assessPatientRisk(patient = {}, selectedModel = ML_MODELS.RANDOM
     });
   }
 
-  let dbProbability = 0;
-  let dbConfidence = 95;
+  let dbProbability;
+  let dbConfidence;
 
   if (selectedModel === ML_MODELS.LOGISTIC_REGRESSION) {
     const logit = -3.8 + (0.022 * glucose) + (0.05 * bmi) + (0.025 * age) + (familyHistory ? 0.9 : 0);
@@ -393,16 +393,16 @@ export function assessPatientRisk(patient = {}, selectedModel = ML_MODELS.RANDOM
 
   let suggestedActions = [];
   if (overallRiskLevel === RISK_LEVELS.CRITICAL) {
-    suggestedActions.push('🚨 Immediate clinical referral to nearest District or Secondary Emergency Hospital within 24-48 hours.');
+    suggestedActions.push('Immediate clinical referral to the nearest district or secondary emergency hospital within 24–48 hours.');
     suggestedActions.push('⚠️ Alert attending Medical Officer and issue urgent transport coordination flag.');
-    suggestedActions.push('💊 Initiate immediate vital sign monitoring (morning and evening).');
+    suggestedActions.push('Initiate immediate vital sign monitoring (morning and evening).');
   } else if (overallRiskLevel === RISK_LEVELS.HIGH) {
-    suggestedActions.push('🏥 Schedule primary care consultation within 7 days for diagnostic laboratory confirmation (HbA1c / repeat BP series).');
+    suggestedActions.push('Schedule primary care consultation within 7 days for diagnostic laboratory confirmation (HbA1c / repeat BP series).');
     suggestedActions.push('💬 Initiate ThinkLets Counselling module for Dietary Sodium restriction and Medication Adherence.');
     suggestedActions.push('📅 Maintain a 7-day home Blood Pressure & Fasting Glucose log.');
   } else if (overallRiskLevel === RISK_LEVELS.MODERATE) {
-    suggestedActions.push('🥗 Initiate ThinkLets Lifestyle & Dietary Counselling (Healthy plate method & carb moderation).');
-    suggestedActions.push('🏃 Recommend structured 150 minutes/week moderate brisk walking.');
+    suggestedActions.push('Initiate ThinkLets lifestyle and dietary counselling (healthy plate method and carbohydrate moderation).');
+    suggestedActions.push('Recommend a structured 150 minutes per week of moderate brisk walking.');
     suggestedActions.push('🗓️ Schedule CHW field follow-up re-screening in 14 days.');
   } else {
     suggestedActions.push('✅ Encourage continued routine healthy lifestyle maintenance and balanced nutrition.');

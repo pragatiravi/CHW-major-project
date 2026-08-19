@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { 
   Heart, 
   Lock, 
@@ -9,10 +9,8 @@ import {
   Stethoscope, 
   UserCheck, 
   Activity, 
-  Settings, 
-  CheckCircle2, 
-  AlertCircle,
-  Sparkles,
+  Settings,
+  CheckCircle2,
   ArrowRight
 } from 'lucide-react';
 
@@ -106,6 +104,7 @@ export default function SignInPage({ onLogin, onBackToLanding, initialRole = 'ch
 
   return (
     <div className="signin-page-wrapper">
+      <a className="skip-link" href="#main-content">Skip to sign-in form</a>
       {/* Top Header Bar */}
       <header className="signin-topbar">
         <button 
@@ -123,7 +122,7 @@ export default function SignInPage({ onLogin, onBackToLanding, initialRole = 'ch
       </header>
 
       {/* Split Auth Container */}
-      <div className="signin-container">
+      <main id="main-content" className="signin-container" tabIndex="-1">
         {/* Left Column: Platform Trust & Features */}
         <div className="signin-left-col">
           <div className="signin-left-content">
@@ -185,8 +184,9 @@ export default function SignInPage({ onLogin, onBackToLanding, initialRole = 'ch
 
                 <form onSubmit={handleStandardSubmit} className="signin-form">
                   <div className="form-group">
-                    <label className="form-label">Select Operating Role</label>
+                    <label className="form-label" htmlFor="signin-role">Select Operating Role</label>
                     <select 
+                      id="signin-role"
                       value={selectedRole} 
                       onChange={(e) => {
                         const newRole = e.target.value;
@@ -196,32 +196,34 @@ export default function SignInPage({ onLogin, onBackToLanding, initialRole = 'ch
                       }}
                       className="form-input text-xs"
                     >
-                      <option value="chw">👩‍⚕️ Community Health Worker (CHW)</option>
-                      <option value="doctor">👨‍⚕️ Medical Officer / Clinician</option>
-                      <option value="patient">👤 Patient & Family Health Hub</option>
-                      <option value="supervisor">📊 Health Program Supervisor</option>
-                      <option value="admin">⚙️ System Administrator</option>
+                      <option value="chw">Community Health Worker (CHW)</option>
+                      <option value="doctor">Medical Officer / Clinician</option>
+                      <option value="patient">Patient & Family Health Hub</option>
+                      <option value="supervisor">Health Program Supervisor</option>
+                      <option value="admin">System Administrator</option>
                     </select>
                   </div>
 
                   <div className="form-group">
-                    <label className="form-label">Institutional Email or Staff ID</label>
+                    <label className="form-label" htmlFor="signin-email">Institutional Email or Staff ID</label>
                     <div className="input-with-icon">
                       <Mail size={16} className="input-icon" />
                       <input 
+                        id="signin-email"
                         type="email" 
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         placeholder="e.g. staff.id@communityhealth.org"
                         className="form-input text-xs pl-9"
                         required
+                        autoComplete="username"
                       />
                     </div>
                   </div>
 
                   <div className="form-group">
                     <div className="flex justify-between items-center mb-1">
-                      <label className="form-label mb-0">Password</label>
+                      <label className="form-label mb-0" htmlFor="signin-password">Password</label>
                       <button 
                         type="button" 
                         className="text-xs text-sky-600 hover:underline"
@@ -233,12 +235,14 @@ export default function SignInPage({ onLogin, onBackToLanding, initialRole = 'ch
                     <div className="input-with-icon">
                       <Lock size={16} className="input-icon" />
                       <input 
+                        id="signin-password"
                         type="password" 
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         placeholder="••••••••••••"
                         className="form-input text-xs pl-9"
                         required
+                        autoComplete="current-password"
                       />
                     </div>
                   </div>
@@ -271,7 +275,7 @@ export default function SignInPage({ onLogin, onBackToLanding, initialRole = 'ch
                           <span className="demo-role">{account.title}</span>
                           <span className="demo-desc">{account.desc}</span>
                         </div>
-                        <span className="demo-arrow text-slate-400">➔</span>
+                        <ArrowRight className="demo-arrow text-slate-400" size={15} aria-hidden="true" />
                       </button>
                     );
                   })}
@@ -301,15 +305,17 @@ export default function SignInPage({ onLogin, onBackToLanding, initialRole = 'ch
                 ) : (
                   <form onSubmit={handleStandardSubmit} className="mt-4 space-y-3">
                     <div className="form-group">
-                      <label className="form-label">Registered Institutional Email</label>
+                      <label className="form-label" htmlFor="recovery-email">Registered Institutional Email</label>
                       <div className="input-with-icon">
                         <Mail size={16} className="input-icon" />
                         <input 
+                          id="recovery-email"
                           type="email" 
                           value={email}
                           onChange={(e) => setEmail(e.target.value)}
                           className="form-input text-xs pl-9"
                           required
+                          autoComplete="email"
                         />
                       </div>
                     </div>
@@ -331,7 +337,7 @@ export default function SignInPage({ onLogin, onBackToLanding, initialRole = 'ch
             )}
           </div>
         </div>
-      </div>
+      </main>
     </div>
   );
 }

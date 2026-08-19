@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { 
   Users, 
   BarChart2, 
@@ -6,11 +6,8 @@ import {
   Hospital, 
   Download, 
   Printer, 
-  TrendingUp, 
-  AlertTriangle,
   CheckCircle2,
   BrainCircuit,
-  Clock,
   Search
 } from 'lucide-react';
 import AnalyticsCharts from './AnalyticsCharts';
@@ -25,17 +22,11 @@ export default function SupervisorDashboard({
   activeSection = 'overview'
 }) {
   const { toastSuccess } = useToast();
-  const [activeTab, setActiveTab] = useState(activeSection || 'overview');
+  const activeTab = activeSection || 'overview';
   const [chartView, setChartView] = useState('risk'); // 'risk' | 'prevalence' | 'age'
   const [filterRisk, setFilterRisk] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [inspectedPatient, setInspectedPatient] = useState(null);
-
-  React.useEffect(() => {
-    if (activeSection) {
-      setActiveTab(activeSection);
-    }
-  }, [activeSection]);
 
   const criticalCount = patients.filter(p => (p.evaluation?.overallRiskLevel || p.evaluation?.overall?.riskLevel) === 'Critical').length;
   const highCount = patients.filter(p => (p.evaluation?.overallRiskLevel || p.evaluation?.overall?.riskLevel) === 'High').length;
@@ -117,22 +108,27 @@ export default function SupervisorDashboard({
             <BarChart2 size={22} />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-slate-900">Health Program Supervisor Dashboard</h1>
-            <p className="text-xs text-slate-500">Population Health Analytics, CHW Field Operations & Audit Reports</p>
+            <h1 className="text-xl font-bold text-slate-900">
+              {activeTab === 'analytics' ? 'Population Health Analytics' : activeTab === 'chws' ? 'CHW Field Activity' : activeTab === 'referrals' ? 'Referral Operations' : activeTab === 'reports' ? 'Program Reports' : 'Health Program Supervisor Dashboard'}
+            </h1>
+            <p className="text-xs text-slate-500">Population health, field operations, referral oversight, and auditable reporting</p>
           </div>
         </div>
 
-        <div className="flex gap-2">
-          <button className="btn btn-secondary text-xs flex items-center gap-1.5" onClick={handlePrintPDF}>
-            <Printer size={14} /> Print Summary
-          </button>
-          <button className="btn btn-primary text-xs flex items-center gap-1.5" onClick={handleDownloadCSVReport}>
-            <Download size={14} /> Export CSV Audit
-          </button>
-        </div>
+        {activeTab === 'reports' && (
+          <div className="flex gap-2">
+            <button className="btn btn-secondary text-xs flex items-center gap-1.5" onClick={handlePrintPDF}>
+              <Printer size={14} /> Print Summary
+            </button>
+            <button className="btn btn-primary text-xs flex items-center gap-1.5" onClick={handleDownloadCSVReport}>
+              <Download size={14} /> Export CSV Audit
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Top 4 Core Metrics */}
+      {activeTab === 'overview' && (
       <div className="grid-4-col gap-4">
         <div className="metric-box border-l-4 border-l-amber-600">
           <span className="metric-label">Registered Population</span>
@@ -158,8 +154,10 @@ export default function SupervisorDashboard({
           <span className="metric-sub">In hospital triage review</span>
         </div>
       </div>
+      )}
 
       {/* Focused Analytics: One Primary Chart with Switcher */}
+      {(activeTab === 'overview' || activeTab === 'analytics') && (
       <div className="card-box space-y-4">
         <div className="flex justify-between items-center flex-wrap gap-2 pb-3 border-b border-slate-100">
           <div>
@@ -196,8 +194,10 @@ export default function SupervisorDashboard({
           <AnalyticsCharts patients={patients} view={chartView} />
         </div>
       </div>
+      )}
 
       {/* CHW Field Activity Summary Table */}
+      {(activeTab === 'overview' || activeTab === 'chws') && (
       <div className="card-box space-y-4">
         <div className="flex justify-between items-center">
           <div>
@@ -243,6 +243,76 @@ export default function SupervisorDashboard({
           </table>
         </div>
       </div>
+      )}
+
+      {activeTab === 'referrals' && (
+        <section className="card-box space-y-4" aria-labelledby="referral-operations-heading">
+          <div className="card-box-header">
+            <div>
+              <h2 id="referral-operations-heading" className="text-lg font-bold text-slate-900 flex items-center gap-2"><Hospital size={19} className="text-indigo-600" /> Referral Operations</h2>
+              <p className="text-xs text-slate-500 mt-1">Monitor pending, approved, and community-managed cases.</p>
+            </div>
+            <span className="badge badge-risk-moderate">{pendingReferralCount} pending</span>
+          </div>
+          <div className="grid-2-col gap-4">
+            {patients.filter((patient) => patient.referral).map((patient) => (
+              <article key={patient.id} className="p-4 rounded-xl border border-slate-200 bg-slate-50 space-y-3">
+                <div className="flex justify-between items-start gap-3">
+                  <div>
+                    <strong className="text-sm text-slate-900 block">{patient.name}</strong>
+                    <span className="text-xs text-slate-500">{patient.id} · {patient.referral.hospitalName}</span>
+                  </div>
+                  <span className={`badge ${patient.referral.status === 'Approved' ? 'badge-risk-low' : patient.referral.status === 'Declined' ? 'badge-neutral' : 'badge-risk-moderate'}`}>{patient.referral.status}</span>
+                </div>
+                <p className="text-xs text-slate-600">{patient.referral.reason}</p>
+                <button type="button" className="btn btn-secondary text-xs w-full" onClick={() => setInspectedPatient(patient)}>Inspect clinical record</button>
+              </article>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {activeTab === 'reports' && (
+        <section className="card-box space-y-4" aria-labelledby="reports-heading">
+          <div className="card-box-header">
+            <div>
+              <h2 id="reports-heading" className="text-lg font-bold text-slate-900 flex items-center gap-2"><FileText size={19} className="text-sky-600" /> Program Report Builder</h2>
+              <p className="text-xs text-slate-500 mt-1">Filter the cohort, inspect records, then print or export the current report.</p>
+            </div>
+            <span className="badge badge-primary">{filteredPatients.length} records · {syncLogs.length} sync events</span>
+          </div>
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="search-bar-sm flex-1">
+              <Search size={14} className="text-slate-400" />
+              <input className="form-input text-xs" value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder="Search name or patient ID" />
+            </div>
+            <select className="form-input text-xs w-36" value={filterRisk} onChange={(event) => setFilterRisk(event.target.value)} aria-label="Filter report by risk level">
+              <option value="all">All risk levels</option>
+              <option value="critical">Critical</option>
+              <option value="high">High</option>
+              <option value="moderate">Moderate</option>
+              <option value="low">Low</option>
+            </select>
+          </div>
+          <div className="table-responsive">
+            <table className="custom-table">
+              <thead><tr><th>Patient</th><th>Vitals</th><th>Risk</th><th>Referral</th><th>Assigned CHW</th><th>Action</th></tr></thead>
+              <tbody>
+                {filteredPatients.map((patient) => (
+                  <tr key={patient.id}>
+                    <td><strong>{patient.name}</strong><span className="block text-2xs text-slate-500">{patient.id}</span></td>
+                    <td>{patient.systolic}/{patient.diastolic} mmHg · {patient.glucose} mg/dL</td>
+                    <td><span className="badge badge-neutral">{patient.evaluation?.overallRiskLevel || 'Low'}</span></td>
+                    <td>{patient.referral?.status || 'None'}</td>
+                    <td>{patient.assignedCHW || 'Sunita Patil'}</td>
+                    <td><button type="button" className="btn btn-secondary text-xs" onClick={() => setInspectedPatient(patient)}>View</button></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
 
       {/* Patient Detail Drawer */}
       {inspectedPatient && (

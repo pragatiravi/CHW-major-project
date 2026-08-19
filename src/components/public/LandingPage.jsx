@@ -1,22 +1,14 @@
-import React from 'react';
 import { 
   Heart, 
   BrainCircuit, 
   WifiOff, 
-  BookOpen, 
   Hospital, 
   ShieldCheck, 
   Users, 
   Stethoscope, 
   UserCheck, 
-  ArrowRight, 
-  CheckCircle2, 
-  Activity, 
-  FileText, 
-  Sparkles, 
+  ArrowRight,
   Database,
-  PhoneCall,
-  Clock
 } from 'lucide-react';
 
 export default function LandingPage({ 
@@ -34,6 +26,7 @@ export default function LandingPage({
 
   return (
     <div className="public-landing-container">
+      <a className="skip-link" href="#main-content">Skip to main content</a>
       {/* 1. PROFESSIONAL NAVIGATION TOPBAR */}
       <header className="landing-nav">
         <div className="landing-nav-inner">
@@ -92,7 +85,7 @@ export default function LandingPage({
       </header>
 
       {/* 2. HERO SECTION (2-COLUMN LAYOUT) */}
-      <section className="landing-hero">
+      <main id="main-content" className="landing-hero" tabIndex="-1">
         <div className="container">
           <div className="landing-hero-grid">
             {/* Left Column: Headline, Description & CTAs */}
@@ -170,8 +163,6 @@ export default function LandingPage({
             </div>
           </div>
         </div>
-      </section>
-
       {/* 3. CAPABILITY STATISTICS (4 HORIZONTAL EQUAL-HEIGHT CARDS) */}
       <section className="landing-stats-section" id="capabilities">
         <div className="container">
@@ -317,7 +308,7 @@ export default function LandingPage({
                 </p>
               </div>
               <button className="btn btn-secondary text-xs mt-4 w-full" onClick={() => handleDemoLaunch('chw')}>
-                Open CHW Demo ➔
+                Open CHW Demo <ArrowRight size={14} />
               </button>
             </div>
 
@@ -333,7 +324,7 @@ export default function LandingPage({
                 </p>
               </div>
               <button className="btn btn-secondary text-xs mt-4 w-full" onClick={() => handleDemoLaunch('doctor')}>
-                Open Doctor Demo ➔
+                Open Doctor Demo <ArrowRight size={14} />
               </button>
             </div>
 
@@ -349,7 +340,7 @@ export default function LandingPage({
                 </p>
               </div>
               <button className="btn btn-secondary text-xs mt-4 w-full" onClick={() => handleDemoLaunch('patient')}>
-                Open Patient Demo ➔
+                Open Patient Demo <ArrowRight size={14} />
               </button>
             </div>
 
@@ -365,7 +356,7 @@ export default function LandingPage({
                 </p>
               </div>
               <button className="btn btn-secondary text-xs mt-4 w-full" onClick={() => handleDemoLaunch('supervisor')}>
-                Open Supervisor Demo ➔
+                Open Supervisor Demo <ArrowRight size={14} />
               </button>
             </div>
 
@@ -381,7 +372,7 @@ export default function LandingPage({
                 </p>
               </div>
               <button className="btn btn-secondary text-xs mt-4 w-full" onClick={() => handleDemoLaunch('admin')}>
-                Open Admin Demo ➔
+                Open Admin Demo <ArrowRight size={14} />
               </button>
             </div>
           </div>
@@ -403,6 +394,8 @@ export default function LandingPage({
           </div>
         </div>
       </section>
+
+      </main>
 
       {/* 8. FOOTER */}
       <footer className="landing-footer">

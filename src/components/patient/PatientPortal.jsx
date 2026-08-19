@@ -1,26 +1,17 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { 
-  Heart, 
-  Activity, 
   Pill, 
   Calendar, 
-  FileText, 
-  AlertTriangle, 
   PhoneCall, 
   Bot, 
   Users, 
   Camera, 
-  MapPin, 
   CheckCircle2, 
   Languages, 
   Send, 
-  Clock, 
   Plus, 
-  Sparkles, 
-  Check,
-  ShieldCheck
+  Check
 } from 'lucide-react';
-import { exportPatientSummaryPDF } from '../../utils/pdfExport';
 import { useToast } from '../shared/ToastContainer';
 
 export default function PatientPortal({ patientRecord, patients = [], onSavePatient, activeSection = 'overview' }) {
@@ -49,16 +40,10 @@ export default function PatientPortal({ patientRecord, patients = [], onSavePati
     }
   };
 
-  const [activeTab, setActiveTab] = useState(activeSection || 'overview');
+  const activeTab = activeSection || 'overview';
   const [language, setLanguage] = useState('en'); // 'en' | 'kn'
   const [sosTriggered, setSosTriggered] = useState(false);
   const [medicines, setMedicines] = useState(activePatient.medicines || []);
-
-  React.useEffect(() => {
-    if (activeSection) {
-      setActiveTab(activeSection);
-    }
-  }, [activeSection]);
 
   // Chatbot State
   const [chatMessages, setChatMessages] = useState([
@@ -76,15 +61,35 @@ export default function PatientPortal({ patientRecord, patients = [], onSavePati
   const [ocrResult, setOcrResult] = useState(null);
 
   // Household Members State
-  const [familyMembers, setFamilyMembers] = useState([
+  const [familyMembers] = useState([
     { id: 'FAM-1', name: 'Ramesh Sharma (Husband)', age: 58, risk: 'High Risk (BP 152/98)', status: 'Follow-up Due' },
     { id: 'FAM-2', name: 'Anita Sharma (Daughter)', age: 26, risk: 'Low Risk (Normal)', status: 'Healthy' }
   ]);
+  const [appointments, setAppointments] = useState([
+    { id: 'APT-101', date: '2026-08-26', time: '10:30 AM', clinician: 'Dr. Ananya Roy', type: 'Hypertension follow-up', status: 'Confirmed' }
+  ]);
+  const [appointmentDate, setAppointmentDate] = useState('2026-09-02');
+
+  const handleBookAppointment = (event) => {
+    event.preventDefault();
+    const nextAppointment = {
+      id: `APT-${Date.now()}`,
+      date: appointmentDate,
+      time: '11:00 AM',
+      clinician: 'Community Care Team',
+      type: 'Routine follow-up',
+      status: 'Requested'
+    };
+    setAppointments((current) => [...current, nextAppointment]);
+    toastSuccess('Appointment request sent to your care team.');
+  };
 
   const toggleMedication = (index) => {
-    const updated = [...medicines];
-    updated[index].takenToday = !updated[index].takenToday;
+    const updated = medicines.map((medicine, medicineIndex) => (
+      medicineIndex === index ? { ...medicine, takenToday: !medicine.takenToday } : medicine
+    ));
     setMedicines(updated);
+    onSavePatient?.({ ...activePatient, medicines: updated });
     if (updated[index].takenToday) {
       toastSuccess(`Marked ${updated[index].name} as taken today!`);
     }
@@ -151,7 +156,7 @@ export default function PatientPortal({ patientRecord, patients = [], onSavePati
             {language === 'kn' ? 'ವೈಯಕ್ತಿಕ ಆರೋಗ್ಯ ಪೋರ್ಟಲ್' : 'Personal Health Hub'}
           </span>
           <h1 className="text-2xl font-bold text-slate-900 mt-0.5">
-            {language === 'kn' ? `ನಮಸ್ಕಾರ, ${activePatient.name.split(' ')[0]}!` : `Hello, ${activePatient.name.split(' ')[0]}! 👋`}
+            {language === 'kn' ? `ನಮಸ್ಕಾರ, ${activePatient.name.split(' ')[0]}!` : `Hello, ${activePatient.name.split(' ')[0]}!`}
           </h1>
           <p className="text-xs text-slate-500">
             {language === 'kn' 
@@ -180,6 +185,7 @@ export default function PatientPortal({ patientRecord, patients = [], onSavePati
       </div>
 
       {/* Primary Health Vitals Snapshot Card */}
+      {activeTab === 'overview' && (
       <div className="grid-4-col gap-4">
         <div className="card-box bg-sky-50/60 border-sky-200 p-4">
           <span className="text-2xs font-bold text-sky-800 uppercase tracking-wider block">Blood Pressure</span>
@@ -213,10 +219,13 @@ export default function PatientPortal({ patientRecord, patients = [], onSavePati
           <span className="text-2xs text-indigo-700 block mt-1 font-medium">Sunita Patil (CHW)</span>
         </div>
       </div>
+      )}
 
       {/* Main Sections: Daily Medicines & Care Pathway */}
-      <div className="grid-2-col gap-6">
+      {(activeTab === 'overview' || activeTab === 'medicines' || activeTab === 'chatbot') && (
+      <div className={activeTab === 'overview' ? 'grid-2-col gap-6' : 'space-y-6'}>
         {/* Daily Medicines Checklist */}
+        {activeTab !== 'chatbot' && (
         <div className="card-box space-y-4">
           <div className="card-box-header">
             <div>
@@ -258,8 +267,10 @@ export default function PatientPortal({ patientRecord, patients = [], onSavePati
             ))}
           </div>
         </div>
+        )}
 
         {/* AI Health Assistant (Bilingual) */}
+        {activeTab !== 'medicines' && (
         <div className="card-box flex flex-col justify-between space-y-4">
           <div className="card-box-header">
             <div>
@@ -298,9 +309,12 @@ export default function PatientPortal({ patientRecord, patients = [], onSavePati
             </button>
           </form>
         </div>
+        )}
       </div>
+      )}
 
       {/* Prescription OCR Scanner */}
+      {activeTab === 'ocr' && (
       <div className="card-box space-y-4">
         <div className="card-box-header">
           <div>
@@ -344,6 +358,69 @@ export default function PatientPortal({ patientRecord, patients = [], onSavePati
           </div>
         )}
       </div>
+      )}
+
+      {activeTab === 'family' && (
+        <section className="card-box space-y-4" aria-labelledby="family-heading">
+          <div className="card-box-header">
+            <div>
+              <h2 id="family-heading" className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                <Users size={19} className="text-sky-600" /> Family Health Circle
+              </h2>
+              <p className="text-xs text-slate-500 mt-1">View household risk status and request a community screening.</p>
+            </div>
+            <span className="badge badge-primary">{familyMembers.length} members</span>
+          </div>
+          <div className="grid-2-col gap-4">
+            {familyMembers.map((member) => (
+              <article key={member.id} className="p-4 rounded-xl border border-slate-200 bg-slate-50 space-y-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="patient-avatar-sm">{member.name.charAt(0)}</div>
+                    <div>
+                      <strong className="text-sm text-slate-900 block">{member.name}</strong>
+                      <span className="text-xs text-slate-500">Age {member.age} · Household ID {member.id}</span>
+                    </div>
+                  </div>
+                  <span className={`badge ${member.risk.startsWith('High') ? 'badge-risk-high' : 'badge-risk-low'}`}>{member.status}</span>
+                </div>
+                <p className="text-xs text-slate-600">Latest status: <strong>{member.risk}</strong></p>
+                <button type="button" className="btn btn-secondary text-xs w-full" onClick={() => toastInfo(`Screening request sent for ${member.name}.`)}>
+                  Request CHW Screening
+                </button>
+              </article>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {activeTab === 'appointments' && (
+        <div className="grid-3-7-col gap-6">
+          <form className="card-box space-y-4" onSubmit={handleBookAppointment}>
+            <div>
+              <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2"><Calendar size={19} className="text-sky-600" /> Request an Appointment</h2>
+              <p className="text-xs text-slate-500 mt-1">Choose a preferred date. Your care team will confirm the time.</p>
+            </div>
+            <div className="form-group">
+              <label className="form-label" htmlFor="appointment-date">Preferred date</label>
+              <input id="appointment-date" type="date" className="form-input" value={appointmentDate} onChange={(event) => setAppointmentDate(event.target.value)} required />
+            </div>
+            <button type="submit" className="btn btn-primary w-full"><Plus size={15} /> Send appointment request</button>
+          </form>
+          <section className="card-box space-y-4" aria-labelledby="appointments-heading">
+            <h2 id="appointments-heading" className="text-lg font-bold text-slate-900">Upcoming care visits</h2>
+            {appointments.map((appointment) => (
+              <article key={appointment.id} className="p-4 rounded-xl border border-slate-200 bg-slate-50 flex justify-between items-center flex-wrap gap-3">
+                <div>
+                  <strong className="text-sm text-slate-900 block">{appointment.type}</strong>
+                  <span className="text-xs text-slate-500">{appointment.date} at {appointment.time} · {appointment.clinician}</span>
+                </div>
+                <span className={`badge ${appointment.status === 'Confirmed' ? 'badge-risk-low' : 'badge-risk-moderate'}`}>{appointment.status}</span>
+              </article>
+            ))}
+          </section>
+        </div>
+      )}
     </div>
   );
 }

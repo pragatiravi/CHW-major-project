@@ -1,6 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  Users, 
+import { useState } from 'react';
+import {
   UserPlus, 
   BrainCircuit, 
   BookOpen, 
@@ -8,18 +7,11 @@ import {
   Hospital, 
   WifiOff, 
   Search, 
-  AlertTriangle, 
-  Calendar, 
-  Eye, 
-  Clock, 
-  ArrowRight, 
+  AlertTriangle,
+  Clock,
   CheckCircle2, 
-  Plus, 
-  MapPin, 
-  Activity,
-  Heart,
-  ChevronRight,
-  Sparkles
+  Plus,
+  MapPin
 } from 'lucide-react';
 import PatientRegistrationModal from './PatientRegistrationModal';
 import GuidedScreeningWizard from './GuidedScreeningWizard';
@@ -49,7 +41,7 @@ export default function CHWPortal({
   activeSection = 'home',
   currentUser
 }) {
-  const [activeTab, setActiveTab] = useState(activeSection || 'home');
+  const activeTab = activeSection || 'home';
   const [filterRisk, setFilterRisk] = useState('all');
   const [localSearch, setLocalSearch] = useState('');
 
@@ -63,27 +55,6 @@ export default function CHWPortal({
   const [showMedicationPatient, setShowMedicationPatient] = useState(null);
   const [showMapModal, setShowMapModal] = useState(false);
   const [showSyncModal, setShowSyncModal] = useState(false);
-
-  // Sync navigation section from AppShell
-  useEffect(() => {
-    if (activeSection) {
-      if (activeSection === 'screening') {
-        setShowWizardModal(true);
-        setActiveTab('home');
-      } else if (activeSection === 'offline') {
-        setShowSyncModal(true);
-        setActiveTab('home');
-      } else if (activeSection === 'counselling') {
-        if (patients.length > 0) setShowCounsellingPatient(patients[0]);
-        setActiveTab('home');
-      } else if (activeSection === 'medications') {
-        if (patients.length > 0) setShowMedicationPatient(patients[0]);
-        setActiveTab('home');
-      } else {
-        setActiveTab(activeSection);
-      }
-    }
-  }, [activeSection, patients]);
 
   // Compute Metrics
   const totalPatients = patients.length;
@@ -156,12 +127,6 @@ export default function CHWPortal({
                 onClick={() => setShowWizardModal(true)}
               >
                 <Plus size={18} /> New Patient Screening
-              </button>
-              <button 
-                className="btn btn-secondary text-slate-900 font-semibold"
-                onClick={() => setActiveTab('patients')}
-              >
-                <Search size={16} /> Find Patient
               </button>
             </div>
           </div>
@@ -288,21 +253,10 @@ export default function CHWPortal({
                 </div>
               </div>
 
-              {/* Quick Field Tools Row */}
-              <div className="grid-2-col gap-3">
+              {/* Contextual field tool not already exposed by the sidebar */}
+              <div>
                 <button 
-                  className="field-tool-card"
-                  onClick={() => {
-                    if (patients.length > 0) setShowCounsellingPatient(patients[0]);
-                  }}
-                >
-                  <BookOpen size={20} className="text-emerald-600 mb-1" />
-                  <strong className="text-sm text-slate-900">ThinkLets Counselling</strong>
-                  <span className="text-xs text-slate-500">Voice-assisted protocol scripts</span>
-                </button>
-
-                <button 
-                  className="field-tool-card"
+                  className="field-tool-card w-full"
                   onClick={() => setShowMapModal(true)}
                 >
                   <Hospital size={20} className="text-indigo-600 mb-1" />
@@ -421,7 +375,7 @@ export default function CHWPortal({
                             className="btn btn-secondary text-xs"
                             onClick={(e) => { e.stopPropagation(); setShowDetailPatient(p); }}
                           >
-                            View Record ➔
+                            View Record
                           </button>
                         </td>
                       </tr>
@@ -438,6 +392,90 @@ export default function CHWPortal({
             </table>
           </div>
         </div>
+      )}
+
+      {activeTab === 'screening' && (
+        <section className="card-box space-y-4" aria-labelledby="screening-heading">
+          <div className="card-box-header">
+            <div>
+              <h2 id="screening-heading" className="text-lg font-bold text-slate-900 flex items-center gap-2"><BrainCircuit size={19} className="text-sky-600" /> Guided Clinical Screening</h2>
+              <p className="text-xs text-slate-500 mt-1">Start a seven-step screening for a new or returning community patient.</p>
+            </div>
+            <button type="button" className="btn btn-primary" onClick={() => setShowWizardModal(true)}><Plus size={16} /> Start new screening</button>
+          </div>
+          <div className="grid-3-col gap-4">
+            {patients.slice(0, 6).map((patient) => (
+              <article key={patient.id} className="p-4 rounded-xl border border-slate-200 bg-slate-50 space-y-3">
+                <div className="flex justify-between items-start gap-3">
+                  <div><strong className="text-sm text-slate-900 block">{patient.name}</strong><span className="text-xs text-slate-500">{patient.id} · {patient.age} years</span></div>
+                  {getRiskBadge(patient.evaluation?.overallRiskLevel || 'Low')}
+                </div>
+                <button type="button" className="btn btn-secondary text-xs w-full" onClick={() => setShowAIScreeningPatient(patient)}>Review latest assessment</button>
+              </article>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {activeTab === 'counselling' && (
+        <section className="card-box space-y-4" aria-labelledby="counselling-heading">
+          <div className="card-box-header">
+            <div>
+              <h2 id="counselling-heading" className="text-lg font-bold text-slate-900 flex items-center gap-2"><BookOpen size={19} className="text-emerald-600" /> ThinkLets Counselling</h2>
+              <p className="text-xs text-slate-500 mt-1">Choose a patient and launch the guided lifestyle counselling protocol.</p>
+            </div>
+            <span className="badge badge-primary">{patients.length} eligible patients</span>
+          </div>
+          <div className="grid-3-col gap-4">
+            {patients.map((patient) => (
+              <article key={patient.id} className="p-4 rounded-xl border border-slate-200 bg-slate-50">
+                <strong className="text-sm text-slate-900 block">{patient.name}</strong>
+                <span className="text-xs text-slate-500 block mt-1">{patient.id} · {patient.address}</span>
+                <button type="button" className="btn btn-primary text-xs w-full mt-4" onClick={() => setShowCounsellingPatient(patient)}>Begin counselling</button>
+              </article>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {activeTab === 'medications' && (
+        <section className="card-box space-y-4" aria-labelledby="medications-heading">
+          <div className="card-box-header">
+            <div>
+              <h2 id="medications-heading" className="text-lg font-bold text-slate-900 flex items-center gap-2"><Pill size={19} className="text-indigo-600" /> Medication Tracking</h2>
+              <p className="text-xs text-slate-500 mt-1">Review active orders and record patient adherence.</p>
+            </div>
+          </div>
+          <div className="grid-3-col gap-4">
+            {patients.map((patient) => (
+              <article key={patient.id} className="p-4 rounded-xl border border-slate-200 bg-slate-50 space-y-3">
+                <div className="flex justify-between items-start gap-3"><div><strong className="text-sm text-slate-900 block">{patient.name}</strong><span className="text-xs text-slate-500">{(patient.medicines || []).length} active medicines</span></div>{getRiskBadge(patient.evaluation?.overallRiskLevel || 'Low')}</div>
+                <button type="button" className="btn btn-secondary text-xs w-full" onClick={() => setShowMedicationPatient(patient)}>Open medication tracker</button>
+              </article>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {activeTab === 'offline' && (
+        <section className="card-box space-y-4" aria-labelledby="offline-heading">
+          <div className="card-box-header">
+            <div>
+              <h2 id="offline-heading" className="text-lg font-bold text-slate-900 flex items-center gap-2"><WifiOff size={19} className="text-amber-600" /> Offline Data & Synchronization</h2>
+              <p className="text-xs text-slate-500 mt-1">Review locally queued screenings and synchronization history.</p>
+            </div>
+            <span className={`badge ${isOffline ? 'badge-risk-high' : 'badge-risk-low'}`}>{isOffline ? 'Offline mode' : 'Cloud connected'}</span>
+          </div>
+          <div className="grid-3-col gap-4">
+            <div className="metric-box"><span className="metric-label">Queued records</span><div className="metric-value">{offlineQueue.length}</div><span className="metric-sub">Waiting for upload</span></div>
+            <div className="metric-box"><span className="metric-label">Sync events</span><div className="metric-value">{syncLogs.length}</div><span className="metric-sub">Recorded on this device</span></div>
+            <div className="metric-box"><span className="metric-label">Connection</span><div className="metric-value text-base">{isOffline ? 'Local only' : 'Synchronized'}</div><span className="metric-sub">Patient data remains available</span></div>
+          </div>
+          <div className="flex gap-3 flex-wrap">
+            <button type="button" className="btn btn-secondary" onClick={toggleOffline}>{isOffline ? 'Restore cloud connection' : 'Simulate offline mode'}</button>
+            <button type="button" className="btn btn-primary" onClick={() => setShowSyncModal(true)}>Open sync manager</button>
+          </div>
+        </section>
       )}
 
       {/* =============================================================
@@ -594,7 +632,7 @@ export default function CHWPortal({
       {showMapModal && (
         <NearbyHospitalsMap 
           onClose={() => setShowMapModal(false)}
-          onSelectHospitalForReferral={(hosp) => {
+          onSelectHospitalForReferral={() => {
             setShowMapModal(false);
           }}
         />

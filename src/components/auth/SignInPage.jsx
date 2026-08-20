@@ -239,7 +239,7 @@ export default function SignInPage({
                 <div className="signin-header">
                   <h3 className="text-xl font-bold text-slate-900">Sign In to Your Workspace</h3>
                   <p className="text-xs text-slate-500 mt-1">
-                    Enter your Supabase-authenticated institutional credentials.
+                    Enter your institutional credentials to access your workspace.
                   </p>
                 </div>
 
@@ -370,7 +370,7 @@ export default function SignInPage({
                     <CheckCircle2 size={28} className="text-emerald-600 mx-auto mb-2" />
                     <strong className="text-xs text-slate-800 block">Recovery Instructions Sent</strong>
                     <p className="text-2xs text-slate-600 mt-1">
-                      Supabase sent recovery instructions to <strong>{email}</strong>, if the account exists.
+                      Recovery instructions were sent to <strong>{email}</strong>, if the account exists.
                     </p>
                     <button 
                       className="btn btn-primary text-xs w-full mt-4"

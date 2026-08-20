@@ -24,11 +24,7 @@ import {
   signInWithRole,
   signOutAuthenticatedUser,
 } from './lib/auth';
-import {
-  fetchMedicalOfficerPatients,
-  reviewMedicalOfficerReferral,
-  syncMedicalOfficerMedicationOrders,
-} from './lib/medicalOfficerData';
+
 
 const DEMO_ACCESS_ENABLED = import.meta.env.VITE_ENABLE_DEMO_ACCESS !== 'false';
 
@@ -72,30 +68,19 @@ function AppContent() {
 
   const [activeNavSection, setActiveNavSection] = useState('home');
   const [authReady, setAuthReady] = useState(false);
-  const [medicalDataLoading, setMedicalDataLoading] = useState(false);
 
   useEffect(() => {
-    let active = true;
-
     restoreAuthenticatedUser()
       .then((restoredUser) => {
-        if (!active || !restoredUser) return;
+        if (!restoredUser) return;
         setCurrentUser(restoredUser);
         setUserRole(restoredUser.role);
         setActiveNavSection(restoredUser.role === 'doctor' ? 'triage' : 'overview');
         setCurrentView('app');
       })
-      .catch((error) => {
-        if (active) toastError(error.message);
-      })
-      .finally(() => {
-        if (active) setAuthReady(true);
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [toastError]);
+      .catch(() => {})
+      .finally(() => setAuthReady(true));
+  }, []);
 
   // Theme State with localStorage persistence
   const [theme, setTheme] = useState(() => {
@@ -148,43 +133,16 @@ function AppContent() {
 
   const [auditLogs] = useState(INITIAL_AUDIT_LOGS);
 
-  useEffect(() => {
-    if (currentUser?.source !== 'supabase' || userRole !== 'doctor') return undefined;
-
-    let active = true;
-    const loadSecuredPatients = async () => {
-      await Promise.resolve();
-      if (!active) return;
-
-      setMedicalDataLoading(true);
-      setPatients([]);
-
-      try {
-        const securedPatients = await fetchMedicalOfficerPatients();
-        if (active) setPatients(securedPatients);
-      } catch (error) {
-        if (active) toastError(error.message, 7000);
-      } finally {
-        if (active) setMedicalDataLoading(false);
-      }
-    };
-
-    loadSecuredPatients();
-
-    return () => {
-      active = false;
-    };
-  }, [currentUser?.id, currentUser?.source, userRole, toastError]);
+  // Medical data loading is handled via local state only
 
   // Sync state changes to localStorage
   useEffect(() => {
-    if (currentUser?.source === 'supabase') return;
     try {
       localStorage.setItem('chw_patients', JSON.stringify(patients));
     } catch (e) {
       console.error('Failed to persist patients:', e);
     }
-  }, [patients, currentUser?.source]);
+  }, [patients]);
 
   useEffect(() => {
     try {
@@ -271,15 +229,11 @@ function AppContent() {
   };
 
   const handleLogout = async () => {
-    if (currentUser?.source === 'supabase') {
-      try {
-        await signOutAuthenticatedUser();
-      } catch (error) {
-        toastError(error.message);
-        return;
-      }
+    try {
+      await signOutAuthenticatedUser();
+    } catch (e) {
+      console.error('Sign out error:', e);
     }
-
     setCurrentUser(null);
     setUserRole('chw');
     setActiveNavSection('home');
@@ -379,18 +333,6 @@ function AppContent() {
   };
 
   const handleUpdatePatientMedicines = async (patientId, newMedicines) => {
-    if (currentUser?.source === 'supabase' && userRole === 'doctor') {
-      const patient = patients.find((record) => record.id === patientId);
-      const savedMedicines = await syncMedicalOfficerMedicationOrders(patient, newMedicines);
-      setPatients((current) =>
-        current.map((record) =>
-          record.id === patientId ? { ...record, medicines: savedMedicines } : record,
-        ),
-      );
-      toastSuccess('Medication orders securely saved to Supabase.');
-      return savedMedicines;
-    }
-
     setPatients(prev => prev.map(p => {
       if (p.id === patientId) {
         return { ...p, medicines: newMedicines };
@@ -442,36 +384,11 @@ function AppContent() {
   };
 
   const handleApproveReferral = async (patientId, doctorNotes) => {
-    if (currentUser?.source === 'supabase' && userRole === 'doctor') {
-      try {
-        const patient = patients.find((record) => record.id === patientId);
-        const referral = await reviewMedicalOfficerReferral(
-          patient,
-          'approved',
-          doctorNotes,
-        );
-        setPatients((current) =>
-          current.map((record) =>
-            record.id === patientId ? { ...record, referral } : record,
-          ),
-        );
-        toastSuccess('Referral treatment plan securely approved.');
-        return true;
-      } catch (error) {
-        toastError(error.message, 7000);
-        return false;
-      }
-    }
-
     setPatients(prev => prev.map(p => {
       if (p.id === patientId && p.referral) {
         return {
           ...p,
-          referral: {
-            ...p.referral,
-            status: 'Approved',
-            notes: doctorNotes
-          }
+          referral: { ...p.referral, status: 'Approved', notes: doctorNotes }
         };
       }
       return p;
@@ -481,36 +398,11 @@ function AppContent() {
   };
 
   const handleRejectReferral = async (patientId, doctorNotes) => {
-    if (currentUser?.source === 'supabase' && userRole === 'doctor') {
-      try {
-        const patient = patients.find((record) => record.id === patientId);
-        const referral = await reviewMedicalOfficerReferral(
-          patient,
-          'declined',
-          doctorNotes,
-        );
-        setPatients((current) =>
-          current.map((record) =>
-            record.id === patientId ? { ...record, referral } : record,
-          ),
-        );
-        toastInfo('Referral securely declined for community care management.');
-        return true;
-      } catch (error) {
-        toastError(error.message, 7000);
-        return false;
-      }
-    }
-
     setPatients(prev => prev.map(p => {
       if (p.id === patientId && p.referral) {
         return {
           ...p,
-          referral: {
-            ...p.referral,
-            status: 'Declined',
-            notes: doctorNotes
-          }
+          referral: { ...p.referral, status: 'Declined', notes: doctorNotes }
         };
       }
       return p;
@@ -657,7 +549,7 @@ function AppContent() {
           onAddReport={handleAddReport}
           onSaveReferral={handleSaveReferral}
           activeSection={activeNavSection}
-          isLoading={medicalDataLoading}
+          isLoading={false}
         />
       )}
 

@@ -1,99 +1,49 @@
-import { supabase } from './supabase';
-
-const DATABASE_ROLE_BY_UI_ROLE = {
-  patient: 'patient',
-  chw: 'chw',
-  supervisor: 'supervisor',
-  doctor: 'medical_officer',
-  admin: 'admin',
+const DEMO_ACCOUNTS = {
+  chw: { name: 'Sunita Patil', email: 'sunita.patil@communityhealth.org', role: 'chw' },
+  doctor: { name: 'Dr. Ananya Roy (M.D.)', email: 'ananya.roy@districtmed.org', role: 'doctor' },
+  patient: { name: 'Priya Sharma', email: 'priya.sharma@patienthealth.net', role: 'patient' },
+  supervisor: { name: 'Vikram Singh', email: 'vikram.singh@subdistrictops.org', role: 'supervisor' },
+  admin: { name: 'Admin Operations', email: 'admin.lead@healthsystem.gov', role: 'admin' },
 };
-
-const UI_ROLE_BY_DATABASE_ROLE = {
-  patient: 'patient',
-  chw: 'chw',
-  supervisor: 'supervisor',
-  medical_officer: 'doctor',
-  admin: 'admin',
-};
-
-function toAppUser(user, profile) {
-  return {
-    id: user.id,
-    name: profile.full_name,
-    email: user.email,
-    role: UI_ROLE_BY_DATABASE_ROLE[profile.role] || 'patient',
-    databaseRole: profile.role,
-    facilityId: profile.facility_id,
-    source: 'supabase',
-  };
-}
-
-async function getProfile(userId) {
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('id, facility_id, role, full_name, is_active')
-    .eq('id', userId)
-    .single();
-
-  if (error) {
-    throw new Error('Unable to load your authorized profile: ' + error.message);
-  }
-
-  if (!data.is_active) {
-    throw new Error('This account has been disabled. Contact an administrator.');
-  }
-
-  return data;
-}
 
 export async function signInWithRole({ email, password, role }) {
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email: email.trim().toLowerCase(),
-    password,
-  });
+  const normalizedEmail = (email || '').trim().toLowerCase();
+  const matched = DEMO_ACCOUNTS[role] || DEMO_ACCOUNTS.chw;
 
-  if (error) {
-    throw new Error(error.message);
-  }
+  const user = {
+    id: 'usr_' + Date.now(),
+    name: matched.name,
+    email: normalizedEmail || matched.email,
+    role: role || matched.role,
+    source: 'local',
+  };
 
   try {
-    const profile = await getProfile(data.user.id);
-    const expectedRole = DATABASE_ROLE_BY_UI_ROLE[role];
-
-    if (!expectedRole || profile.role !== expectedRole) {
-      await supabase.auth.signOut();
-      throw new Error('This account is not authorized for the selected workspace.');
-    }
-
-    return toAppUser(data.user, profile);
-  } catch (profileError) {
-    await supabase.auth.signOut();
-    throw profileError;
+    sessionStorage.setItem('chw_auth_session', JSON.stringify(user));
+  } catch (e) {
+    console.error('Failed to save session:', e);
   }
+
+  return user;
 }
 
 export async function restoreAuthenticatedUser() {
-  const { data: sessionData } = await supabase.auth.getSession();
-  if (!sessionData.session) return null;
-
-  const { data, error } = await supabase.auth.getUser();
-  if (error || !data.user) return null;
-
-  const profile = await getProfile(data.user.id);
-  return toAppUser(data.user, profile);
+  try {
+    const saved = sessionStorage.getItem('chw_auth_session');
+    return saved ? JSON.parse(saved) : null;
+  } catch {
+    return null;
+  }
 }
 
 export async function signOutAuthenticatedUser() {
-  const { error } = await supabase.auth.signOut();
-  if (error) throw new Error(error.message);
+  try {
+    sessionStorage.removeItem('chw_auth_session');
+  } catch (e) {
+    console.error('Failed to clear session:', e);
+  }
 }
 
 export async function requestPasswordReset(email) {
-  const redirectTo = new URL('/', window.location.origin).toString();
-  const { error } = await supabase.auth.resetPasswordForEmail(
-    email.trim().toLowerCase(),
-    { redirectTo },
-  );
-
-  if (error) throw new Error(error.message);
+  return true;
 }

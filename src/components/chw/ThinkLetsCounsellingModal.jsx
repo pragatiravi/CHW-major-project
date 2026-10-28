@@ -1,30 +1,45 @@
 import { useState, useEffect } from 'react';
-import { X, BookOpen, Volume2, VolumeX, CheckSquare, Square, MessageSquare, CheckCircle2, ChevronRight, ChevronLeft } from 'lucide-react';
-import { THINKLETS_SCRIPTS } from '../../data/counsellingScripts';
+import { 
+  X, 
+  BookOpen, 
+  Volume2, 
+  VolumeX, 
+  CheckSquare, 
+  Square, 
+  MessageSquare, 
+  CheckCircle2, 
+  ChevronRight, 
+  ChevronLeft,
+  Languages
+} from 'lucide-react';
+import { getLocalizedThinkLetsScripts } from '../../data/counsellingScripts';
+import { speakText, stopSpeech } from '../../lib/speech/speechSynthesis';
+import { useLanguage } from '../shared/LanguageContext';
 import { useToast } from '../shared/ToastContainer';
 
 export default function ThinkLetsCounsellingModal({ patient, onClose, onSaveCounsellingSession }) {
-  const { toastSuccess } = useToast();
-  const [selectedScriptId, setSelectedScriptId] = useState(THINKLETS_SCRIPTS[0].id);
+  const { language: currentAppLang, languages } = useLanguage();
+  const { toastSuccess, toastWarning } = useToast();
+
+  const [activeLang, setActiveLang] = useState(currentAppLang || 'en');
+  const [selectedScriptId, setSelectedScriptId] = useState('diabetes_management');
   const [completedStepIds, setCompletedStepIds] = useState([]);
   const [sessionNotes, setSessionNotes] = useState('');
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
-  const [, setActiveSpeakingStepId] = useState(null);
-  const [speechRate, setSpeechRate] = useState(1.0);
+  const [speechRate, setSpeechRate] = useState(0.95);
   const [activeStepIndex, setActiveStepIndex] = useState(0);
 
   // Stop speech synthesis on modal unmount
   useEffect(() => {
     return () => {
-      if ('speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
-      }
+      stopSpeech();
     };
   }, []);
 
   if (!patient) return null;
 
-  const currentScript = THINKLETS_SCRIPTS.find(s => s.id === selectedScriptId) || THINKLETS_SCRIPTS[0];
+  const localizedScripts = getLocalizedThinkLetsScripts(activeLang);
+  const currentScript = localizedScripts.find(s => s.id === selectedScriptId) || localizedScripts[0];
   const activeStep = currentScript.steps[activeStepIndex] || currentScript.steps[0];
 
   const handleStepToggle = (stepId) => {
@@ -34,34 +49,28 @@ export default function ThinkLetsCounsellingModal({ patient, onClose, onSaveCoun
   };
 
   const handleStopAudio = () => {
-    if ('speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-    }
+    stopSpeech();
     setIsPlayingAudio(false);
-    setActiveSpeakingStepId(null);
   };
 
-  const handlePlayAudio = (text, stepId = null) => {
-    if ('speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-      setIsPlayingAudio(true);
-      setActiveSpeakingStepId(stepId);
+  const handlePlayAudio = (text) => {
+    stopSpeech();
+    setIsPlayingAudio(true);
 
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.rate = speechRate;
-      utterance.onend = () => {
+    speakText(text, {
+      lang: activeLang,
+      rate: speechRate,
+      onVoiceUnavailable: (lang) => {
+        const langNames = { kn: 'Kannada (ಕನ್ನಡ)', mr: 'Marathi (मराठी)', hi: 'Hindi (हिन्दी)' };
+        toastWarning(`Notice: No native ${langNames[lang] || lang} TTS voice installed on this device. Install regional speech in system settings for best audio.`);
+      },
+      onEnd: () => {
         setIsPlayingAudio(false);
-        setActiveSpeakingStepId(null);
-      };
-      utterance.onerror = () => {
+      },
+      onError: () => {
         setIsPlayingAudio(false);
-        setActiveSpeakingStepId(null);
-      };
-      window.speechSynthesis.speak(utterance);
-    } else {
-      setIsPlayingAudio(true);
-      setTimeout(() => setIsPlayingAudio(false), 2000);
-    }
+      }
+    });
   };
 
   const handleSaveSession = (e) => {
@@ -69,6 +78,7 @@ export default function ThinkLetsCounsellingModal({ patient, onClose, onSaveCoun
     const sessionRecord = {
       category: currentScript.category,
       scriptTitle: currentScript.title,
+      language: activeLang,
       date: new Date().toLocaleDateString(),
       completedStepsCount: completedStepIds.length,
       totalSteps: currentScript.steps.length,
@@ -79,13 +89,14 @@ export default function ThinkLetsCounsellingModal({ patient, onClose, onSaveCoun
     onClose();
   };
 
-  const formattedActiveScript = activeStep.script
+  const formattedActiveScript = (activeStep.script || '')
     .replace(/\[Patient Name\]/g, patient.name)
     .replace(/\[Glucose\]/g, patient.glucose || '140')
     .replace(/\[BP_Systolic\]/g, patient.systolic || '130')
     .replace(/\[BP_Diastolic\]/g, patient.diastolic || '85');
 
   const isStepDone = completedStepIds.includes(activeStep.id);
+
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div 
@@ -99,11 +110,33 @@ export default function ThinkLetsCounsellingModal({ patient, onClose, onSaveCoun
               <BookOpen size={20} />
             </div>
             <div>
-              <h2 className="text-base font-bold text-slate-900">ThinkLets Interactive Counselling Module</h2>
-              <p className="text-2xs text-slate-500">Structured patient guidance protocols for {patient.name} ({patient.id})</p>
+              <h2 className="text-base font-bold text-slate-900">ThinkLets Multilingual Counselling Module</h2>
+              <p className="text-2xs text-slate-500">Audio-enabled patient guidance protocols for {patient.name} ({patient.id})</p>
             </div>
           </div>
-          <button className="btn-icon-xs" onClick={onClose} aria-label="Close counselling session"><X size={16} /></button>
+
+          <div className="flex items-center gap-2">
+            {/* Language Switcher */}
+            <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-lg px-2 py-1 text-2xs">
+              <Languages size={13} className="text-sky-600" />
+              <select 
+                value={activeLang} 
+                onChange={(e) => {
+                  stopSpeech();
+                  setIsPlayingAudio(false);
+                  setActiveLang(e.target.value);
+                }}
+                className="bg-transparent font-semibold text-slate-800 outline-none cursor-pointer"
+                title="Select Patient Voice/Script Language"
+              >
+                {languages.map(l => (
+                  <option key={l.code} value={l.code}>{l.native} ({l.label})</option>
+                ))}
+              </select>
+            </div>
+
+            <button className="btn-icon-xs" onClick={onClose} aria-label="Close counselling session"><X size={16} /></button>
+          </div>
         </div>
 
         {/* Modal Body */}
@@ -111,7 +144,7 @@ export default function ThinkLetsCounsellingModal({ patient, onClose, onSaveCoun
           {/* Protocol Category Selector */}
           <div className="p-4 border-r border-slate-200 bg-slate-50 overflow-y-auto space-y-2">
             <span className="metric-label text-3xs text-slate-400 block mb-2">Protocol Category</span>
-            {THINKLETS_SCRIPTS.map((script) => (
+            {localizedScripts.map((script) => (
               <button
                 key={script.id}
                 className={`w-full p-3 rounded-xl border text-left transition-all flex items-center gap-2.5 ${
@@ -120,15 +153,17 @@ export default function ThinkLetsCounsellingModal({ patient, onClose, onSaveCoun
                     : 'border-slate-200 bg-white hover:bg-slate-100 text-slate-700'
                 }`}
                 onClick={() => {
+                  stopSpeech();
+                  setIsPlayingAudio(false);
                   setSelectedScriptId(script.id);
                   setCompletedStepIds([]);
                   setActiveStepIndex(0);
                 }}
               >
-                <BookOpen size={18} aria-hidden="true" />
+                <span className="text-lg" aria-hidden="true">{script.icon || '📖'}</span>
                 <div>
                   <strong className="text-xs block leading-tight">{script.category}</strong>
-                  <span className="text-3xs text-slate-500">{script.steps.length} Protocol Steps</span>
+                  <span className="text-3xs text-slate-500">{script.steps.length} Steps</span>
                 </div>
               </button>
             ))}
@@ -150,41 +185,47 @@ export default function ThinkLetsCounsellingModal({ patient, onClose, onSaveCoun
                     value={speechRate} 
                     onChange={(e) => setSpeechRate(parseFloat(e.target.value))}
                     className="form-input text-2xs py-1 px-2 w-28"
+                    title="Audio playback speed"
                   >
-                    <option value={0.8}>0.8x Speed</option>
-                    <option value={1.0}>1.0x Normal</option>
+                    <option value={0.8}>0.8x Slow</option>
+                    <option value={0.95}>1.0x Normal</option>
                     <option value={1.2}>1.2x Fast</option>
                   </select>
 
                   {isPlayingAudio ? (
                     <button 
-                      className="btn btn-danger-outline text-xs flex items-center gap-1 py-1"
+                      className="btn btn-danger-outline text-xs flex items-center gap-1.5 py-1 px-3"
                       onClick={handleStopAudio}
                     >
-                      <VolumeX size={14} /> Stop
+                      <VolumeX size={14} className="animate-pulse" /> Stop Audio
                     </button>
                   ) : (
                     <button 
-                      className="btn btn-secondary text-xs flex items-center gap-1 py-1"
-                      onClick={() => handlePlayAudio(formattedActiveScript, activeStep.id)}
+                      className="btn btn-primary text-xs flex items-center gap-1.5 py-1 px-3 font-bold"
+                      onClick={() => handlePlayAudio(formattedActiveScript)}
+                      title={`Play audio in ${activeLang.toUpperCase()}`}
                     >
-                      <Volume2 size={14} /> Read Step
+                      <Volume2 size={14} /> Read Aloud ({activeLang.toUpperCase()})
                     </button>
                   )}
                 </div>
               </div>
 
               {/* Step Navigation Tabs */}
-              <div className="flex gap-2 border-b border-slate-100 pb-2">
+              <div className="flex gap-2 border-b border-slate-100 pb-2 overflow-x-auto">
                 {currentScript.steps.map((step, idx) => (
                   <button
                     key={step.id}
-                    className={`btn text-xs py-1 px-3 ${
+                    className={`btn text-xs py-1 px-3 whitespace-nowrap ${
                       activeStepIndex === idx 
                         ? 'btn-primary font-bold' 
                         : (completedStepIds.includes(step.id) ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'btn-secondary text-slate-500')
                     }`}
-                    onClick={() => setActiveStepIndex(idx)}
+                    onClick={() => {
+                      stopSpeech();
+                      setIsPlayingAudio(false);
+                      setActiveStepIndex(idx);
+                    }}
                   >
                     Step {idx + 1} {completedStepIds.includes(step.id) && '✓'}
                   </button>
@@ -206,12 +247,12 @@ export default function ThinkLetsCounsellingModal({ patient, onClose, onSaveCoun
                   </button>
                 </div>
 
-                <div className="p-3.5 bg-white rounded-lg border border-slate-200 text-xs text-slate-800 leading-relaxed">
+                <div className="p-4 bg-white rounded-lg border border-slate-200 text-xs text-slate-800 leading-relaxed font-medium">
                   {formattedActiveScript}
                 </div>
 
                 <div className="p-3 bg-amber-50 rounded-lg border border-amber-200 text-xs text-amber-900">
-                  💡 <strong>CHW Action Item:</strong> {activeStep.actionItem}
+                  💡 <strong>Action Item:</strong> {activeStep.actionItem}
                 </div>
               </div>
 
@@ -235,33 +276,36 @@ export default function ThinkLetsCounsellingModal({ patient, onClose, onSaveCoun
               <button 
                 className="btn btn-secondary text-xs"
                 disabled={activeStepIndex === 0}
-                onClick={() => setActiveStepIndex(Math.max(0, activeStepIndex - 1))}
+                onClick={() => {
+                  stopSpeech();
+                  setIsPlayingAudio(false);
+                  setActiveStepIndex(Math.max(0, activeStepIndex - 1));
+                }}
               >
                 <ChevronLeft size={14} /> Previous Step
               </button>
 
-              <span className="text-xs text-slate-500 font-medium">
-                Step {activeStepIndex + 1} of {currentScript.steps.length} ({completedStepIds.length} checked)
-              </span>
-
-              {activeStepIndex < currentScript.steps.length - 1 ? (
-                <button 
-                  className="btn btn-primary text-xs"
-                  onClick={() => {
-                    handleStepToggle(activeStep.id);
-                    setActiveStepIndex(activeStepIndex + 1);
-                  }}
-                >
-                  Next Step <ChevronRight size={14} />
-                </button>
-              ) : (
-                <button 
-                  className="btn btn-primary text-xs bg-emerald-600 hover:bg-emerald-700 font-bold"
-                  onClick={handleSaveSession}
-                >
-                  <CheckCircle2 size={14} /> Mark Counselling Complete
-                </button>
-              )}
+              <div className="flex gap-2">
+                {activeStepIndex < currentScript.steps.length - 1 ? (
+                  <button 
+                    className="btn btn-primary text-xs"
+                    onClick={() => {
+                      stopSpeech();
+                      setIsPlayingAudio(false);
+                      setActiveStepIndex(activeStepIndex + 1);
+                    }}
+                  >
+                    Next Step <ChevronRight size={14} />
+                  </button>
+                ) : (
+                  <button 
+                    className="btn btn-primary text-xs font-bold"
+                    onClick={handleSaveSession}
+                  >
+                    <CheckCircle2 size={14} /> Complete & Record Protocol
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>

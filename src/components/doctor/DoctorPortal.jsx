@@ -201,7 +201,7 @@ export default function DoctorPortal({
                     </p>
 
                     <div className="flex justify-between items-center text-3xs text-slate-400 mt-2 pt-2 border-t border-slate-100">
-                      <span>CHW: {p.assignedCHW || 'Sunita Patil'}</span>
+                      <span>CHW: {p.assignedCHW || 'Field CHW'}</span>
                       <span>{p.referral?.dateGenerated || 'Recent'}</span>
                     </div>
                     <button
@@ -366,7 +366,7 @@ export default function DoctorPortal({
               </div>
               <p><strong>Reason:</strong> {selectedPatient.referral?.reason}</p>
               <p className="text-2xs text-slate-500">
-                Dispatched by CHW {selectedPatient.assignedCHW || 'Sunita Patil'} on {selectedPatient.referral?.dateGenerated}
+                Dispatched by CHW {selectedPatient.assignedCHW || 'Field CHW'} on {selectedPatient.referral?.dateGenerated}
               </p>
             </div>
 

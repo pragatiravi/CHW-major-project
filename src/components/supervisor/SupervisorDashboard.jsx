@@ -52,7 +52,7 @@ export default function SupervisorDashboard({
       Risk_Level: p.evaluation?.overallRiskLevel || p.evaluation?.overall?.riskLevel || 'Low',
       Referral_Required: p.evaluation?.requiresReferral ? 'Yes' : 'No',
       Referral_Status: p.referral?.status || 'N/A',
-      Assigned_CHW: p.assignedCHW || 'Sunita Patil'
+      Assigned_CHW: p.assignedCHW || 'Field CHW'
     }));
 
     exportToCSV(reportData, `Supervisor_Population_Report_${new Date().toISOString().split('T')[0]}.csv`);
@@ -70,7 +70,7 @@ export default function SupervisorDashboard({
         <td>${safe(p.glucose)} mg/dL</td>
         <td><span class="badge badge-${safe((p.evaluation?.overallRiskLevel || 'Low').toLowerCase())}">${safe(p.evaluation?.overallRiskLevel || 'Low')}</span></td>
         <td>${safe(p.referral?.status || 'None')}</td>
-        <td>${safe(p.assignedCHW || 'Sunita Patil')}</td>
+        <td>${safe(p.assignedCHW || 'Field CHW')}</td>
       </tr>
     `).join('');
 
@@ -305,7 +305,7 @@ export default function SupervisorDashboard({
                     <td>{patient.systolic}/{patient.diastolic} mmHg · {patient.glucose} mg/dL</td>
                     <td><span className="badge badge-neutral">{patient.evaluation?.overallRiskLevel || 'Low'}</span></td>
                     <td>{patient.referral?.status || 'None'}</td>
-                    <td>{patient.assignedCHW || 'Sunita Patil'}</td>
+                    <td>{patient.assignedCHW || 'Field CHW'}</td>
                     <td><button type="button" className="btn btn-secondary text-xs" onClick={() => setInspectedPatient(patient)}>View</button></td>
                   </tr>
                 ))}

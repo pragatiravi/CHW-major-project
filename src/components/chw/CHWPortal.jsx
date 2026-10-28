@@ -11,7 +11,8 @@ import {
   Clock,
   CheckCircle2, 
   Plus,
-  MapPin
+  MapPin,
+  Bot
 } from 'lucide-react';
 import PatientRegistrationModal from './PatientRegistrationModal';
 import GuidedScreeningWizard from './GuidedScreeningWizard';
@@ -21,6 +22,7 @@ import MedicationTrackerModal from './MedicationTrackerModal';
 import OfflineSyncQueueModal from './OfflineSyncQueueModal';
 import NearbyHospitalsMap from '../maps/NearbyHospitalsMap';
 import PatientDetailModal from '../shared/PatientDetailModal';
+import HealthAssistantChat from '../chat/HealthAssistantChat';
 
 export default function CHWPortal({
   patients = [],
@@ -55,6 +57,7 @@ export default function CHWPortal({
   const [showMedicationPatient, setShowMedicationPatient] = useState(null);
   const [showMapModal, setShowMapModal] = useState(false);
   const [showSyncModal, setShowSyncModal] = useState(false);
+  const [showAssistantModal, setShowAssistantModal] = useState(false);
 
   // Compute Metrics
   const totalPatients = patients.length;
@@ -122,6 +125,13 @@ export default function CHWPortal({
             </div>
 
             <div className="flex items-center gap-3">
+              <button 
+                type="button"
+                className="btn btn-secondary text-sm font-semibold flex items-center gap-2"
+                onClick={() => setShowAssistantModal(true)}
+              >
+                <Bot size={16} className="text-sky-600" /> Health Assistant
+              </button>
               <button 
                 className="btn btn-primary btn-lg shadow-md font-bold"
                 onClick={() => setShowWizardModal(true)}
@@ -567,6 +577,7 @@ export default function CHWPortal({
           onClose={() => setShowRegisterModal(false)}
           onSavePatient={onSavePatient}
           initialData={selectedPatientForEdit}
+          currentUser={currentUser}
         />
       )}
 
@@ -577,6 +588,7 @@ export default function CHWPortal({
           onOpenCounselling={(p) => { setShowWizardModal(false); setShowCounsellingPatient(p); }}
           onOpenReferral={(p) => { setShowWizardModal(false); handleOpenReferralForm(p); }}
           onClose={() => setShowWizardModal(false)}
+          currentUser={currentUser}
         />
       )}
 
@@ -618,7 +630,7 @@ export default function CHWPortal({
         />
       )}
 
-      {showSyncModal && (
+      {(showSyncModal || activeTab === 'offline') && (
         <OfflineSyncQueueModal 
           onClose={() => setShowSyncModal(false)}
           offlineQueue={offlineQueue}
@@ -636,6 +648,26 @@ export default function CHWPortal({
             setShowMapModal(false);
           }}
         />
+      )}
+
+      {showAssistantModal && (
+        <div className="modal-overlay" role="dialog" aria-modal="true">
+          <div className="modal-card" style={{ maxWidth: '640px', width: '95%', padding: 0, overflow: 'hidden' }}>
+            <HealthAssistantChat 
+              currentUser={currentUser} 
+              patientContext={showDetailPatient || patients[0]} 
+            />
+            <div style={{ padding: '8px 16px', display: 'flex', justifyContent: 'flex-end', background: 'var(--surface-muted)' }}>
+              <button 
+                type="button" 
+                className="btn btn-secondary text-xs" 
+                onClick={() => setShowAssistantModal(false)}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

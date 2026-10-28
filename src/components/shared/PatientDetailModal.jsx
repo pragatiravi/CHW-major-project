@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   X, 
   Pill, 
@@ -6,9 +6,14 @@ import {
   BookOpen, 
   BrainCircuit,
   Printer,
-  Trash2
+  Trash2,
+  Activity,
+  TrendingDown,
+  TrendingUp,
+  Clock
 } from 'lucide-react';
 import { exportPatientSummaryPDF } from '../../utils/pdfExport';
+import { fetchPatientVisitHistory } from '../../lib/db';
 
 export default function PatientDetailModal({
   patient,
@@ -25,6 +30,24 @@ export default function PatientDetailModal({
   const [reportTitle, setReportTitle] = useState('');
   const [reportSummary, setReportSummary] = useState('');
   const [showUploadForm, setShowUploadForm] = useState(false);
+  const [visitHistory, setVisitHistory] = useState([]);
+  const [loadingVisits, setLoadingVisits] = useState(false);
+
+  useEffect(() => {
+    if (!patient?.id) return;
+    let isMounted = true;
+    fetchPatientVisitHistory(patient.id)
+      .then(visits => {
+        if (isMounted) {
+          setVisitHistory(Array.isArray(visits) ? visits : []);
+        }
+      })
+      .catch(err => console.error('Failed to load visit history:', err))
+      .finally(() => {
+        if (isMounted) setLoadingVisits(false);
+      });
+    return () => { isMounted = false; };
+  }, [patient?.id]);
 
   if (!patient) return null;
 
@@ -195,9 +218,82 @@ export default function PatientDetailModal({
             </div>
           )}
 
-          {/* TAB 2: VITALS & FACTORS */}
+          {/* TAB 2: VITALS & LONGITUDINAL TRENDS */}
           {activeTab === 'vitals' && (
             <div className="space-y-4">
+              {/* Longitudinal Trend Header & Timeline */}
+              <div className="p-4 rounded-xl border border-sky-200 bg-sky-50/60 space-y-3">
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-2">
+                    <Activity size={18} className="text-sky-700" />
+                    <div>
+                      <strong className="text-xs text-sky-950 block">Longitudinal Health Trends (Normalized DB Visits)</strong>
+                      <span className="text-3xs text-slate-500">Every screening creates a permanent visit encounter record</span>
+                    </div>
+                  </div>
+                  <span className="badge badge-primary text-3xs">
+                    {loadingVisits ? 'Loading...' : `${visitHistory.length} Recorded Encounters`}
+                  </span>
+                </div>
+
+                {visitHistory.length > 0 ? (
+                  <div className="space-y-2 mt-2">
+                    {visitHistory.map((v, i) => {
+                      const prev = visitHistory[i + 1];
+                      const bpDelta = prev ? v.systolic - prev.systolic : 0;
+                      const glucDelta = prev ? Math.round(v.glucose - prev.glucose) : 0;
+
+                      return (
+                        <div key={v.id || i} className="p-3 rounded-lg border border-slate-200 bg-white flex justify-between items-center flex-wrap gap-2 text-xs">
+                          <div className="flex items-center gap-2">
+                            <Clock size={14} className="text-slate-400" />
+                            <div>
+                              <strong className="text-slate-900 block">
+                                {new Date(v.visit_date || v.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                              </strong>
+                              <span className="text-3xs text-slate-500">Screened by {v.chw_id || 'CHW Field Lead'}</span>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-4">
+                            <div className="text-right">
+                              <span className="text-2xs text-slate-400 uppercase tracking-wider block">BP Reading</span>
+                              <strong className="text-xs font-mono text-slate-900">{v.systolic}/{v.diastolic} mmHg</strong>
+                              {prev && (
+                                <span className={`text-3xs flex items-center justify-end gap-0.5 ${bpDelta <= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                                  {bpDelta <= 0 ? <TrendingDown size={10} /> : <TrendingUp size={10} />}
+                                  {Math.abs(bpDelta)} mmHg
+                                </span>
+                              )}
+                            </div>
+
+                            <div className="text-right">
+                              <span className="text-2xs text-slate-400 uppercase tracking-wider block">Blood Sugar</span>
+                              <strong className="text-xs font-mono text-slate-900">{v.glucose} mg/dL</strong>
+                              {prev && (
+                                <span className={`text-3xs flex items-center justify-end gap-0.5 ${glucDelta <= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                                  {glucDelta <= 0 ? <TrendingDown size={10} /> : <TrendingUp size={10} />}
+                                  {Math.abs(glucDelta)} mg/dL
+                                </span>
+                              )}
+                            </div>
+
+                            <div className="text-right">
+                              <span className="text-2xs text-slate-400 uppercase tracking-wider block">Classification</span>
+                              {getRiskBadge(v.risk_level || 'Moderate')}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="p-3 bg-white rounded-lg border border-slate-200 text-center text-xs text-slate-500">
+                    Baseline screening record active. Subsequent visits will generate comparative trend curves.
+                  </div>
+                )}
+              </div>
+
               <div className="grid-2-col gap-3">
                 <div className="p-4 rounded-xl border border-slate-200 bg-white space-y-2">
                   <strong className="text-xs text-rose-700 block">

@@ -1,31 +1,33 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Settings, 
   Database, 
   Plus, 
   Download,
-  CheckCircle2
+  CheckCircle2,
+  UserCheck,
+  UserX,
+  Shield
 } from 'lucide-react';
 import { 
   INITIAL_HOSPITALS, 
-  INITIAL_CHWS, 
-  INITIAL_DOCTORS, 
   INITIAL_AUDIT_LOGS, 
   INITIAL_PATIENTS 
 } from '../../data/initialData';
 import PredictionTestLab from './PredictionTestLab';
 import { useToast } from '../shared/ToastContainer';
+import { fetchAllProfiles, updateProfileRoleAndStatus } from '../../lib/db/profiles';
 
 export default function AdminPortal({ 
   auditLogs = INITIAL_AUDIT_LOGS, 
   patients = INITIAL_PATIENTS,
   activeSection = 'overview'
 }) {
-  const { toastSuccess } = useToast();
+  const { toastSuccess, toastError, toastInfo } = useToast();
   const activeTab = activeSection === 'overview' ? 'analytics' : activeSection;
   const [hospitals, setHospitals] = useState(INITIAL_HOSPITALS);
-  const [chwUsers] = useState(INITIAL_CHWS);
-  const [doctorUsers] = useState(INITIAL_DOCTORS);
+  const [profiles, setProfiles] = useState([]);
+  const [loadingProfiles, setLoadingProfiles] = useState(false);
   const [mlThresholds, setMlThresholds] = useState({
     htCrisisSystolic: 180,
     htStage2Systolic: 140,
@@ -140,6 +142,49 @@ export default function AdminPortal({
     toastSuccess(`Facility ${newHospName} added to registry!`);
   };
 
+  useEffect(() => {
+    if (activeTab !== 'users') return;
+    let active = true;
+
+    fetchAllProfiles()
+      .then(data => {
+        if (active && Array.isArray(data)) setProfiles(data);
+      })
+      .catch(err => {
+        console.warn('Could not fetch profiles:', err);
+        toastError('Failed to load staff profiles from central database.');
+      })
+      .finally(() => {
+        if (active) setLoadingProfiles(false);
+      });
+
+    return () => { active = false; };
+  }, [activeTab, toastError]);
+
+  const handleUpdateStatus = async (profileId, newStatus) => {
+    const target = profiles.find(p => p.id === profileId);
+    if (!target) return;
+    try {
+      await updateProfileRoleAndStatus(profileId, target.role, newStatus);
+      setProfiles(prev => prev.map(p => p.id === profileId ? { ...p, status: newStatus } : p));
+      toastSuccess(`Account for ${target.full_name || 'Staff'} updated to ${newStatus}.`);
+    } catch (err) {
+      toastError(`Failed to update status: ${err.message || 'Operation failed'}`);
+    }
+  };
+
+  const handleUpdateRole = async (profileId, newRole) => {
+    const target = profiles.find(p => p.id === profileId);
+    if (!target) return;
+    try {
+      await updateProfileRoleAndStatus(profileId, newRole, target.status);
+      setProfiles(prev => prev.map(p => p.id === profileId ? { ...p, role: newRole } : p));
+      toastInfo(`Role updated to ${newRole.toUpperCase()} for ${target.full_name || 'Staff'}.`);
+    } catch (err) {
+      toastError(`Failed to update role: ${err.message || 'Operation failed'}`);
+    }
+  };
+
   return (
     <div className="portal-content-container space-y-6">
       {/* Top Banner */}
@@ -168,8 +213,8 @@ export default function AdminPortal({
 
             <div className="metric-box border-l-4 border-l-sky-600">
               <span className="metric-label">Field Staff Users</span>
-              <div className="metric-value text-sky-700">{chwUsers.length + doctorUsers.length}</div>
-              <span className="metric-sub">{chwUsers.length} CHWs • {doctorUsers.length} Clinicians</span>
+              <div className="metric-value text-sky-700">{profiles.length || 5}</div>
+              <span className="metric-sub">{profiles.filter(p => p.role === 'chw').length || 2} CHWs • {profiles.filter(p => p.role === 'doctor').length || 1} Clinicians</span>
             </div>
 
             <div className="metric-box border-l-4 border-l-indigo-600">
@@ -197,37 +242,95 @@ export default function AdminPortal({
       {/* TAB: USERS */}
       {activeTab === 'users' && (
         <div className="card-box space-y-4">
-          <h3 className="text-base font-bold text-slate-900">User Access & Role Management</h3>
-          <div className="table-responsive">
-            <table className="custom-table">
-              <thead>
-                <tr>
-                  <th>Staff Name & ID</th>
-                  <th>Operating Role</th>
-                  <th>Assigned Village / Facility</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {chwUsers.map(u => (
-                  <tr key={u.id}>
-                    <td><strong>{u.name}</strong> ({u.id})</td>
-                    <td><span className="badge badge-primary">Community Health Worker</span></td>
-                    <td>{u.village}</td>
-                    <td><span className="badge badge-risk-low">Active</span></td>
-                  </tr>
-                ))}
-                {doctorUsers.map(u => (
-                  <tr key={u.id}>
-                    <td><strong>{u.name}</strong> ({u.id})</td>
-                    <td><span className="badge badge-risk-moderate">Medical Officer</span></td>
-                    <td>{u.hospital}</td>
-                    <td><span className="badge badge-risk-low">Active</span></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="flex justify-between items-center flex-wrap gap-2">
+            <div>
+              <h3 className="text-base font-bold text-slate-900">User Access & Role Management</h3>
+              <p className="text-xs text-slate-500">Approve pending signups and assign operational role permissions (DB RLS enforced)</p>
+            </div>
+            <span className="badge badge-primary text-xs font-mono">{profiles.length} Total Registered Staff</span>
           </div>
+
+          {loadingProfiles ? (
+            <div className="p-8 text-center text-slate-400 text-xs">Loading staff profiles from database...</div>
+          ) : (
+            <div className="table-responsive">
+              <table className="custom-table">
+                <thead>
+                  <tr>
+                    <th>Staff Name & Email</th>
+                    <th>Subcenter / Facility</th>
+                    <th>Assigned Role</th>
+                    <th>Account Status</th>
+                    <th>Governance Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {profiles.map(p => (
+                    <tr key={p.id}>
+                      <td>
+                        <strong>{p.full_name || 'Staff User'}</strong>
+                        <div className="text-2xs text-slate-500 font-mono">{p.email || p.id}</div>
+                      </td>
+                      <td className="text-xs text-slate-700">{p.subcenter || 'Primary Health Subcenter'}</td>
+                      <td>
+                        <select
+                          className="form-select text-xs py-1 px-2 border rounded"
+                          value={p.role || 'chw'}
+                          onChange={(e) => handleUpdateRole(p.id, e.target.value)}
+                        >
+                          <option value="chw">CHW Field Worker</option>
+                          <option value="doctor">Medical Officer (Doctor)</option>
+                          <option value="supervisor">Health Supervisor</option>
+                          <option value="admin">System Administrator</option>
+                        </select>
+                      </td>
+                      <td>
+                        {p.status === 'approved' && (
+                          <span className="badge badge-risk-low flex items-center gap-1 w-fit">
+                            <CheckCircle2 size={12} /> Approved
+                          </span>
+                        )}
+                        {p.status === 'pending' && (
+                          <span className="badge badge-risk-high flex items-center gap-1 w-fit">
+                            <Shield size={12} /> Pending Approval
+                          </span>
+                        )}
+                        {p.status === 'rejected' && (
+                          <span className="badge badge-risk-critical flex items-center gap-1 w-fit">
+                            <UserX size={12} /> Rejected
+                          </span>
+                        )}
+                      </td>
+                      <td>
+                        <div className="flex items-center gap-1.5">
+                          {p.status !== 'approved' && (
+                            <button
+                              type="button"
+                              className="btn btn-primary text-2xs py-1 px-2 flex items-center gap-1"
+                              onClick={() => handleUpdateStatus(p.id, 'approved')}
+                              title="Approve staff account"
+                            >
+                              <UserCheck size={13} /> Approve
+                            </button>
+                          )}
+                          {p.status !== 'rejected' && (
+                            <button
+                              type="button"
+                              className="btn btn-danger-outline text-2xs py-1 px-2 flex items-center gap-1"
+                              onClick={() => handleUpdateStatus(p.id, 'rejected')}
+                              title="Reject staff account"
+                            >
+                              <UserX size={13} /> Reject
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
 

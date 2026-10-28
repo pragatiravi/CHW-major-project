@@ -3,16 +3,15 @@ import {
   Pill, 
   Calendar, 
   PhoneCall, 
-  Bot, 
   Users, 
   Camera, 
   CheckCircle2, 
   Languages, 
-  Send, 
   Plus, 
   Check
 } from 'lucide-react';
 import { useToast } from '../shared/ToastContainer';
+import HealthAssistantChat from '../chat/HealthAssistantChat';
 
 export default function PatientPortal({ patientRecord, patients = [], onSavePatient, activeSection = 'overview' }) {
   const { toastSuccess, toastInfo, toastWarning } = useToast();
@@ -44,17 +43,6 @@ export default function PatientPortal({ patientRecord, patients = [], onSavePati
   const [language, setLanguage] = useState('en'); // 'en' | 'kn'
   const [sosTriggered, setSosTriggered] = useState(false);
   const [medicines, setMedicines] = useState(activePatient.medicines || []);
-
-  // Chatbot State
-  const [chatMessages, setChatMessages] = useState([
-    {
-      sender: 'bot',
-      text: language === 'kn' 
-        ? 'ನಮಸ್ಕಾರ ಪ್ರಿಯಾ! ನಾನು ನಿಮ್ಮ ಆರೋಗ್ಯ ಸಹಾಯಕ. ನಿಮ್ಮ ರಕ್ತದೊತ್ತಡ ಅಥವಾ ಔಷಧಿಗಳ ಬಗ್ಗೆ ಏನೇ ಪ್ರಶ್ನೆಗಳಿದ್ದರೆ ಕೇಳಿ.' 
-        : 'Hello Priya! I am your Health Assistant. Ask me any question about your Blood Pressure, Sugar levels, or Medicines.'
-    }
-  ]);
-  const [chatInput, setChatInput] = useState('');
 
   // OCR Scanner State
   const [scanning, setScanning] = useState(false);
@@ -97,35 +85,7 @@ export default function PatientPortal({ patientRecord, patients = [], onSavePati
 
   const handleSosClick = () => {
     setSosTriggered(true);
-    toastWarning('Emergency SOS dispatched to CHW Sunita Patil and Emergency Ambulance (108)!');
-  };
-
-  const handleSendMessage = (e) => {
-    e.preventDefault();
-    if (!chatInput.trim()) return;
-
-    const userMsg = chatInput;
-    setChatMessages(prev => [...prev, { sender: 'user', text: userMsg }]);
-    setChatInput('');
-
-    setTimeout(() => {
-      let botResponse = '';
-      const lower = userMsg.toLowerCase();
-      if (lower.includes('bp') || lower.includes('blood pressure')) {
-        botResponse = language === 'kn'
-          ? 'ನಿಮ್ಮ ಇತ್ತೀಚಿನ BP 142/92 mmHg ಆಗಿದೆ. ಉಪ್ಪಿನ ಸೇವನೆ ಕಡಿಮೆ ಮಾಡಿ ಮತ್ತು ಆಮ್ಲೋಡಿಪಿನ್ 5mg ಔಷಧಿಯನ್ನು ಬೆಳಿಗ್ಗೆ ತೆಗೆದುಕೊಳ್ಳಿ.'
-          : 'Your latest BP is 142/92 mmHg. Please limit dietary salt, stay hydrated, and take Amlodipine 5mg at 8:00 AM daily.';
-      } else if (lower.includes('sugar') || lower.includes('glucose')) {
-        botResponse = language === 'kn'
-          ? 'ನಿಮ್ಮ ಗ್ಲೂಕೋಸ್ 155 mg/dL ಇದೆ. ಸಿಹಿ ಪದಾರ್ಥಗಳನ್ನು ಕಡಿಮೆ ಮಾಡಿ ಮತ್ತು ಪ್ರತಿದಿನ 30 ನಿಮಿಷ ನಡಿಗೆ ಮಾಡಿ.'
-          : 'Your sugar level is 155 mg/dL. Avoid refined sugars and take a 30-minute daily walk.';
-      } else {
-        botResponse = language === 'kn'
-          ? 'ನಿಮ್ಮ ಆರೋಗ್ಯ ಮಾಹಿತಿಯ ಪ್ರಕಾರ ಎಲ್ಲವೂ ನಿಯಂತ್ರಣದಲ್ಲಿದೆ. ಯಾವುದೇ ತುರ್ತು ಸ್ಥಿತಿಯಿದ್ದರೆ SOS ಬಟನ್ ಬಳಸಿ.'
-          : 'Based on your care plan, everything is on track. Contact your CHW Sunita Patil or use SOS if you feel unwell.';
-      }
-      setChatMessages(prev => [...prev, { sender: 'bot', text: botResponse }]);
-    }, 600);
+    toastWarning(`Emergency SOS dispatched to assigned CHW (${activePatient?.assignedCHW || 'Field CHW'}) and Emergency Ambulance (108)!`);
   };
 
   const handleSimulateScan = () => {
@@ -216,7 +176,7 @@ export default function PatientPortal({ patientRecord, patients = [], onSavePati
           <div className="text-2xl font-bold text-indigo-950 mt-1">
             7 Days
           </div>
-          <span className="text-2xs text-indigo-700 block mt-1 font-medium">Sunita Patil (CHW)</span>
+          <span className="text-2xs text-indigo-700 block mt-1 font-medium">{activePatient?.assignedCHW || 'Field CHW'} (CHW)</span>
         </div>
       </div>
       )}
@@ -256,7 +216,12 @@ export default function PatientPortal({ patientRecord, patients = [], onSavePati
                   </div>
                   <div>
                     <strong className="text-sm text-slate-900 block">{med.name} ({med.dosage})</strong>
-                    <span className="text-xs text-slate-500">{med.frequency} • Scheduled: {med.time}</span>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="badge bg-amber-100 text-amber-900 border border-amber-300 text-3xs font-bold">
+                        {med.time?.toLowerCase().includes('night') ? '🌙 Night' : '☀️ Morning'} • 💊 1 Pill
+                      </span>
+                      <span className="text-xs text-slate-500">{med.frequency}</span>
+                    </div>
                   </div>
                 </div>
 
@@ -269,46 +234,13 @@ export default function PatientPortal({ patientRecord, patients = [], onSavePati
         </div>
         )}
 
-        {/* Scripted Health Guidance Assistant (Bilingual) */}
+        {/* Shared Health Assistant Chat (Online AI + Offline KB + Red Flag Safety) */}
         {activeTab !== 'medicines' && (
-        <div className="card-box flex flex-col justify-between space-y-4">
-          <div className="card-box-header">
-            <div>
-              <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                <Bot size={18} className="text-indigo-600" /> Health Guidance Assistant
-              </h3>
-              <p className="text-xs text-slate-500 mt-0.5">Scripted guidance in English or Kannada; not a live clinical service</p>
-            </div>
-            <span className="badge badge-neutral font-mono">Bilingual</span>
-          </div>
-
-          <div className="space-y-2.5 max-h-64 overflow-y-auto pr-1 flex-1">
-            {chatMessages.map((msg, i) => (
-              <div key={i} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
-                <div className={`p-3 rounded-xl max-w-[85%] text-xs ${
-                  msg.sender === 'user' 
-                    ? 'bg-sky-600 text-white rounded-br-none' 
-                    : 'bg-slate-100 text-slate-800 rounded-bl-none'
-                }`}>
-                  {msg.text}
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <form onSubmit={handleSendMessage} className="flex gap-2 pt-2 border-t border-slate-100">
-            <input 
-              type="text" 
-              placeholder={language === 'kn' ? 'ಪ್ರಶ್ನೆಯನ್ನು ಇಲ್ಲಿ ಟೈಪ್ ಮಾಡಿ...' : 'Ask a question about your diet or BP...'}
-              value={chatInput}
-              onChange={(e) => setChatInput(e.target.value)}
-              className="form-input text-xs flex-1"
-            />
-            <button type="submit" className="btn btn-primary text-xs">
-              <Send size={14} />
-            </button>
-          </form>
-        </div>
+          <HealthAssistantChat 
+            currentUser={{ id: activePatient?.id || 'patient-user', role: 'patient' }}
+            patientContext={activePatient}
+            embedded={true}
+          />
         )}
       </div>
       )}

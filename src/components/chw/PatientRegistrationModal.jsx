@@ -2,8 +2,10 @@ import { useState } from 'react';
 import { X, UserPlus, Save } from 'lucide-react';
 import { assessPatientRisk } from '../../utils/predictionEngine';
 import { useToast } from '../shared/ToastContainer';
+import VoiceInputButton from '../shared/VoiceInputButton';
+import { parseSpokenBloodPressure } from '../../lib/speech/speechRecognition';
 
-export default function PatientRegistrationModal({ onClose, onSavePatient, initialData = null }) {
+export default function PatientRegistrationModal({ onClose, onSavePatient, initialData = null, currentUser = null }) {
   const { toastError } = useToast();
   const [formData, setFormData] = useState(() => ({
     id: initialData?.id || 'P' + Math.floor(1000 + Math.random() * 9000),
@@ -25,7 +27,7 @@ export default function PatientRegistrationModal({ onClose, onSavePatient, initi
     smoking: initialData?.smoking ?? false,
     alcohol: initialData?.alcohol ?? false,
     activeLifestyle: initialData?.activeLifestyle ?? true,
-    assignedCHW: initialData?.assignedCHW || 'Sunita Patil',
+    assignedCHW: initialData?.assignedCHW || currentUser?.name || 'Field CHW',
     dateRegistered: initialData?.dateRegistered || new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }),
     syncStatus: 'synced',
     medicines: initialData?.medicines || [],
@@ -111,7 +113,13 @@ export default function PatientRegistrationModal({ onClose, onSavePatient, initi
             <span className="metric-label text-2xs uppercase block">1. Patient Demographics</span>
             <div className="grid-3-col gap-3">
               <div className="form-group">
-                <label className="form-label">Full Name *</label>
+                <div className="flex justify-between items-center mb-1">
+                  <label className="form-label mb-0">Full Name *</label>
+                  <VoiceInputButton 
+                    title="Speak Patient Name"
+                    onTranscript={(text) => setFormData(prev => ({ ...prev, name: text }))}
+                  />
+                </div>
                 <input 
                   type="text" 
                   value={formData.name} 
@@ -162,7 +170,13 @@ export default function PatientRegistrationModal({ onClose, onSavePatient, initi
               </div>
 
               <div className="form-group">
-                <label className="form-label">Village / Community Sector</label>
+                <div className="flex justify-between items-center mb-1">
+                  <label className="form-label mb-0">Village / Community Sector</label>
+                  <VoiceInputButton 
+                    title="Speak Village / Ward"
+                    onTranscript={(text) => setFormData(prev => ({ ...prev, address: text }))}
+                  />
+                </div>
                 <input 
                   type="text" 
                   value={formData.address} 
@@ -179,7 +193,18 @@ export default function PatientRegistrationModal({ onClose, onSavePatient, initi
             <span className="metric-label text-2xs uppercase block">2. Baseline Vitals & Measurements</span>
             <div className="grid-4-col gap-3">
               <div className="form-group">
-                <label className="form-label">Systolic BP (mmHg)</label>
+                <div className="flex justify-between items-center mb-1">
+                  <label className="form-label mb-0">Systolic BP</label>
+                  <VoiceInputButton 
+                    title="Speak BP (e.g. 130 by 85)"
+                    onTranscript={(text) => {
+                      const parsed = parseSpokenBloodPressure(text);
+                      if (parsed) {
+                        setFormData(prev => ({ ...prev, systolic: parsed.systolic, diastolic: parsed.diastolic }));
+                      }
+                    }}
+                  />
+                </div>
                 <input 
                   type="number" 
                   value={formData.systolic} 

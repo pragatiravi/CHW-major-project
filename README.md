@@ -175,15 +175,55 @@ The application includes built-in demo personas for evaluator sessions:
 Run automated tests and quality checks:
 
 ```bash
-# Run unit tests (prediction engine & export escaping checks)
+# Run unit tests (Vitest: auth, sync, speech, translations, CDSS)
 npm test
 
 # Run ESLint check
 npm run lint
 
-# Build production bundle
+# Build production bundle and generate PWA service worker
 npm run build
 ```
+
+---
+
+## 🔒 Storage Security & Cryptography (DPDP Act 2023)
+
+### Client-Side Encryption at Rest (AES-GCM 256-bit)
+To protect sensitive patient information on shared frontline devices in accordance with India's Digital Personal Data Protection (DPDP) Act 2023, data stored locally in Dexie IndexedDB is segmented:
+
+- **Key Derivation**: The 256-bit AES-GCM symmetric key is dynamically derived using **PBKDF2** (100,000 iterations of SHA-256 with a static application salt `CHW_HEALTHCARE_ENCRYPTION_SALT_v1`) from a session-scoped user credential / PIN. Key material is kept strictly in volatile memory during the active session.
+- **Encrypted Fields in IndexedDB**:
+  - `phone`: Mobile contact number
+  - `address`: Village street and residential address
+  - Encrypted payloads are stored as serialized IV + ciphertext tuples (`{"__enc":true,"iv":[...],"data":[...]}`).
+- **Plaintext Fields in IndexedDB**:
+  - `id`, `legacy_id`: UUIDs and legacy reference IDs
+  - `name`: Display name required for fast offline search
+  - `age`, `gender`, `village`: Demographic parameters required for offline cohort filtering
+  - `created_by`, `assigned_chw`: User ownership identifiers for RLS-compatible local scoping
+  - `risk_tier`, `sync_status`, `updated_at`: Operational indexing properties used by Dexie queries and the background sync outbox.
+
+---
+
+## 🎙️ Speech Recognition (STT) & Synthesis (TTS) Notes
+
+1. **Speech-to-Text (Voice Input)**:
+   - Uses the browser's native `webkitSpeechRecognition` / `SpeechRecognition` API.
+   - **Internet Connectivity Requirement**: In Google Chrome and Android WebView, speech-to-text relies on Google's cloud transcription service and **requires an active internet connection**. In offline mode, the app gracefully prompts the CHW to enter vitals via standard keypad input.
+2. **Text-to-Speech (Audio ThinkLets & Advice)**:
+   - Uses `window.speechSynthesis` with BCP 47 language tags (`kn-IN`, `hi-IN`, `mr-IN`, `en-IN`).
+   - **Device Voice Dependency**: Synthesized playback depends entirely on the voice models installed in the host operating system (Android TTS, Windows Speech, or iOS).
+   - If a regional voice (such as Kannada or Marathi) is not installed on the user's phone, the toolkit displays a clear warning toast:
+     > *"Notice: No native Kannada (ಕನ್ನಡ) / Marathi (मराठी) TTS voice installed on this device. Install regional speech in system settings for best audio."*
+
+---
+
+## 🌐 Offline PWA & Self-Hosted Typography
+
+- **Self-Hosted Regional Fonts**: Rather than relying on external CDNs like Google Fonts when offline in rural Karnataka and Maharashtra, the application self-hosts **Noto Sans Kannada** and **Noto Sans Devanagari** via `@fontsource`. All `.woff2` font files are pre-cached in CacheStorage on first load by Workbox.
+- **PWA Manifest & Icons**: Includes standard 192×192 and 512×512 PNG assets as well as SVG and maskable icons.
+
 
 ---
 

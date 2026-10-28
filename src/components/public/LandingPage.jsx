@@ -12,16 +12,10 @@ import {
 } from 'lucide-react';
 
 export default function LandingPage({ 
-  onNavigateToAuth, 
-  onQuickDemoLogin 
+  onNavigateToAuth 
 }) {
   const handleOpenAuth = (role) => {
     if (onNavigateToAuth) onNavigateToAuth(role);
-  };
-
-  const handleDemoLaunch = (role) => {
-    if (onQuickDemoLogin) onQuickDemoLogin(role);
-    else handleOpenAuth(role);
   };
 
   return (
@@ -103,9 +97,9 @@ export default function LandingPage({
               <div className="hero-actions">
                 <button 
                   className="btn btn-primary btn-lg"
-                  onClick={() => handleDemoLaunch('chw')}
+                  onClick={() => handleOpenAuth('chw')}
                 >
-                  Launch CHW Field Demo <ArrowRight size={16} />
+                  Access CHW Field Workspace <ArrowRight size={16} />
                 </button>
                 <button 
                   className="btn btn-secondary btn-lg"
@@ -307,7 +301,7 @@ export default function LandingPage({
                   Household screening wizard, offline sync queue, ThinkLets voice-assisted counselling, and hospital referral generation.
                 </p>
               </div>
-              <button className="btn btn-secondary text-xs mt-4 w-full" onClick={() => handleDemoLaunch('chw')}>
+              <button className="btn btn-secondary text-xs mt-4 w-full" onClick={() => handleOpenAuth('chw')}>
                 Sign in as CHW <ArrowRight size={14} />
               </button>
             </div>
@@ -323,7 +317,7 @@ export default function LandingPage({
                   Priority referral triage queue, explainable vital drivers, clinical orders, and prescription dosage approvals.
                 </p>
               </div>
-              <button className="btn btn-secondary text-xs mt-4 w-full" onClick={() => handleDemoLaunch('doctor')}>
+              <button className="btn btn-secondary text-xs mt-4 w-full" onClick={() => handleOpenAuth('doctor')}>
                 Sign in as Doctor <ArrowRight size={14} />
               </button>
             </div>
@@ -339,7 +333,7 @@ export default function LandingPage({
                   Bilingual English / Kannada health passport, daily pill checklist, prescription OCR scanner, and Emergency SOS dispatch.
                 </p>
               </div>
-              <button className="btn btn-secondary text-xs mt-4 w-full" onClick={() => handleDemoLaunch('patient')}>
+              <button className="btn btn-secondary text-xs mt-4 w-full" onClick={() => handleOpenAuth('patient')}>
                 Sign in as Patient <ArrowRight size={14} />
               </button>
             </div>
@@ -355,7 +349,7 @@ export default function LandingPage({
                   Population health analytics, CHW field monitoring, referral pipeline audits, and printable PDF/CSV summaries.
                 </p>
               </div>
-              <button className="btn btn-secondary text-xs mt-4 w-full" onClick={() => handleDemoLaunch('supervisor')}>
+              <button className="btn btn-secondary text-xs mt-4 w-full" onClick={() => handleOpenAuth('supervisor')}>
                 Sign in as Supervisor <ArrowRight size={14} />
               </button>
             </div>
@@ -371,7 +365,7 @@ export default function LandingPage({
                   Clinical Scoring Test Lab validation, HL7 FHIR R4 Bundle exports, CDSS threshold calibration, and audit trails.
                 </p>
               </div>
-              <button className="btn btn-secondary text-xs mt-4 w-full" onClick={() => handleDemoLaunch('admin')}>
+              <button className="btn btn-secondary text-xs mt-4 w-full" onClick={() => handleOpenAuth('admin')}>
                 Sign in as Admin <ArrowRight size={14} />
               </button>
             </div>

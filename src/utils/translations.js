@@ -48,6 +48,8 @@ export const TRANSLATIONS = {
     bloodPressure: "Blood Pressure",
     systolic: "Systolic",
     diastolic: "Diastolic",
+    systolicBp: "Systolic Blood Pressure (mmHg)",
+    diastolicBp: "Diastolic Blood Pressure (mmHg)",
     bloodSugar: "Blood Sugar / Glucose",
     glucose: "Blood Glucose",
     fasting: "Fasting",
@@ -55,10 +57,15 @@ export const TRANSLATIONS = {
     bmi: "Body Mass Index (BMI)",
     weight: "Weight (kg)",
     height: "Height (cm)",
+    heartRate: "Pulse / Heart Rate (bpm)",
     age: "Age",
     gender: "Gender",
-    phone: "Phone",
-    village: "Village / Sector",
+    phone: "Phone Number",
+    village: "Village / Ward",
+    address: "Residential Address",
+    normalRange: "Normal Range",
+    elevatedRange: "Elevated Range",
+    crisisRange: "Hypertensive Crisis Range",
     
     // Risk Tiers
     criticalRisk: "Critical Risk",
@@ -80,7 +87,58 @@ export const TRANSLATIONS = {
     exportCSV: "Export CSV",
     printPDF: "Print PDF",
     sos: "Emergency SOS (108)",
-    
+    search: "Search",
+    filter: "Filter",
+    delete: "Delete",
+    close: "Close",
+
+    // Wizard Steps
+    stepPatient: "Patient Info",
+    stepVitals: "Vital Signs",
+    stepSymptoms: "Symptom Check",
+    stepHistory: "Medical History",
+    stepLifestyle: "Lifestyle Habits",
+    stepAssessment: "Risk Assessment",
+    stepAction: "Action Plan",
+
+    // Symptoms (Low-Literacy & Clinical)
+    symptomChestPain: "Chest Pain / Heart Tightness",
+    symptomHeadache: "Severe Throbbing Headache",
+    symptomDizziness: "Dizziness or Fainting",
+    symptomPolyuria: "Frequent Nighttime Urination",
+    symptomPolydipsia: "Unquenchable Extreme Thirst",
+    symptomBlurredVision: "Blurred or Double Vision",
+    symptomFatigue: "Severe Constant Fatigue",
+
+    // Body Regions (Visual Map)
+    bodyHead: "Head & Brain",
+    bodyEyes: "Eyes & Vision",
+    bodyChest: "Chest & Heart",
+    bodyStomach: "Stomach & Digestion",
+    bodyKidneys: "Kidneys & Bladder",
+    bodyLimbs: "Hands & Feet",
+
+    // Medication Routines & Low-Literacy Icons
+    morning: "Morning",
+    afternoon: "Afternoon",
+    night: "Night",
+    onceDailyMorning: "1 Time Daily - Morning (Sun)",
+    onceDailyNight: "1 Time Daily - Night (Moon)",
+    twiceDaily: "2 Times Daily - Morning & Night",
+    thriceDaily: "3 Times Daily - Morning, Midday & Night",
+    pillCountLabel: "Pill Count per Dose",
+    timeOfDay: "Time of Day",
+    takeWithMeal: "Take with food",
+    takeEmptyStomach: "Take on empty stomach",
+
+    // Voice & Audio Accessibility
+    voiceInput: "Voice Dictation",
+    listeningVoice: "Listening... Speak your vitals or symptoms now.",
+    speakAloud: "Read Aloud (Audio)",
+    stopSpeech: "Stop Audio",
+    playingAudio: "Playing Audio Guide...",
+    audioRate: "Audio Speed",
+
     // Greetings & Headers
     greetingCHW: "Good morning",
     greetingPatient: "Hello",
@@ -140,6 +198,8 @@ export const TRANSLATIONS = {
     bloodPressure: "ರಕ್ತದೊತ್ತಡ (BP)",
     systolic: "ಸಿಸ್ಟೊಲಿಕ್",
     diastolic: "ಡಯಾಸ್ಟೊಲಿಕ್",
+    systolicBp: "ಸಿಸ್ಟೊಲಿಕ್ ರಕ್ತದೊತ್ತಡ (mmHg)",
+    diastolicBp: "ಡಯಾಸ್ಟೊಲಿಕ್ ರಕ್ತದೊತ್ತಡ (mmHg)",
     bloodSugar: "ರಕ್ತದ ಸಕ್ಕರೆ / ಗ್ಲೂಕೋಸ್",
     glucose: "ರಕ್ತದ ಗ್ಲೂಕೋಸ್",
     fasting: "ಖಾಲಿ ಹೊಟ್ಟೆ (Fasting)",
@@ -147,10 +207,15 @@ export const TRANSLATIONS = {
     bmi: "ಬಿ.ಎಂ.ಐ (BMI)",
     weight: "ತೂಕ (ಕೆಜಿ)",
     height: "ಎತ್ತರ (ಸೆಂ.ಮೀ)",
+    heartRate: "ನಾಡಿ ಬಡಿತ (bpm)",
     age: "ವಯಸ್ಸು",
     gender: "ಲಿಂಗ",
     phone: "ದೂರವಾಣಿ ಸಂಖ್ಯೆ",
     village: "ಗ್ರಾಮ / ವಲಯ",
+    address: "ವಿಳಾಸ",
+    normalRange: "ಸಾಮಾನ್ಯ ಮಟ್ಟ",
+    elevatedRange: "ಹೆಚ್ಚಿದ ಮಟ್ಟ",
+    crisisRange: "ಅತ್ಯಂತ ತೀವ್ರ ಅಪಾಯದ ಮಟ್ಟ",
 
     // Risk Tiers
     criticalRisk: "ತೀವ್ರ ಅಪಾಯ (Critical)",
@@ -172,6 +237,57 @@ export const TRANSLATIONS = {
     exportCSV: "CSV ಡೌನ್‌ಲೋಡ್",
     printPDF: "PDF ಪ್ರಿಂಟ್",
     sos: "ತುರ್ತು ಸಹಾಯ (108)",
+    search: "ಹುಡುಕಿ",
+    filter: "ಫಿಲ್ಟರ್",
+    delete: "ಅಳಿಸಿ",
+    close: "ಮುಚ್ಚಿ",
+
+    // Wizard Steps
+    stepPatient: "ರೋಗಿಯ ಮಾಹಿತಿ",
+    stepVitals: "ಜೀವ ಸಂಕೇತಗಳು (Vitals)",
+    stepSymptoms: "ಲಕ್ಷಣಗಳ ತಪಾಸಣೆ",
+    stepHistory: "ವೈದ್ಯಕೀಯ ಇತಿಹಾಸ",
+    stepLifestyle: "ಜೀವನಶೈಲಿ ಅಭ್ಯಾಸಗಳು",
+    stepAssessment: "ಅಪಾಯದ ಮೌಲ್ಯಮಾಪನ",
+    stepAction: "ಮುಂದಿನ ಕ್ರಮ",
+
+    // Symptoms (Low-Literacy & Clinical)
+    symptomChestPain: "ಎದೆ ನೋವು ಅಥವಾ ಬಿಗಿತ",
+    symptomHeadache: "ತೀವ್ರ ತಲೆನೋವು",
+    symptomDizziness: "ತಲೆಸುತ್ತು ಅಥವಾ ತಲೆತಿರುಗುವಿಕೆ",
+    symptomPolyuria: "ರಾತ್ರಿ ವೇಳೆ ಆಗಾಗ ಮೂತ್ರ ವಿಸರ್ಜನೆ",
+    symptomPolydipsia: "ಅತಿಯಾದ ಅತಿಯಾದ ಬಾಯಾರಿಕೆ",
+    symptomBlurredVision: "ಮಂಜಾದ ದೃಷ್ಟಿ",
+    symptomFatigue: "ವಿಪರೀತ ನಿಶ್ಯಕ್ತಿ ಮತ್ತು ಆಯಾಸ",
+
+    // Body Regions (Visual Map)
+    bodyHead: "ತಲೆ ಮತ್ತು ಮೆದುಳು",
+    bodyEyes: "ಕಣ್ಣುಗಳು & ದೃಷ್ಟಿ",
+    bodyChest: "ಎದೆ ಮತ್ತು ಹೃದಯ",
+    bodyStomach: "ಹೊಟ್ಟೆ & ಜೀರ್ಣಕ್ರಿಯೆ",
+    bodyKidneys: "ಮೂತ್ರಪಿಂಡಗಳು",
+    bodyLimbs: "ಕೈಗಳು ಮತ್ತು ಕಾಲುಗಳು",
+
+    // Medication Routines & Low-Literacy Icons
+    morning: "ಬೆಳಗ್ಗೆ",
+    afternoon: "ಮಧ್ಯಾಹ್ನ",
+    night: "ರಾತ್ರಿ",
+    onceDailyMorning: "ದಿನಕ್ಕೆ 1 ಬಾರಿ - ಬೆಳಗ್ಗೆ (ಸೂರ್ಯ)",
+    onceDailyNight: "ದಿನಕ್ಕೆ 1 ಬಾರಿ - ರಾತ್ರಿ (ಚಂದ್ರ)",
+    twiceDaily: "ದಿನಕ್ಕೆ 2 ಬಾರಿ - ಬೆಳಗ್ಗೆ ಮತ್ತು ರಾತ್ರಿ",
+    thriceDaily: "ದಿನಕ್ಕೆ 3 ಬಾರಿ - ಬೆಳಗ್ಗೆ, ಮಧ್ಯಾಹ್ನ ಮತ್ತು ರಾತ್ರಿ",
+    pillCountLabel: "ಮಾತ್ರೆಗಳ ಸಂಖ್ಯೆ",
+    timeOfDay: "ದಿನದ ಸಮಯ",
+    takeWithMeal: "ಊಟದ ನಂತರ ಸೇವಿಸಿ",
+    takeEmptyStomach: "ಖಾಲಿ ಹೊಟ್ಟೆಯಲ್ಲಿ ಸೇವಿಸಿ",
+
+    // Voice & Audio Accessibility
+    voiceInput: "ಧ್ವನಿ ಮೂಲಕ ನಮೂದಿಸಿ (Voice)",
+    listeningVoice: "ಕೇಳಿಸಿಕೊಳ್ಳುತ್ತಿದ್ದೇವೆ... ನಿಮ್ಮ ವಿವರಗಳನ್ನು ಮಾತನಾಡಿ.",
+    speakAloud: "ಧ್ವನಿಯಲ್ಲಿ ಕೇಳಿ (ಆಡಿಯೋ)",
+    stopSpeech: "ಧ್ವನಿ ನಿಲ್ಲಿಸಿ",
+    playingAudio: "ಆಡಿಯೋ ಮಾರ್ಗದರ್ಶನ ಚಾಲನೆಯಲ್ಲಿದೆ...",
+    audioRate: "ಧ್ವನಿಯ ವೇಗ",
 
     // Greetings & Headers
     greetingCHW: "ಶುಭೋದಯ",
@@ -232,6 +348,8 @@ export const TRANSLATIONS = {
     bloodPressure: "रक्तचाप (BP)",
     systolic: "सिस्टोलिक",
     diastolic: "डायस्टोलिक",
+    systolicBp: "सिस्टोलिक रक्तचाप (mmHg)",
+    diastolicBp: "डायस्टोलिक रक्तचाप (mmHg)",
     bloodSugar: "रक्त शर्करा / ग्लूकोज",
     glucose: "ब्लड ग्लूकोज",
     fasting: "खाली पेट (Fasting)",
@@ -239,10 +357,15 @@ export const TRANSLATIONS = {
     bmi: "बी.एम.आई (BMI)",
     weight: "वजन (किग्रा)",
     height: "ऊंचाई (सेमी)",
+    heartRate: "नाड़ी की गति (bpm)",
     age: "आयु",
     gender: "लिंग",
     phone: "फ़ोन नंबर",
     village: "गांव / सेक्टर",
+    address: "निवास का पता",
+    normalRange: "सामान्य सीमा",
+    elevatedRange: "बढ़ा हुआ स्तर",
+    crisisRange: "अत्यधिक आपातकालीन स्तर",
 
     // Risk Tiers
     criticalRisk: "अत्यधिक जोखिम (Critical)",
@@ -264,6 +387,57 @@ export const TRANSLATIONS = {
     exportCSV: "CSV निर्यात",
     printPDF: "PDF प्रिंट",
     sos: "आपातकालीन SOS (108)",
+    search: "खोजें",
+    filter: "फ़िल्टर",
+    delete: "हटाएं",
+    close: "बंद करें",
+
+    // Wizard Steps
+    stepPatient: "मरीज की जानकारी",
+    stepVitals: "शारीरिक माप (Vitals)",
+    stepSymptoms: "लक्षण जांच",
+    stepHistory: "चिकित्सा इतिहास",
+    stepLifestyle: "दिनचर्या और आदतें",
+    stepAssessment: "जोखिम विश्लेषण",
+    stepAction: "उपचार एवं कार्य योजना",
+
+    // Symptoms (Low-Literacy & Clinical)
+    symptomChestPain: "सीने में दर्द या भारीपन",
+    symptomHeadache: "तेज़ सिरदर्द",
+    symptomDizziness: "चक्कर आना या बेहोशी",
+    symptomPolyuria: "रात में बार-बार पेशाब आना",
+    symptomPolydipsia: "अत्यधिक प्यास लगना",
+    symptomBlurredVision: "धुंधला दिखाई देना",
+    symptomFatigue: "लगातार अत्यधिक थकान",
+
+    // Body Regions (Visual Map)
+    bodyHead: "सिर और मस्तिष्क",
+    bodyEyes: "आंखें और दृष्टि",
+    bodyChest: "छाती और हृदय",
+    bodyStomach: "पेट और पाचन",
+    bodyKidneys: "गुर्दे (किडनी)",
+    bodyLimbs: "हाथ और पैर",
+
+    // Medication Routines & Low-Literacy Icons
+    morning: "सुबह",
+    afternoon: "दोपहर",
+    night: "रात",
+    onceDailyMorning: "दिन में 1 बार - सुबह (सूरज)",
+    onceDailyNight: "दिन में 1 बार - रात (चांद)",
+    twiceDaily: "दिन में 2 बार - सुबह और रात",
+    thriceDaily: "दिन में 3 बार - सुबह, दोपहर और रात",
+    pillCountLabel: "गोली की संख्या",
+    timeOfDay: "समय",
+    takeWithMeal: "भोजन के बाद लें",
+    takeEmptyStomach: "खाली पेट लें",
+
+    // Voice & Audio Accessibility
+    voiceInput: "बोलकर दर्ज करें (Voice)",
+    listeningVoice: "सुन रहे हैं... कृपया अब बोलें।",
+    speakAloud: "आवाज़ में सुनें (Audio)",
+    stopSpeech: "आवाज़ बंद करें",
+    playingAudio: "ऑडियो मार्गदर्शन चल रहा है...",
+    audioRate: "आवाज़ की गति",
 
     // Greetings & Headers
     greetingCHW: "शुभ प्रभात",
@@ -324,6 +498,8 @@ export const TRANSLATIONS = {
     bloodPressure: "रक्तदाब (BP)",
     systolic: "सिस्टोलिक",
     diastolic: "डायस्टोलिक",
+    systolicBp: "सिस्टोलिक रक्तदाब (mmHg)",
+    diastolicBp: "डायस्टोलिक रक्तदाब (mmHg)",
     bloodSugar: "रक्त शर्करा / ग्लुकोज",
     glucose: "ब्लड ग्लुकोज",
     fasting: "उपाशी पोटी (Fasting)",
@@ -331,10 +507,15 @@ export const TRANSLATIONS = {
     bmi: "बी.एम.आय (BMI)",
     weight: "वजन (किलो)",
     height: "उंची (सेंमी)",
+    heartRate: "नाडीचे ठोके (bpm)",
     age: "वय",
     gender: "लिंग",
     phone: "फोन नंबर",
     village: "गाव / विभाग",
+    address: "पत्ता",
+    normalRange: "सामान्य मर्यादा",
+    elevatedRange: "वाढलेली पातळी",
+    crisisRange: "अत्यंत गंभीर धोका पातळी",
 
     // Risk Tiers
     criticalRisk: "अत्यंत धोकादायक (Critical)",
@@ -356,6 +537,57 @@ export const TRANSLATIONS = {
     exportCSV: "CSV निर्यात",
     printPDF: "PDF प्रिंट",
     sos: "तातडीची मदत (108)",
+    search: "शोधा",
+    filter: "फिल्टर",
+    delete: "हटवा",
+    close: "बंद करा",
+
+    // Wizard Steps
+    stepPatient: "रुग्णाची माहिती",
+    stepVitals: "महत्त्वपूर्ण मोजमापे (Vitals)",
+    stepSymptoms: "लक्षणे तपासणी",
+    stepHistory: "वैद्यकीय इतिहास",
+    stepLifestyle: "जीवनशैली सवयी",
+    stepAssessment: "धोका मूल्यांकन",
+    stepAction: "कृती आराखडा",
+
+    // Symptoms (Low-Literacy & Clinical)
+    symptomChestPain: "छातीत दुखणे किंवा धडधडणे",
+    symptomHeadache: "तीव्र डोकेदुखी",
+    symptomDizziness: "चक्कर येणे किंवा भोवळ",
+    symptomPolyuria: "रात्री वारंवार लघवी होणे",
+    symptomPolydipsia: "अतिशय तहान लागणे",
+    symptomBlurredVision: "धूसर किंवा अस्पष्ट दृष्टी",
+    symptomFatigue: "सतत तीव्र थकवा जाणवणे",
+
+    // Body Regions (Visual Map)
+    bodyHead: "डोके आणि मेंदू",
+    bodyEyes: "डोळे आणि दृष्टी",
+    bodyChest: "छाती आणि हृदय",
+    bodyStomach: "पोट आणि पचन",
+    bodyKidneys: "मूत्रपिंड (किडनी)",
+    bodyLimbs: "हात आणि पाय",
+
+    // Medication Routines & Low-Literacy Icons
+    morning: "सकाळी",
+    afternoon: "दुपारी",
+    night: "रात्री",
+    onceDailyMorning: "दिवसातून 1 वेळा - सकाळी (सूर्य)",
+    onceDailyNight: "दिवसातून 1 वेळा - रात्री (चंद्र)",
+    twiceDaily: "दिवसातून 2 वेळा - सकाळी आणि रात्री",
+    thriceDaily: "दिवसातून 3 वेळा - सकाळी, दुपारी आणि रात्री",
+    pillCountLabel: "गोळ्यांची संख्या",
+    timeOfDay: "वेळ",
+    takeWithMeal: "जेवणानंतर घ्या",
+    takeEmptyStomach: "उपाशी पोटी घ्या",
+
+    // Voice & Audio Accessibility
+    voiceInput: "आवाजाद्वारे नोंदवा (Voice)",
+    listeningVoice: "ऐकत आहोत... कृपया आता बोला.",
+    speakAloud: "आवाजात ऐका (Audio)",
+    stopSpeech: "आवाज थांबवा",
+    playingAudio: "मार्गदर्शन ऑडिओ सुरू आहे...",
+    audioRate: "आवाजाचा वेग",
 
     // Greetings & Headers
     greetingCHW: "शुभ प्रभात",

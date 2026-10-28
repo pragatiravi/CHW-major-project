@@ -13,14 +13,19 @@ import {
   Sparkles
 } from 'lucide-react';
 import { assessPatientRisk, RISK_SCORING_MODELS } from '../../utils/predictionEngine';
+import VoiceInputButton from '../shared/VoiceInputButton';
+import { parseSpokenBloodPressure } from '../../lib/speech/speechRecognition';
+import { useLanguage } from '../shared/LanguageContext';
 
 export default function GuidedScreeningWizard({
   patients = [],
   onSavePatient,
   onOpenCounselling,
   onOpenReferral,
-  onClose
+  onClose,
+  currentUser = null
 }) {
+  const { t } = useLanguage();
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedPatientId, setSelectedPatientId] = useState('');
   const [selectedModel] = useState(RISK_SCORING_MODELS.GUIDELINE_ENSEMBLE);
@@ -46,7 +51,7 @@ export default function GuidedScreeningWizard({
     smoking: false,
     alcohol: false,
     activeLifestyle: false,
-    assignedCHW: 'Sunita Patil',
+    assignedCHW: currentUser?.name || 'Field CHW',
     dateRegistered: new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }),
     syncStatus: 'synced',
     medicines: [],
@@ -56,23 +61,23 @@ export default function GuidedScreeningWizard({
   }));
 
   const availableSymptoms = [
-    { id: 'chest_pain', label: 'Chest Pain / Angina', critical: true, desc: 'Potential myocardial strain' },
-    { id: 'headache', label: 'Severe Headache', desc: 'Hypertensive vascular symptom' },
-    { id: 'dizziness', label: 'Dizziness / Vertigo', desc: 'Cerebral perfusion variance' },
-    { id: 'polyuria', label: 'Frequent Urination (Polyuria)', desc: 'Osmotic diuresis indicator' },
-    { id: 'polydipsia', label: 'Excessive Thirst (Polydipsia)', desc: 'Hyperglycemic cellular thirst' },
-    { id: 'blurred_vision', label: 'Blurred Vision', desc: 'Osmotic lens swelling' },
-    { id: 'fatigue', label: 'Chronic Fatigue', desc: 'Impaired glucose cellular uptake' }
+    { id: 'chest_pain', label: 'Chest Pain / Angina', icon: '🫀', tag: 'Critical', critical: true, desc: 'Potential myocardial strain' },
+    { id: 'headache', label: 'Severe Headache', icon: '🧠', tag: 'High', desc: 'Hypertensive vascular symptom' },
+    { id: 'dizziness', label: 'Dizziness / Vertigo', icon: '🌀', tag: 'Moderate', desc: 'Cerebral perfusion variance' },
+    { id: 'polyuria', label: 'Frequent Urination', icon: '💧', tag: 'Moderate', desc: 'Osmotic diuresis indicator' },
+    { id: 'polydipsia', label: 'Excessive Thirst', icon: '🥤', tag: 'Moderate', desc: 'Hyperglycemic cellular thirst' },
+    { id: 'blurred_vision', label: 'Blurred Vision', icon: '👁️', tag: 'High', desc: 'Osmotic lens swelling' },
+    { id: 'fatigue', label: 'Chronic Fatigue', icon: '🪫', tag: 'Mild', desc: 'Impaired glucose cellular uptake' }
   ];
 
   const steps = [
-    { num: 1, title: 'Patient' },
-    { num: 2, title: 'Vitals' },
-    { num: 3, title: 'Symptoms' },
-    { num: 4, title: 'History' },
-    { num: 5, title: 'Lifestyle' },
-    { num: 6, title: 'Assessment' },
-    { num: 7, title: 'Action' }
+    { num: 1, title: t('stepPatient') || 'Patient' },
+    { num: 2, title: t('stepVitals') || 'Vitals' },
+    { num: 3, title: t('stepSymptoms') || 'Symptoms' },
+    { num: 4, title: t('stepHistory') || 'History' },
+    { num: 5, title: t('stepLifestyle') || 'Lifestyle' },
+    { num: 6, title: t('stepAssessment') || 'Assessment' },
+    { num: 7, title: t('stepAction') || 'Action' }
   ];
 
   const handleSelectExistingPatient = (e) => {
@@ -280,9 +285,20 @@ export default function GuidedScreeningWizard({
 
               <div className="grid-2-col gap-4">
                 <div className="p-4 rounded-xl border border-slate-200 bg-sky-50/50 space-y-2">
-                  <span className="text-xs font-bold text-sky-900 block flex items-center gap-1.5">
-                    <Heart size={16} className="text-sky-600" /> Blood Pressure (mmHg)
-                  </span>
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs font-bold text-sky-900 block flex items-center gap-1.5">
+                      <Heart size={16} className="text-sky-600" /> Blood Pressure (mmHg)
+                    </span>
+                    <VoiceInputButton 
+                      title="Dictate Blood Pressure (e.g. 130 by 85)"
+                      onTranscript={(text) => {
+                        const parsed = parseSpokenBloodPressure(text);
+                        if (parsed) {
+                          setFormData(prev => ({ ...prev, systolic: parsed.systolic, diastolic: parsed.diastolic }));
+                        }
+                      }}
+                    />
+                  </div>
                   <div className="grid-2-col gap-2">
                     <div className="form-group">
                       <label className="form-label text-2xs">Systolic</label>
@@ -309,9 +325,19 @@ export default function GuidedScreeningWizard({
                 </div>
 
                 <div className="p-4 rounded-xl border border-slate-200 bg-amber-50/50 space-y-2">
-                  <span className="text-xs font-bold text-amber-900 block flex items-center gap-1.5">
-                    <Activity size={16} className="text-amber-600" /> Blood Glucose (mg/dL)
-                  </span>
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs font-bold text-amber-900 block flex items-center gap-1.5">
+                      <Activity size={16} className="text-amber-600" /> Blood Glucose (mg/dL)
+                    </span>
+                    <VoiceInputButton 
+                      title="Dictate Blood Glucose (e.g. 145)"
+                      onTranscript={(_, numbers) => {
+                        if (numbers && numbers.length > 0) {
+                          setFormData(prev => ({ ...prev, glucose: numbers[0] }));
+                        }
+                      }}
+                    />
+                  </div>
                   <div className="grid-2-col gap-2">
                     <div className="form-group">
                       <label className="form-label text-2xs">Glucose Value</label>
@@ -376,9 +402,22 @@ export default function GuidedScreeningWizard({
           {/* STEP 3: SYMPTOMS CHECKLIST */}
           {currentStep === 3 && (
             <div className="space-y-4 max-w-xl mx-auto">
-              <div className="text-center mb-6">
-                <h3 className="text-lg font-bold text-slate-900">Step 3: Presenting Symptoms</h3>
-                <p className="text-xs text-slate-500">Check any symptoms the patient currently reports.</p>
+              <div className="flex justify-between items-center mb-4">
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">Step 3: Presenting Symptoms</h3>
+                  <p className="text-xs text-slate-500">Visual body signs and complaints.</p>
+                </div>
+                <VoiceInputButton 
+                  title="Speak symptoms to auto-select"
+                  onTranscript={(transcript) => {
+                    const lower = transcript.toLowerCase();
+                    availableSymptoms.forEach(sym => {
+                      if (lower.includes(sym.id.replace('_', ' ')) || lower.includes(sym.label.toLowerCase())) {
+                        handleSymptomToggle(sym.id);
+                      }
+                    });
+                  }}
+                />
               </div>
 
               <div className="space-y-2">
@@ -388,15 +427,23 @@ export default function GuidedScreeningWizard({
                     <div 
                       key={sym.id}
                       onClick={() => handleSymptomToggle(sym.id)}
-                      className={`p-3 rounded-lg border transition-colors flex justify-between items-center cursor-pointer ${
+                      className={`p-3 rounded-xl border transition-colors flex justify-between items-center cursor-pointer ${
                         isChecked 
-                          ? (sym.critical ? 'border-rose-300 bg-rose-50' : 'border-sky-300 bg-sky-50') 
+                          ? (sym.critical ? 'border-rose-400 bg-rose-50' : 'border-sky-400 bg-sky-50') 
                           : 'border-slate-200 bg-white hover:bg-slate-50'
                       }`}
                     >
-                      <div>
-                        <strong className="text-xs text-slate-900 block">{sym.label}</strong>
-                        <span className="text-2xs text-slate-500">{sym.desc}</span>
+                      <div className="flex items-center gap-3">
+                        <span className="text-2xl" aria-hidden="true">{sym.icon}</span>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <strong className="text-xs text-slate-900">{sym.label}</strong>
+                            <span className={`badge ${sym.critical ? 'badge-risk-critical' : 'badge-risk-moderate'} text-3xs`}>
+                              {sym.tag}
+                            </span>
+                          </div>
+                          <span className="text-2xs text-slate-500">{sym.desc}</span>
+                        </div>
                       </div>
                       <input 
                         type="checkbox" 
@@ -477,16 +524,26 @@ export default function GuidedScreeningWizard({
                 <p className="text-xs text-slate-500">AHA & ADA Guideline-Aligned Risk Evaluation</p>
               </div>
 
-              {/* Overall Risk Card */}
-              <div className={`p-5 rounded-2xl border ${riskTheme.border} ${riskTheme.bg} flex justify-between items-center`}>
-                <div>
-                  <span className="text-2xs uppercase font-bold text-slate-600 block">Stratified Risk Tier</span>
-                  <div className={`text-2xl font-extrabold ${riskTheme.text} mt-0.5`}>
-                    {overallRisk} Risk
+              {/* Overall Risk Card with Traffic Light Indicator */}
+              <div className={`p-5 rounded-2xl border ${riskTheme.border} ${riskTheme.bg} flex justify-between items-center flex-wrap gap-3`}>
+                <div className="flex items-center gap-3.5">
+                  <div className="text-3xl" aria-hidden="true">
+                    {overallRisk === 'Critical' ? '🚨' : overallRisk === 'High' ? '🔴' : overallRisk === 'Moderate' ? '🟡' : '🟢'}
                   </div>
-                  <p className="text-xs text-slate-700 mt-1">
-                    {evaluation.whyThisResult}
-                  </p>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-2xs uppercase font-bold text-slate-600">Stratified Risk Tier</span>
+                      <span className={`badge ${overallRisk === 'Critical' ? 'badge-risk-critical' : overallRisk === 'High' ? 'badge-risk-high' : overallRisk === 'Moderate' ? 'badge-risk-moderate' : 'badge-risk-low'} text-3xs`}>
+                        {overallRisk}
+                      </span>
+                    </div>
+                    <div className={`text-2xl font-extrabold ${riskTheme.text} mt-0.5`}>
+                      {overallRisk} Risk
+                    </div>
+                    <p className="text-xs text-slate-700 mt-1 max-w-md">
+                      {evaluation.whyThisResult}
+                    </p>
+                  </div>
                 </div>
                 <div className="text-right">
                   <span className="badge badge-neutral text-2xs font-mono">Confidence: {evaluation.confidenceScore}%</span>

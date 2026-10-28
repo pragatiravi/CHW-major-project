@@ -1,20 +1,21 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import LandingPage from './components/public/LandingPage';
 import SignInPage from './components/auth/SignInPage';
 import AppShell from './components/layout/AppShell';
 
-import CHWPortal from './components/chw/CHWPortal';
-import DoctorPortal from './components/doctor/DoctorPortal';
-import SupervisorDashboard from './components/supervisor/SupervisorDashboard';
-import AdminPortal from './components/admin/AdminPortal';
-import PatientPortal from './components/patient/PatientPortal';
+// Route-Based Code Splitting: CHWs on rural 3G do not download monolithic Doctor/Supervisor/Admin code
+const CHWPortal = lazy(() => import('./components/chw/CHWPortal'));
+const DoctorPortal = lazy(() => import('./components/doctor/DoctorPortal'));
+const SupervisorDashboard = lazy(() => import('./components/supervisor/SupervisorDashboard'));
+const AdminPortal = lazy(() => import('./components/admin/AdminPortal'));
+const PatientPortal = lazy(() => import('./components/patient/PatientPortal'));
+
 import NotificationsDrawer from './components/shared/NotificationsDrawer';
 import { ToastProvider, useToast } from './components/shared/ToastContainer';
 import { LanguageProvider } from './components/shared/LanguageContext';
 
 import { 
-  INITIAL_PATIENTS, 
-  INITIAL_CHWS,
+  INITIAL_CHWS, 
   INITIAL_AUDIT_LOGS 
 } from './data/initialData';
 import { assessPatientRisk } from './utils/predictionEngine';
@@ -24,16 +25,34 @@ import {
   signInWithRole,
   signOutAuthenticatedUser,
 } from './lib/auth';
+import {
+  fetchPatients,
+  savePatient,
+  deletePatient,
+  saveReferral,
+  updateReferralStatus,
+  savePrescriptions,
+  saveCounsellingSession,
+  logAuditEvent
+} from './lib/db';
+import { initSyncEngine, executeSync } from './lib/sync/syncEngine';
+import { getPendingSyncQueue, clearLocalDataIfClean } from './lib/db/dexieDb';
 
+function PortalFallback() {
+  return (
+    <div className="card-box p-8 text-center text-slate-500 animate-pulse">
+      <div className="w-8 h-8 rounded-full border-2 border-sky-600 border-t-transparent animate-spin mx-auto mb-3" />
+      <span className="text-xs font-semibold">Loading clinical workspace...</span>
+    </div>
+  );
+}
 
-const DEMO_ACCESS_ENABLED = import.meta.env.VITE_ENABLE_DEMO_ACCESS !== 'false';
 
 function AppContent() {
   const { toastSuccess, toastInfo, toastWarning, toastError } = useToast();
 
   // Session State: Default to null on fresh load (Public Landing)
   const [currentUser, setCurrentUser] = useState(() => {
-    if (!DEMO_ACCESS_ENABLED) return null;
     try {
       const savedSession = sessionStorage.getItem('chw_auth_session');
       return savedSession ? JSON.parse(savedSession) : null;
@@ -43,7 +62,6 @@ function AppContent() {
   });
 
   const [currentView, setCurrentView] = useState(() => {
-    if (!DEMO_ACCESS_ENABLED) return 'landing';
     try {
       const savedSession = sessionStorage.getItem('chw_auth_session');
       return savedSession ? 'app' : 'landing'; // 'landing' | 'auth' | 'app'
@@ -53,7 +71,6 @@ function AppContent() {
   });
 
   const [userRole, setUserRole] = useState(() => {
-    if (!DEMO_ACCESS_ENABLED) return 'chw';
     try {
       const savedSession = sessionStorage.getItem('chw_auth_session');
       if (savedSession) {
@@ -95,15 +112,34 @@ function AppContent() {
   const [isOffline, setIsOffline] = useState(false);
   const [globalSearch, setGlobalSearch] = useState('');
 
-  // Core Data States with localStorage persistence
-  const [patients, setPatients] = useState(() => {
-    try {
-      const saved = localStorage.getItem('chw_patients');
-      return saved ? JSON.parse(saved) : INITIAL_PATIENTS;
-    } catch {
-      return INITIAL_PATIENTS;
-    }
-  });
+  // User-scoped patient dataset
+  const [patients, setPatients] = useState([]);
+
+  useEffect(() => {
+    let active = true;
+    if (!currentUser) return;
+
+    fetchPatients(currentUser)
+      .then((dbPatients) => {
+        if (active && Array.isArray(dbPatients)) {
+          setPatients(dbPatients);
+        }
+      })
+      .catch((err) => {
+        console.warn('Could not initialize patients for user:', err);
+        if (active) setPatients([]);
+      });
+
+    return () => { active = false; };
+  }, [currentUser]);
+
+  // Real-time synchronization engine background listeners
+  useEffect(() => {
+    const cleanup = initSyncEngine();
+    return () => {
+      if (cleanup) cleanup();
+    };
+  }, []);
 
   const [chwList] = useState(INITIAL_CHWS);
 
@@ -135,14 +171,15 @@ function AppContent() {
 
   // Medical data loading is handled via local state only
 
-  // Sync state changes to localStorage
+  // Sync state changes to scoped localStorage
   useEffect(() => {
+    if (!currentUser?.id) return;
     try {
-      localStorage.setItem('chw_patients', JSON.stringify(patients));
+      localStorage.setItem(`chw_patients_${currentUser.id}`, JSON.stringify(patients));
     } catch (e) {
-      console.error('Failed to persist patients:', e);
+      console.error('Failed to persist scoped patients:', e);
     }
-  }, [patients]);
+  }, [patients, currentUser?.id]);
 
   useEffect(() => {
     try {
@@ -230,16 +267,32 @@ function AppContent() {
 
   const handleLogout = async () => {
     try {
+      const pending = await getPendingSyncQueue();
+      if (pending && pending.length > 0) {
+        const confirmed = window.confirm(
+          `Notice: You have ${pending.length} unsynced record(s) stored locally on this device.\n\n` +
+          `If you log out now, local data cannot be synced to the clinic central registry until you sign back in.\n\n` +
+          `Do you still want to proceed with signing out?`
+        );
+        if (!confirmed) return;
+      } else {
+        await clearLocalDataIfClean();
+      }
+    } catch (e) {
+      console.warn('Sync queue check on logout notice:', e);
+    }
+
+    try {
       await signOutAuthenticatedUser();
     } catch (e) {
       console.error('Sign out error:', e);
     }
     setCurrentUser(null);
     setUserRole('chw');
+    setPatients([]);
     setActiveNavSection('home');
     setCurrentView('landing');
     setShowNotificationsDrawer(false);
-    setPatients(INITIAL_PATIENTS);
     toastInfo('You have been securely signed out.');
     try {
       sessionStorage.removeItem('chw_auth_session');
@@ -248,33 +301,10 @@ function AppContent() {
     }
   };
 
-  const handleQuickDemoLogin = (role) => {
-    if (!DEMO_ACCESS_ENABLED) {
-      setUserRole(role || 'chw');
-      setCurrentView('auth');
-      toastInfo('One-click evaluator access is disabled. Enter the matching demo credentials to continue.');
-      return;
-    }
-
-    const demoAccounts = {
-      chw: { name: 'Sunita Patil (CHW)', email: 'sunita.patil@communityhealth.org', role: 'chw' },
-      doctor: { name: 'Dr. Ananya Roy (M.D.)', email: 'ananya.roy@districtmed.org', role: 'doctor' },
-      patient: { name: 'Priya Sharma (Patient)', email: 'priya.sharma@patienthealth.net', role: 'patient' },
-      supervisor: { name: 'Vikram Singh (Supervisor)', email: 'vikram.singh@subdistrictops.org', role: 'supervisor' },
-      admin: { name: 'Admin Operations', email: 'admin.lead@healthsystem.gov', role: 'admin' }
-    };
-    const targetUser = demoAccounts[role] || demoAccounts.chw;
-    handleLogin(targetUser);
-  };
-
-  const handleSwitchDemoRole = (newRole) => {
-    if (DEMO_ACCESS_ENABLED) handleQuickDemoLogin(newRole);
-  };
-
   // -------------------------------------------------------------
-  // PATIENT MUTATION HANDLERS
+  // PATIENT MUTATION HANDLERS (Connected to Database Layer)
   // -------------------------------------------------------------
-  const handleSavePatient = (patientRecord) => {
+  const handleSavePatient = async (patientRecord) => {
     const evaluation = assessPatientRisk(patientRecord);
     const isHighRisk = evaluation.overallRiskLevel === 'High' || evaluation.overallRiskLevel === 'Critical' || (parseFloat(patientRecord.systolic) >= 180);
 
@@ -298,6 +328,16 @@ function AppContent() {
       toastWarning(`High Risk flagged for ${evaluatedRecord.name} (${evaluation.overallRiskLevel} Risk)`);
     } else {
       toastSuccess(`Patient record saved for ${evaluatedRecord.name}`);
+    }
+
+    // Persist via Database Access Layer (records patient & creates a new visit row)
+    try {
+      await savePatient(evaluatedRecord, currentUser);
+      await logAuditEvent('SCREENING_SAVED', 'visits', evaluatedRecord.id, `Recorded vitals encounter BP ${evaluatedRecord.systolic}/${evaluatedRecord.diastolic}`, currentUser);
+    } catch (err) {
+      console.error('Error saving patient to database layer:', err);
+      toastError(`Cloud Save Error: ${err.message || 'Database connection error'}. Queued in offline store for retry.`);
+      setOfflineQueue(prev => [evaluatedRecord, ...prev]);
     }
 
     if (isOffline) {
@@ -325,14 +365,28 @@ function AppContent() {
     }
   };
 
-  const handleDeletePatient = (patientId) => {
+  const handleDeletePatient = async (patientId) => {
     if (window.confirm('Are you sure you want to delete this patient record?')) {
-      setPatients(prev => prev.filter(p => p.id !== patientId));
-      toastInfo(`Patient record ${patientId} removed.`);
+      try {
+        await deletePatient(patientId, currentUser);
+        await logAuditEvent('PATIENT_DELETED', 'patients', patientId, 'Patient record soft deleted', currentUser);
+        setPatients(prev => prev.filter(p => p.id !== patientId));
+        toastInfo(`Patient record ${patientId} removed.`);
+      } catch (err) {
+        console.error('Delete patient error:', err);
+        toastError(`Failed to delete patient ${patientId}: ${err.message || 'Operation failed'}. Please retry.`);
+      }
     }
   };
 
   const handleUpdatePatientMedicines = async (patientId, newMedicines) => {
+    try {
+      await savePrescriptions(patientId, newMedicines);
+      await logAuditEvent('PRESCRIPTIONS_UPDATED', 'prescriptions', patientId, `Updated ${newMedicines.length} medication orders`, currentUser);
+    } catch (err) {
+      console.warn('Save prescriptions error:', err);
+    }
+
     setPatients(prev => prev.map(p => {
       if (p.id === patientId) {
         return { ...p, medicines: newMedicines };
@@ -353,7 +407,14 @@ function AppContent() {
     toastSuccess('Clinical report uploaded.');
   };
 
-  const handleSaveCounsellingSession = (patientId, sessionRecord) => {
+  const handleSaveCounsellingSession = async (patientId, sessionRecord) => {
+    try {
+      await saveCounsellingSession(patientId, sessionRecord);
+      await logAuditEvent('COUNSELLING_RECORDED', 'counselling_sessions', patientId, `ThinkLets session ${sessionRecord.scriptId || ''} completed`, currentUser);
+    } catch (err) {
+      console.warn('Save counselling error:', err);
+    }
+
     setPatients(prev => prev.map(p => {
       if (p.id === patientId) {
         return { ...p, counsellingHistory: [sessionRecord, ...(p.counsellingHistory || [])] };
@@ -363,7 +424,14 @@ function AppContent() {
     toastSuccess('ThinkLets counselling session recorded.');
   };
 
-  const handleSaveReferral = (patientId, referralObj) => {
+  const handleSaveReferral = async (patientId, referralObj) => {
+    try {
+      await saveReferral(patientId, referralObj);
+      await logAuditEvent('REFERRAL_DISPATCHED', 'referrals', patientId, `Referral sent to ${referralObj.hospitalName}`, currentUser);
+    } catch (err) {
+      console.warn('Save referral error:', err);
+    }
+
     setPatients(prev => prev.map(p => {
       if (p.id === patientId) {
         return { ...p, referral: referralObj };
@@ -384,6 +452,13 @@ function AppContent() {
   };
 
   const handleApproveReferral = async (patientId, doctorNotes) => {
+    try {
+      await updateReferralStatus(patientId, 'approved', doctorNotes);
+      await logAuditEvent('REFERRAL_APPROVED', 'referrals', patientId, doctorNotes, currentUser);
+    } catch (err) {
+      console.warn('Approve referral error:', err);
+    }
+
     setPatients(prev => prev.map(p => {
       if (p.id === patientId && p.referral) {
         return {
@@ -398,6 +473,13 @@ function AppContent() {
   };
 
   const handleRejectReferral = async (patientId, doctorNotes) => {
+    try {
+      await updateReferralStatus(patientId, 'declined', doctorNotes);
+      await logAuditEvent('REFERRAL_DECLINED', 'referrals', patientId, doctorNotes, currentUser);
+    } catch (err) {
+      console.warn('Reject referral error:', err);
+    }
+
     setPatients(prev => prev.map(p => {
       if (p.id === patientId && p.referral) {
         return {
@@ -411,25 +493,38 @@ function AppContent() {
     return true;
   };
 
-  const handleSyncOfflineData = () => {
-    if (offlineQueue.length === 0) {
-      toastInfo('Offline queue is empty. Central registry is up to date.');
-      return;
+  const handleSyncOfflineData = async () => {
+    try {
+      toastInfo('Starting cloud synchronization with central health registry...');
+      const result = await executeSync(currentUser);
+
+      if (result.success) {
+        const refreshed = await fetchPatients(currentUser);
+        if (Array.isArray(refreshed)) {
+          setPatients(refreshed);
+        }
+        if (result.pushed > 0) {
+          const newLog = {
+            id: 'L-' + Math.floor(9000 + Math.random() * 999),
+            timestamp: new Date().toLocaleString(),
+            type: 'Outbox Sync',
+            count: result.pushed,
+            device: 'CHW Handheld Tablet'
+          };
+          setSyncLogs(prev => [newLog, ...prev]);
+          toastSuccess(`Synchronized ${result.pushed} record(s) successfully!`);
+        } else {
+          toastSuccess('All records are already fully synchronized.');
+        }
+      } else if (result.reason === 'offline') {
+        toastWarning('Network is currently offline. Screenings remain safely queued in local IndexedDB outbox.');
+      } else {
+        toastError(result.error || `${result.failed || 1} record(s) failed to sync. Review the sync queue.`);
+      }
+    } catch (err) {
+      console.error('Sync execution failure:', err);
+      toastError(`Sync failed: ${err.message || 'Network error'}`);
     }
-
-    const syncedRecords = offlineQueue.map(p => ({ ...p, syncStatus: 'synced' }));
-    setPatients(prev => [...syncedRecords, ...prev]);
-
-    const newLog = {
-      id: 'L-' + Math.floor(9000 + Math.random() * 999),
-      timestamp: new Date().toLocaleString(),
-      type: 'Batch Sync',
-      count: offlineQueue.length,
-      device: 'CHW Handheld Tablet'
-    };
-    setSyncLogs(prev => [newLog, ...prev]);
-    setOfflineQueue([]);
-    toastSuccess(`Successfully synced ${syncedRecords.length} record(s) with Central Health Registry!`);
   };
 
   const handleRestoreBackup = (restoredPatients) => {
@@ -462,7 +557,6 @@ function AppContent() {
           if (preferredRole) setUserRole(preferredRole);
           setCurrentView('auth');
         }}
-        onQuickDemoLogin={handleQuickDemoLogin}
       />
     );
   }
@@ -476,7 +570,6 @@ function AppContent() {
         onResetPassword={handlePasswordReset}
         onBackToLanding={() => setCurrentView('landing')}
         initialRole={userRole}
-        demoAccessEnabled={DEMO_ACCESS_ENABLED}
       />
     );
   }
@@ -486,8 +579,6 @@ function AppContent() {
     <AppShell
       currentUser={currentUser}
       userRole={userRole}
-      onSwitchRole={handleSwitchDemoRole}
-      demoAccessEnabled={DEMO_ACCESS_ENABLED}
       onLogout={handleLogout}
       isOffline={isOffline}
       toggleOffline={() => {
@@ -509,66 +600,68 @@ function AppContent() {
       activeNav={activeNavSection}
       setActiveNav={setActiveNavSection}
     >
-      {/* Role-Based Portal Routing */}
-      {userRole === 'chw' && (
-        <CHWPortal 
-          patients={patients}
-          onSavePatient={handleSavePatient}
-          onDeletePatient={handleDeletePatient}
-          onUpdatePatientMedicines={handleUpdatePatientMedicines}
-          onAddReport={handleAddReport}
-          onSaveCounsellingSession={handleSaveCounsellingSession}
-          onSaveReferral={handleSaveReferral}
-          isOffline={isOffline}
-          toggleOffline={() => setIsOffline(!isOffline)}
-          offlineQueue={offlineQueue}
-          syncLogs={syncLogs}
-          onSyncOfflineData={handleSyncOfflineData}
-          onRestoreBackup={handleRestoreBackup}
-          userRole={userRole}
-          globalSearch={globalSearch}
-          activeSection={activeNavSection}
-          currentUser={currentUser}
-        />
-      )}
+      {/* Role-Based Portal Routing with Suspense Code Splitting */}
+      <Suspense fallback={<PortalFallback />}>
+        {userRole === 'chw' && (
+          <CHWPortal 
+            patients={patients}
+            onSavePatient={handleSavePatient}
+            onDeletePatient={handleDeletePatient}
+            onUpdatePatientMedicines={handleUpdatePatientMedicines}
+            onAddReport={handleAddReport}
+            onSaveCounsellingSession={handleSaveCounsellingSession}
+            onSaveReferral={handleSaveReferral}
+            isOffline={isOffline}
+            toggleOffline={() => setIsOffline(!isOffline)}
+            offlineQueue={offlineQueue}
+            syncLogs={syncLogs}
+            onSyncOfflineData={handleSyncOfflineData}
+            onRestoreBackup={handleRestoreBackup}
+            userRole={userRole}
+            globalSearch={globalSearch}
+            activeSection={activeNavSection}
+            currentUser={currentUser}
+          />
+        )}
 
-      {userRole === 'patient' && (
-        <PatientPortal 
-          patients={patients} 
-          onSavePatient={handleSavePatient} 
-          activeSection={activeNavSection}
-        />
-      )}
+        {userRole === 'patient' && (
+          <PatientPortal 
+            patients={patients} 
+            onSavePatient={handleSavePatient} 
+            activeSection={activeNavSection}
+          />
+        )}
 
-      {userRole === 'doctor' && (
-        <DoctorPortal 
-          patients={patients}
-          onApproveReferral={handleApproveReferral}
-          onRejectReferral={handleRejectReferral}
-          onUpdatePatientMedicines={handleUpdatePatientMedicines}
-          onAddReport={handleAddReport}
-          onSaveReferral={handleSaveReferral}
-          activeSection={activeNavSection}
-          isLoading={false}
-        />
-      )}
+        {userRole === 'doctor' && (
+          <DoctorPortal 
+            patients={patients}
+            onApproveReferral={handleApproveReferral}
+            onRejectReferral={handleRejectReferral}
+            onUpdatePatientMedicines={handleUpdatePatientMedicines}
+            onAddReport={handleAddReport}
+            onSaveReferral={handleSaveReferral}
+            activeSection={activeNavSection}
+            isLoading={false}
+          />
+        )}
 
-      {userRole === 'supervisor' && (
-        <SupervisorDashboard 
-          patients={patients}
-          chwList={chwList}
-          syncLogs={syncLogs}
-          activeSection={activeNavSection}
-        />
-      )}
+        {userRole === 'supervisor' && (
+          <SupervisorDashboard 
+            patients={patients}
+            chwList={chwList}
+            syncLogs={syncLogs}
+            activeSection={activeNavSection}
+          />
+        )}
 
-      {userRole === 'admin' && (
-        <AdminPortal 
-          auditLogs={auditLogs} 
-          patients={patients} 
-          activeSection={activeNavSection}
-        />
-      )}
+        {userRole === 'admin' && (
+          <AdminPortal 
+            auditLogs={auditLogs} 
+            patients={patients} 
+            activeSection={activeNavSection}
+          />
+        )}
+      </Suspense>
 
       {/* Notifications Drawer Overlay */}
       {showNotificationsDrawer && (

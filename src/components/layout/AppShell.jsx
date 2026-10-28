@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Heart, 
   Wifi, 
@@ -26,19 +26,20 @@ import {
   Database,
   Search,
   Languages,
-  Layers,
   Menu,
-  X
+  X,
+  Download,
+  AlertCircle
 } from 'lucide-react';
 import { useLanguage } from '../shared/LanguageContext';
+import { subscribeSyncStatus, executeSync } from '../../lib/sync/syncEngine';
+import { subscribeToInstallPrompt, promptPWAInstall } from '../../registerServiceWorker';
 
 export default function AppShell({
   children,
   currentUser,
   userRole,
   onLogout,
-  onSwitchRole,
-  demoAccessEnabled = false,
   isOffline,
   toggleOffline,
   offlineQueueCount,
@@ -54,8 +55,44 @@ export default function AppShell({
 }) {
   const { t, language, setLanguage, languages } = useLanguage();
   const [showLanguageMenu, setShowLanguageMenu] = useState(false);
-  const [showDemoRoleMenu, setShowDemoRoleMenu] = useState(false);
   const [showMobileNav, setShowMobileNav] = useState(false);
+  const [canInstallPWA, setCanInstallPWA] = useState(false);
+  const [syncState, setSyncState] = useState({
+    isOnline: typeof navigator !== 'undefined' ? navigator.onLine : true,
+    status: 'synced',
+    pendingCount: offlineQueueCount || 0,
+    conflictsCount: 0,
+    lastSyncedAt: null,
+    lastError: null
+  });
+
+  useEffect(() => {
+    const unsubSync = subscribeSyncStatus((state) => {
+      setSyncState(state);
+    });
+    const unsubInstall = subscribeToInstallPrompt((canInstall) => {
+      setCanInstallPWA(canInstall);
+    });
+    return () => {
+      unsubSync();
+      unsubInstall();
+    };
+  }, []);
+
+  const handleManualSync = async () => {
+    if (onSyncNow) {
+      await onSyncNow();
+    } else {
+      await executeSync(currentUser);
+    }
+  };
+
+  const handleInstallClick = async () => {
+    const installed = await promptPWAInstall();
+    if (installed) {
+      setCanInstallPWA(false);
+    }
+  };
 
   const roleMeta = {
     chw: {
@@ -192,25 +229,85 @@ export default function AppShell({
         )}
 
         <div className="shell-topbar-right">
-          {/* Connectivity Status Toggle */}
-          <button 
-            className={`shell-connectivity-badge ${isOffline ? 'offline' : 'online'}`}
-            onClick={toggleOffline}
-            title={isOffline ? 'Offline Mode Active. Click to simulate Cloud Online.' : 'Cloud Synchronized. Click to simulate Offline.'}
-          >
-            {isOffline ? <WifiOff size={14} /> : <Wifi size={14} />}
-            <span>{isOffline ? 'Offline Mode' : 'Cloud Sync'}</span>
-          </button>
+          {/* Live Sync Status Indicator */}
+          {(!syncState.isOnline || isOffline) ? (
+            <button 
+              type="button"
+              className="shell-connectivity-badge offline"
+              onClick={toggleOffline}
+              title="Offline Mode Active. Click to simulate Cloud Online."
+            >
+              <WifiOff size={14} />
+              <span>Offline ({syncState.pendingCount || offlineQueueCount || 0})</span>
+            </button>
+          ) : syncState.status === 'syncing' ? (
+            <button 
+              type="button"
+              className="shell-connectivity-badge syncing"
+              title="Synchronizing local mutations with central registry..."
+            >
+              <RefreshCw size={14} className="animate-spin text-amber-700" />
+              <span>Syncing...</span>
+            </button>
+          ) : syncState.status === 'error' ? (
+            <button 
+              type="button"
+              className="shell-connectivity-badge offline"
+              onClick={handleManualSync}
+              title={syncState.lastError || 'Sync failed. Click to retry.'}
+            >
+              <AlertCircle size={14} />
+              <span>Sync Issue ({syncState.pendingCount})</span>
+            </button>
+          ) : (
+            <button 
+              type="button"
+              className="shell-connectivity-badge online"
+              onClick={toggleOffline}
+              title={syncState.lastSyncedAt ? `Last synced: ${new Date(syncState.lastSyncedAt).toLocaleTimeString()}` : 'Cloud Synchronized. Click to toggle offline mode.'}
+            >
+              <Wifi size={14} />
+              <span>{syncState.pendingCount > 0 ? `${syncState.pendingCount} Pending` : 'Cloud Synced'}</span>
+            </button>
+          )}
+
+          {/* Sync Conflicts Alert */}
+          {syncState.conflictsCount > 0 && (
+            <button 
+              type="button"
+              className="badge badge-risk-critical text-2xs cursor-pointer flex items-center gap-1 py-1 px-2"
+              onClick={() => setActiveNav('offline')}
+              title={`${syncState.conflictsCount} sync conflict(s) require manual resolution in the Sync Hub`}
+            >
+              <AlertCircle size={12} />
+              <span>Conflicts ({syncState.conflictsCount})</span>
+            </button>
+          )}
 
           {/* Sync Trigger */}
-          {offlineQueueCount > 0 && (
+          {(syncState.pendingCount > 0 || offlineQueueCount > 0) && (
             <button 
+              type="button"
               className="shell-sync-btn"
-              onClick={onSyncNow}
-              title={`${offlineQueueCount} record(s) queued for sync.`}
+              onClick={handleManualSync}
+              disabled={syncState.status === 'syncing'}
+              title={`${syncState.pendingCount || offlineQueueCount} record(s) queued for sync.`}
             >
-              <RefreshCw size={12} />
-              <span>{t('syncNow')} ({offlineQueueCount})</span>
+              <RefreshCw size={12} className={syncState.status === 'syncing' ? 'animate-spin' : ''} />
+              <span>{t('syncNow')} ({syncState.pendingCount || offlineQueueCount})</span>
+            </button>
+          )}
+
+          {/* PWA Install Button */}
+          {canInstallPWA && (
+            <button 
+              type="button"
+              className="btn btn-secondary text-xs py-1 px-2.5 flex items-center gap-1.5"
+              onClick={handleInstallClick}
+              title="Install CHW Toolkit as an Offline Android PWA App"
+            >
+              <Download size={13} className="text-sky-600" />
+              <span>Install App</span>
             </button>
           )}
 
@@ -347,55 +444,6 @@ export default function AppShell({
               );
             })}
           </nav>
-
-          {/* ISOLATED DEMO SANDBOX DRAWER AT BOTTOM */}
-          {demoAccessEnabled && <div className="sidebar-demo-box">
-            <span className="metric-label text-3xs text-slate-400 block mb-1">Evaluator Sandbox</span>
-            <button
-              className="btn btn-secondary text-xs w-full justify-between"
-              onClick={() => setShowDemoRoleMenu(!showDemoRoleMenu)}
-            >
-              <span className="flex items-center gap-1.5 font-bold">
-                <Layers size={14} className="text-indigo-600" /> Switch Demo Role
-              </span>
-              <span className="text-3xs text-slate-400">▲</span>
-            </button>
-
-            {showDemoRoleMenu && (
-              <div className="demo-role-dropdown-menu">
-                <button 
-                  className={`demo-role-item ${userRole === 'chw' ? 'active' : ''}`}
-                  onClick={() => { onSwitchRole('chw'); setShowDemoRoleMenu(false); }}
-                >
-                  CHW Field Worker
-                </button>
-                <button 
-                  className={`demo-role-item ${userRole === 'doctor' ? 'active' : ''}`}
-                  onClick={() => { onSwitchRole('doctor'); setShowDemoRoleMenu(false); }}
-                >
-                  Medical Officer / Doctor
-                </button>
-                <button 
-                  className={`demo-role-item ${userRole === 'patient' ? 'active' : ''}`}
-                  onClick={() => { onSwitchRole('patient'); setShowDemoRoleMenu(false); }}
-                >
-                  Patient Health Hub
-                </button>
-                <button 
-                  className={`demo-role-item ${userRole === 'supervisor' ? 'active' : ''}`}
-                  onClick={() => { onSwitchRole('supervisor'); setShowDemoRoleMenu(false); }}
-                >
-                  Health Supervisor
-                </button>
-                <button 
-                  className={`demo-role-item ${userRole === 'admin' ? 'active' : ''}`}
-                  onClick={() => { onSwitchRole('admin'); setShowDemoRoleMenu(false); }}
-                >
-                  System Administrator
-                </button>
-              </div>
-            )}
-          </div>}
         </aside>
 
         {/* MAIN WORKSPACE CONTENT */}

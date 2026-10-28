@@ -3,6 +3,36 @@ import { X, Pill, Plus, CheckCircle2, AlertTriangle, RefreshCw } from 'lucide-re
 import { SYSTEM_MEDICINES } from '../../data/initialData';
 import { useToast } from '../shared/ToastContainer';
 
+function getRoutineVisuals(frequency) {
+  const lower = (frequency || '').toLowerCase();
+  if (lower.includes('thrice')) {
+    return {
+      icons: '☀️ ⛅ 🌙',
+      timing: 'Morning + Midday + Night',
+      pills: '3 💊💊💊'
+    };
+  }
+  if (lower.includes('twice')) {
+    return {
+      icons: '☀️ 🌙',
+      timing: 'Morning & Night',
+      pills: '2 💊💊'
+    };
+  }
+  if (lower.includes('night')) {
+    return {
+      icons: '🌙',
+      timing: 'Night (Moon)',
+      pills: '1 💊'
+    };
+  }
+  return {
+    icons: '☀️',
+    timing: 'Morning (Sun)',
+    pills: '1 💊'
+  };
+}
+
 export default function MedicationTrackerModal({ patient, onClose, onUpdatePatientMedicines }) {
   const { toastSuccess, toastWarning, toastError } = useToast();
   const [showAddForm, setShowAddForm] = useState(false);
@@ -187,29 +217,38 @@ export default function MedicationTrackerModal({ patient, onClose, onUpdatePatie
           {/* List of active prescriptions */}
           <div className="space-y-3">
             {patient.medicines && patient.medicines.length > 0 ? (
-              patient.medicines.map((m) => (
-                <div key={m.id || m.name} className="p-4 rounded-xl border border-slate-200 bg-slate-50 space-y-3">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <strong className="text-sm text-slate-900">{m.name}</strong>
-                        <span className="badge badge-primary text-3xs font-mono">{m.dosage}</span>
+              patient.medicines.map((m) => {
+                const visuals = getRoutineVisuals(m.frequency);
+                return (
+                  <div key={m.id || m.name} className="p-4 rounded-xl border border-slate-200 bg-slate-50 space-y-3">
+                    <div className="flex justify-between items-start flex-wrap gap-2">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <strong className="text-sm text-slate-900">{m.name}</strong>
+                          <span className="badge badge-primary text-3xs font-mono">{m.dosage}</span>
+                          <span className="badge bg-amber-100 text-amber-900 border border-amber-300 text-3xs font-bold flex items-center gap-1">
+                            {visuals.icons} {visuals.pills}
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-500 mt-1 flex items-center gap-2">
+                          <span>Routine: <strong>{m.frequency}</strong></span>
+                          <span>•</span>
+                          <span>Timing: <strong className="text-sky-700">{visuals.timing}</strong></span>
+                          <span>•</span>
+                          <span>Valid: {m.endDate || 'Ongoing'}</span>
+                        </p>
                       </div>
-                      <p className="text-xs text-slate-500 mt-0.5">
-                        Routine: <strong>{m.frequency}</strong> • Valid until: {m.endDate || 'Ongoing'}
-                      </p>
-                    </div>
 
-                    {m.missedDoses > 0 ? (
-                      <span className="badge badge-risk-critical text-2xs flex items-center gap-1">
-                        <AlertTriangle size={12} /> {m.missedDoses} Missed Alert!
-                      </span>
-                    ) : (
-                      <span className="badge badge-risk-low text-2xs flex items-center gap-1">
-                        <CheckCircle2 size={12} /> Compliant
-                      </span>
-                    )}
-                  </div>
+                      {m.missedDoses > 0 ? (
+                        <span className="badge badge-risk-critical text-2xs flex items-center gap-1">
+                          <AlertTriangle size={12} /> {m.missedDoses} Missed Alert!
+                        </span>
+                      ) : (
+                        <span className="badge badge-risk-low text-2xs flex items-center gap-1">
+                          <CheckCircle2 size={12} /> Compliant
+                        </span>
+                      )}
+                    </div>
 
                   {/* Actions Row */}
                   <div className="flex justify-between items-center pt-2 border-t border-slate-200 flex-wrap gap-2">
@@ -240,7 +279,8 @@ export default function MedicationTrackerModal({ patient, onClose, onUpdatePatie
                     </div>
                   </div>
                 </div>
-              ))
+              );
+            })
             ) : (
               <div className="py-8 text-center text-slate-400">
                 <Pill size={32} className="mx-auto mb-2 text-slate-300" />

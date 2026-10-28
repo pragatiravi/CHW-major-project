@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" fill="none">
+  <rect width="512" height="512" fill="#0284c7"/>
+  <circle cx="256" cy="256" r="140" fill="white" fill-opacity="0.2"/>
+  <!-- Healthcare Cross centered for safe zone -->
+  <path d="M226 170H286V226H342V286H286V342H226V286H170V226H226V170Z" fill="white"/>
+  <!-- Heart Accent -->
+  <path d="M256 244C251 236 241 231 231 231C215 231 203 243 203 259C203 275 221 292 256 314C291 292 309 275 309 259C309 243 297 231 281 231C271 231 261 236 256 244Z" fill="#0284c7"/>
+</svg>

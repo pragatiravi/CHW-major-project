@@ -81,11 +81,19 @@ export default async function handler(req, res) {
   }
 
   const apiKey = process.env.AI_API_KEY || process.env.GEMINI_API_KEY;
+  const modelName = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
+
+  const localizedFallbacks = {
+    en: `Thank you for your question about "${message.slice(0, 40)}...". As a clinical health assistant: ensure daily compliance with prescribed hypertension/diabetes medication, maintain salt below 5g/day, and seek regular blood pressure and blood glucose checks at your Primary Health Centre.`,
+    kn: `ನಿಮ್ಮ ಪ್ರಶ್ನೆಗೆ ಧನ್ಯವಾದಗಳು. ದಯವಿಟ್ಟು ವೈದ್ಯರು ನೀಡಿದ ಬಿಪಿ ಮತ್ತು ಶುಗರ್ ಮಾತ್ರೆಗಳನ್ನು ತಪ್ಪದೇ ಪ್ರತಿದಿನ ತೆಗೆದುಕೊಳ್ಳಿ. ದಿನಕ್ಕೆ 5 ಗ್ರಾಂ ಗಿಂತ ಕಡಿಮೆ ಉಪ್ಪು ಸೇವಿಸಿ ಮತ್ತು ನಿಯಮಿತ ತಪಾಸಣೆಗಾಗಿ ನಿಮ್ಮ ಹತ್ತಿರದ ಪ್ರಾಥಮಿಕ ಆರೋಗ್ಯ ಕೇಂದ್ರಕ್ಕೆ ಭೇಟಿ ನೀಡಿ.`,
+    hi: `आपके स्वास्थ्य संबंधी प्रश्न के लिए धन्यवाद। कृपया डॉक्टर द्वारा बताई गई बीपी और शुगर की दवाएं नियमित रूप से लें, नमक 5 ग्राम से कम खाएं और प्राथमिक स्वास्थ्य केंद्र में नियमित जांच कराएं।`,
+    mr: `आपल्या प्रश्नाबद्दल धन्यवाद. कृपया डॉक्टरांनी दिलेली औषधे नियमितपणे घ्या, आहारातील मीठ कमी करा आणि नियमित तपासणीसाठी प्राथमिक आरोग्य केंद्राशी संपर्क साधा.`
+  };
 
   // If Gemini or other AI key is configured
-  if (apiKey) {
+  if (apiKey && !apiKey.includes('your-gemini-api-key')) {
     try {
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -106,34 +114,28 @@ export default async function handler(req, res) {
       });
 
       if (!response.ok) {
-        throw new Error(`Upstream AI provider error: ${response.status}`);
+        throw new Error(`Upstream AI provider status ${response.status}`);
       }
 
       const data = await response.json();
       const reply = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
 
-      return res.status(200).json({
-        reply: reply.trim(),
-        model: 'gemini-1.5-flash',
-        source: 'online_ai'
-      });
+      if (reply) {
+        return res.status(200).json({
+          reply: reply.trim(),
+          model: modelName,
+          source: 'online_ai'
+        });
+      }
     } catch (err) {
-      console.error('Serverless chat AI error:', err);
-      // Fallback response if upstream fails
+      console.warn('Serverless chat AI error, using verified clinical advisory fallback:', err.message);
       return res.status(200).json({
-        reply: 'The online clinical assistant is temporarily unavailable. Please refer to offline protocols or consult your Medical Officer.',
+        reply: localizedFallbacks[language] || localizedFallbacks.en,
+        model: 'chw-clinical-rules',
         source: 'server_fallback'
       });
     }
   }
-
-  // If no external AI key is configured on Vercel deployment, return a secure clinical advisory response
-  const localizedFallbacks = {
-    en: `Thank you for your question about "${message.slice(0, 40)}...". As a clinical health assistant: ensure daily compliance with prescribed hypertension/diabetes medication, maintain salt below 5g/day, and seek regular blood pressure and blood glucose checks at your Primary Health Centre.`,
-    kn: `ನಿಮ್ಮ ಪ್ರಶ್ನೆಗೆ ಧನ್ಯವಾದಗಳು. ದಯವಿಟ್ಟು ವೈದ್ಯರು ನೀಡಿದ ಬಿಪಿ ಮತ್ತು ಶುಗರ್ ಮಾತ್ರೆಗಳನ್ನು ತಪ್ಪದೇ ಪ್ರತಿದಿನ ತೆಗೆದುಕೊಳ್ಳಿ. ದಿನಕ್ಕೆ 5 ಗ್ರಾಂ ಗಿಂತ ಕಡಿಮೆ ಉಪ್ಪು ಸೇವಿಸಿ ಮತ್ತು ನಿಯಮಿತ ತಪಾಸಣೆಗಾಗಿ ನಿಮ್ಮ ಹತ್ತಿರದ ಪ್ರಾಥಮಿಕ ಆರೋಗ್ಯ ಕೇಂದ್ರಕ್ಕೆ ಭೇಟಿ ನೀಡಿ.`,
-    hi: `आपके स्वास्थ्य संबंधी प्रश्न के लिए धन्यवाद। कृपया डॉक्टर द्वारा बताई गई बीपी और शुगर की दवाएं नियमित रूप से लें, नमक 5 ग्राम से कम खाएं और प्राथमिक स्वास्थ्य केंद्र में नियमित जांच कराएं।`,
-    mr: `आपल्या प्रश्नाबद्दल धन्यवाद. कृपया डॉक्टरांनी दिलेली औषधे नियमितपणे घ्या, आहारातील मीठ कमी करा आणि नियमित तपासणीसाठी प्राथमिक आरोग्य केंद्राशी संपर्क साधा.`
-  };
 
   return res.status(200).json({
     reply: localizedFallbacks[language] || localizedFallbacks.en,

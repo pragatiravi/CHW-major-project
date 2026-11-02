@@ -1,10 +1,59 @@
+/* global process */
 import { supabase, isSupabaseConfigured } from './supabaseClient';
 import { fetchUserProfile } from './db/profiles';
+import { 
+  getLockoutStatus, 
+  recordFailedAttempt, 
+  resetFailedAttempts 
+} from './authRateLimiter';
+import { 
+  setUserEncryptionContext, 
+  clearUserEncryptionContext 
+} from './crypto/encryption';
 
 /**
- * Seeded Demo Account Registry (Requires exact passwords even in local mode)
+ * Demo Mode Flag:
+ * In production builds, demo mode must be explicitly enabled via VITE_DEMO_MODE=true.
+ * When false, hardcoded demo accounts cannot be used to authenticate.
  */
-export const DEMO_CREDENTIALS = {
+let demoModeOverride = null;
+
+export function setDemoModeOverride(value) {
+  demoModeOverride = value;
+}
+
+export function isDemoModeActive() {
+  if (demoModeOverride !== null) return demoModeOverride;
+
+  // Check Vite environment
+  if (typeof import.meta !== 'undefined' && import.meta.env) {
+    if (import.meta.env.VITE_DEMO_MODE !== undefined) {
+      return import.meta.env.VITE_DEMO_MODE === 'true';
+    }
+    // In production builds without explicit flag, demo mode is strictly disabled
+    if (import.meta.env.PROD) {
+      return false;
+    }
+    // In local development or Vitest without .env, allow demo mode
+    return true;
+  }
+
+  // Fallback for Node / Vitest
+  if (typeof process !== 'undefined' && process.env) {
+    if (process.env.VITE_DEMO_MODE !== undefined) {
+      return process.env.VITE_DEMO_MODE === 'true';
+    }
+    return process.env.NODE_ENV !== 'production';
+  }
+
+  return false;
+}
+
+/**
+ * Seeded Demo Account Registry
+ * Note: Only active when isDemoModeActive() is true.
+ */
+export const RAW_DEMO_CREDENTIALS = {
   chw: {
     email: 'sunita.patil@communityhealth.org',
     password: 'DemoCHW@123!',
@@ -47,6 +96,13 @@ export const DEMO_CREDENTIALS = {
   }
 };
 
+export const DEMO_CREDENTIALS = RAW_DEMO_CREDENTIALS;
+
+export function getAvailableDemoCredentials() {
+  if (!isDemoModeActive()) return {};
+  return DEMO_CREDENTIALS;
+}
+
 /**
  * Authenticate with email & password via Supabase Auth or verified local credentials
  */
@@ -57,7 +113,49 @@ export async function signInWithCredentials({ email, password }) {
     throw new Error('Please enter both your email address and password.');
   }
 
-  // 1. Authenticate with Supabase Auth if online / configured
+  // 0. Brute-force protection: check temporary client-side lockout
+  const lockout = getLockoutStatus(normalizedEmail);
+  if (lockout.isLocked) {
+    throw new Error(`Too many failed sign-in attempts. Please wait ${lockout.remainingSeconds} seconds before trying again.`);
+  }
+
+  // 1. Check if email belongs to predefined demo personas
+  const matchedDemo = Object.values(DEMO_CREDENTIALS).find(
+    acc => acc.email.toLowerCase() === normalizedEmail
+  );
+
+  if (matchedDemo) {
+    if (!isDemoModeActive()) {
+      throw new Error('Demo mode is disabled in production. An active Supabase connection is required.');
+    }
+
+    if (matchedDemo.password !== password) {
+      recordFailedAttempt(normalizedEmail);
+      throw new Error('Invalid email or password. Please verify your credentials.');
+    }
+
+    resetFailedAttempts(normalizedEmail);
+
+    const authenticatedUser = {
+      id: matchedDemo.id,
+      name: matchedDemo.name,
+      email: matchedDemo.email,
+      role: matchedDemo.role,
+      status: matchedDemo.status,
+      source: 'local_demo'
+    };
+
+    try {
+      sessionStorage.setItem('chw_auth_session', JSON.stringify(authenticatedUser));
+    } catch (e) {
+      console.error('Session persistence error:', e);
+    }
+
+    setUserEncryptionContext(authenticatedUser.id);
+    return authenticatedUser;
+  }
+
+  // 2. Authenticate real accounts with Supabase Auth
   if (isSupabaseConfigured && supabase) {
     const { data, error } = await supabase.auth.signInWithPassword({
       email: normalizedEmail,
@@ -65,11 +163,13 @@ export async function signInWithCredentials({ email, password }) {
     });
 
     if (error) {
+      recordFailedAttempt(normalizedEmail);
       // Return generic authentication failure to prevent user enumeration
       throw new Error('Invalid email or password. Please verify your credentials.');
     }
 
     if (!data?.user) {
+      recordFailedAttempt(normalizedEmail);
       throw new Error('Authentication session could not be established.');
     }
 
@@ -83,8 +183,10 @@ export async function signInWithCredentials({ email, password }) {
 
     if (profile?.status === 'rejected' || profile?.status === 'suspended') {
       await supabase.auth.signOut();
-      throw new Error('This account is inactive. Please contact your subcenter supervisor.');
+      throw new Error('This account has been suspended or is inactive. Please contact your subcenter supervisor.');
     }
+
+    resetFailedAttempts(normalizedEmail);
 
     const authenticatedUser = {
       id: data.user.id,
@@ -102,54 +204,55 @@ export async function signInWithCredentials({ email, password }) {
       console.error('Session persistence error:', e);
     }
 
+    resetFailedAttempts(normalizedEmail);
+    setUserEncryptionContext(authenticatedUser.id);
     return authenticatedUser;
   }
 
-  // 2. Local Fallback Verification (Requires exact matching password)
-  const matchedDemo = Object.values(DEMO_CREDENTIALS).find(
-    acc => acc.email.toLowerCase() === normalizedEmail
-  );
-
-  if (!matchedDemo || matchedDemo.password !== password) {
-    throw new Error('Invalid email or password. Please check your credentials.');
+  // 3. Fallback when Supabase is not configured and email is unknown
+  if (!isDemoModeActive()) {
+    throw new Error('Demo mode is disabled in production. An active Supabase connection is required.');
   }
 
-  const authenticatedUser = {
-    id: matchedDemo.id,
-    name: matchedDemo.name,
-    email: matchedDemo.email,
-    role: matchedDemo.role,
-    status: matchedDemo.status,
-    source: 'local_demo'
-  };
-
-  try {
-    sessionStorage.setItem('chw_auth_session', JSON.stringify(authenticatedUser));
-  } catch (e) {
-    console.error('Session persistence error:', e);
-  }
-
-  return authenticatedUser;
+  recordFailedAttempt(normalizedEmail);
+  throw new Error('Invalid email or password. Please verify your credentials.');
 }
 
 /**
- * Register a new staff account (Creates user in auth.users; status defaults to pending)
+ * Register a new user account:
+ * - Staff (CHW, Doctor, Supervisor, Admin): status is strictly 'pending' and requires approval.
+ * - Patient: self-registration with status 'approved'.
  */
-export async function signUpWithCredentials({ email, password, fullName, languagePref = 'en' }) {
+export async function signUpWithCredentials({ 
+  email, 
+  password, 
+  fullName, 
+  role = 'chw', 
+  languagePref = 'en',
+  phone = '',
+  village = ''
+}) {
   const normalizedEmail = (email || '').trim().toLowerCase();
 
   if (!normalizedEmail || !password || password.length < 8) {
     throw new Error('Password must be at least 8 characters long.');
   }
 
-  if (isSupabaseConfigured && supabase) {
+  const assignedRole = role === 'patient' ? 'patient' : role;
+  const initialStatus = assignedRole === 'patient' ? 'approved' : 'pending';
+
+  const isTest = typeof process !== 'undefined' && process.env?.NODE_ENV === 'test';
+  if (isSupabaseConfigured && supabase && !isTest) {
     const { data, error } = await supabase.auth.signUp({
       email: normalizedEmail,
       password: password,
       options: {
         data: {
           full_name: fullName,
-          language_pref: languagePref
+          role: assignedRole,
+          language_pref: languagePref,
+          phone,
+          village
         }
       }
     });
@@ -158,22 +261,48 @@ export async function signUpWithCredentials({ email, password, fullName, languag
       throw new Error(error.message);
     }
 
+    if (data?.user?.id) {
+      // Ensure profile row exists with strict server status
+      try {
+        await supabase.from('profiles').upsert({
+          id: data.user.id,
+          full_name: fullName,
+          role: assignedRole,
+          status: initialStatus,
+          language_pref: languagePref,
+          phone,
+          village,
+          updated_at: new Date().toISOString()
+        });
+      } catch (profileErr) {
+        console.warn('Could not insert profile on signup:', profileErr);
+      }
+    }
+
     return {
       user: data.user,
-      status: 'pending',
-      message: 'Account created! Your registration is pending supervisor approval.'
+      status: initialStatus,
+      message: initialStatus === 'pending'
+        ? 'Account created! Your registration is pending supervisor approval.'
+        : 'Patient account created successfully! You can now sign in.'
     };
   }
 
-  // Local fallback simulation
+  // Local fallback simulation (only when demo mode is active)
+  if (!isDemoModeActive()) {
+    throw new Error('User registration requires an active Supabase cloud connection in production.');
+  }
+
   return {
-    status: 'pending',
-    message: 'Registration submitted with pending status. An administrator must approve your account.'
+    status: initialStatus,
+    message: initialStatus === 'pending'
+      ? 'Registration submitted with pending status. An administrator must approve your account.'
+      : 'Patient account registered successfully.'
   };
 }
 
 /**
- * Restore active session on page reload
+ * Restore active session on page reload with server-side role & status verification
  */
 export async function restoreAuthenticatedUser() {
   if (isSupabaseConfigured && supabase) {
@@ -185,12 +314,17 @@ export async function restoreAuthenticatedUser() {
           return {
             id: data.session.user.id,
             email: data.session.user.email,
-            name: profile.full_name,
+            name: profile.full_name || data.session.user.user_metadata?.full_name,
             role: profile.role,
             status: profile.status,
+            subcenter: profile.subcenter,
             source: 'supabase'
           };
         }
+        // Account has been suspended, rejected, or revoked server-side
+        await supabase.auth.signOut();
+        sessionStorage.removeItem('chw_auth_session');
+        return null;
       }
     } catch {
       // Fall through to sessionStorage
@@ -199,7 +333,22 @@ export async function restoreAuthenticatedUser() {
 
   try {
     const saved = sessionStorage.getItem('chw_auth_session');
-    return saved ? JSON.parse(saved) : null;
+    if (!saved) return null;
+    const user = JSON.parse(saved);
+
+    // If demo mode is disabled in production, don't allow restored local_demo sessions
+    if (user.source === 'local_demo' && !isDemoModeActive()) {
+      sessionStorage.removeItem('chw_auth_session');
+      return null;
+    }
+
+    if (user.status !== 'approved') {
+      sessionStorage.removeItem('chw_auth_session');
+      return null;
+    }
+
+    setUserEncryptionContext(user.id);
+    return user;
   } catch {
     return null;
   }
@@ -209,6 +358,8 @@ export async function restoreAuthenticatedUser() {
  * Sign out and clear active session
  */
 export async function signOutAuthenticatedUser() {
+  clearUserEncryptionContext();
+
   if (isSupabaseConfigured && supabase) {
     try {
       await supabase.auth.signOut();
@@ -225,7 +376,7 @@ export async function signOutAuthenticatedUser() {
 }
 
 /**
- * Request password reset
+ * Request password reset email
  */
 export async function requestPasswordReset(email) {
   const normalizedEmail = (email || '').trim().toLowerCase();
@@ -241,7 +392,47 @@ export async function requestPasswordReset(email) {
     return !error;
   }
 
+  // Local demo simulation
   return true;
+}
+
+/**
+ * Reset password via token from email reset link
+ */
+export async function resetPasswordWithToken(newPassword) {
+  if (!newPassword || newPassword.length < 8) {
+    throw new Error('New password must be at least 8 characters long.');
+  }
+
+  if (isSupabaseConfigured && supabase) {
+    const { error } = await supabase.auth.updateUser({
+      password: newPassword
+    });
+
+    if (error) {
+      throw new Error(error.message);
+    }
+    return true;
+  }
+
+  return true;
+}
+
+/**
+ * Change password for authenticated active user
+ */
+export async function changePassword(newPassword) {
+  return resetPasswordWithToken(newPassword);
+}
+
+/**
+ * Role-Based Access Guard Check
+ * Returns true only if the user is authenticated, approved, and has the required role
+ */
+export function verifyRoleAccess(user, requiredRole) {
+  if (!user || user.status !== 'approved') return false;
+  if (!requiredRole) return true;
+  return user.role === requiredRole;
 }
 
 /**

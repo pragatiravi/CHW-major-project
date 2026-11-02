@@ -7,7 +7,8 @@ import {
   CheckCircle2,
   UserCheck,
   UserX,
-  Shield
+  Shield,
+  Ban
 } from 'lucide-react';
 import { 
   INITIAL_HOSPITALS, 
@@ -295,6 +296,11 @@ export default function AdminPortal({
                             <Shield size={12} /> Pending Approval
                           </span>
                         )}
+                        {p.status === 'suspended' && (
+                          <span className="badge badge-risk-high flex items-center gap-1 w-fit" style={{ background: '#fef3c7', color: '#92400e', borderColor: '#fcd34d' }}>
+                            <Ban size={12} /> Suspended
+                          </span>
+                        )}
                         {p.status === 'rejected' && (
                           <span className="badge badge-risk-critical flex items-center gap-1 w-fit">
                             <UserX size={12} /> Rejected
@@ -311,6 +317,16 @@ export default function AdminPortal({
                               title="Approve staff account"
                             >
                               <UserCheck size={13} /> Approve
+                            </button>
+                          )}
+                          {p.status === 'approved' && (
+                            <button
+                              type="button"
+                              className="btn btn-secondary text-2xs py-1 px-2 flex items-center gap-1"
+                              onClick={() => handleUpdateStatus(p.id, 'suspended')}
+                              title="Suspend staff account"
+                            >
+                              <Ban size={13} /> Suspend
                             </button>
                           )}
                           {p.status !== 'rejected' && (

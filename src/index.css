@@ -1811,6 +1811,35 @@ input, select, textarea {
   .toast-portal-container { left: 14px; right: 14px; bottom: 14px; width: auto; }
 }
 
+@media (max-width: 480px) {
+  .btn, .shell-icon-btn, .close-btn, .shell-mobile-menu-btn, .shell-connectivity-badge, .shell-sync-btn {
+    min-height: 48px;
+    min-width: 48px;
+  }
+  .shell-topbar {
+    padding-inline: 8px;
+    gap: 6px;
+  }
+  .shell-brand-name {
+    font-size: 0.82rem;
+    max-width: 135px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .shell-brand-sub {
+    display: none !important;
+  }
+  .shell-topbar-right {
+    gap: 4px;
+  }
+  .table-responsive {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    width: 100%;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     scroll-behavior: auto !important;

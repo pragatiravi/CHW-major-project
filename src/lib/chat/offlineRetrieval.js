@@ -1,5 +1,5 @@
 import Fuse from 'fuse.js';
-import { NCD_KNOWLEDGE_BASE, OFFLINE_FALLBACK_MESSAGES } from '../../data/ncdKnowledgeBase';
+import { NCD_KNOWLEDGE_BASE, OFFLINE_FALLBACK_MESSAGES } from '../../data/ncdKnowledgeBase.js';
 
 /**
  * Build searchable document array tailored for Fuse.js based on active language

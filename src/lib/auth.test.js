@@ -31,14 +31,24 @@ import {
   signUpWithCredentials, 
   signOutAuthenticatedUser,
   restoreAuthenticatedUser,
+  verifyRoleAccess,
+  setDemoModeOverride,
+  getAvailableDemoCredentials,
   DEMO_CREDENTIALS 
 } from './auth';
+import { 
+  recordFailedAttempt, 
+  resetFailedAttempts, 
+  getLockoutStatus 
+} from './authRateLimiter';
 import { fetchPatients, savePatient } from './db/patients';
 
 describe('Authentication & Role Guards', () => {
   beforeEach(() => {
     sessionStorage.clear();
     localStorage.clear();
+    setDemoModeOverride(true);
+    resetFailedAttempts(DEMO_CREDENTIALS.chw.email);
   });
 
   it('rejects authentication with empty or missing credentials', async () => {
@@ -131,6 +141,138 @@ describe('Authentication & Role Guards', () => {
     await signOutAuthenticatedUser();
     const afterLogout = await restoreAuthenticatedUser();
     expect(afterLogout).toBeNull();
+  });
+});
+
+describe('Phase 1 Security: Demo Mode Gating', () => {
+  beforeEach(() => {
+    sessionStorage.clear();
+    localStorage.clear();
+    resetFailedAttempts(DEMO_CREDENTIALS.chw.email);
+  });
+
+  it('blocks hardcoded demo authentication when demo mode is disabled', async () => {
+    setDemoModeOverride(false);
+
+    await expect(signInWithCredentials({
+      email: DEMO_CREDENTIALS.chw.email,
+      password: DEMO_CREDENTIALS.chw.password
+    })).rejects.toThrow(/Demo mode is disabled in production/i);
+
+    expect(getAvailableDemoCredentials()).toEqual({});
+  });
+
+  it('allows demo authentication when demo mode is explicitly enabled', async () => {
+    setDemoModeOverride(true);
+
+    const user = await signInWithCredentials({
+      email: DEMO_CREDENTIALS.chw.email,
+      password: DEMO_CREDENTIALS.chw.password
+    });
+
+    expect(user.role).toBe('chw');
+    expect(user.status).toBe('approved');
+  });
+});
+
+describe('Phase 1 Security: Role Guards & Tamper Prevention', () => {
+  it('allows approved user with matching role to pass role guard', () => {
+    const user = { role: 'chw', status: 'approved' };
+    expect(verifyRoleAccess(user, 'chw')).toBe(true);
+  });
+
+  it('rejects user attempting to access a different role portal (role spoofing)', () => {
+    const chwUser = { role: 'chw', status: 'approved' };
+    expect(verifyRoleAccess(chwUser, 'admin')).toBe(false);
+    expect(verifyRoleAccess(chwUser, 'doctor')).toBe(false);
+    expect(verifyRoleAccess(chwUser, 'supervisor')).toBe(false);
+  });
+
+  it('rejects access for users with pending approval status', () => {
+    const pendingStaff = { role: 'chw', status: 'pending' };
+    expect(verifyRoleAccess(pendingStaff, 'chw')).toBe(false);
+  });
+
+  it('rejects access for suspended or rejected accounts', () => {
+    const suspendedDoctor = { role: 'doctor', status: 'suspended' };
+    const rejectedAdmin = { role: 'admin', status: 'rejected' };
+
+    expect(verifyRoleAccess(suspendedDoctor, 'doctor')).toBe(false);
+    expect(verifyRoleAccess(rejectedAdmin, 'admin')).toBe(false);
+  });
+});
+
+describe('Phase 1 Security: Brute-Force Rate Limiting', () => {
+  const testEmail = 'bruteforce.test@communityhealth.org';
+
+  beforeEach(() => {
+    resetFailedAttempts(testEmail);
+  });
+
+  it('tracks failed attempts and enforces lockout after 5 consecutive failures', () => {
+    expect(getLockoutStatus(testEmail).isLocked).toBe(false);
+
+    // Fail 4 times
+    for (let i = 1; i <= 4; i++) {
+      const res = recordFailedAttempt(testEmail);
+      expect(res.isLocked).toBe(false);
+      expect(res.attempts).toBe(i);
+    }
+
+    // 5th failure triggers lockout
+    const fifthRes = recordFailedAttempt(testEmail);
+    expect(fifthRes.isLocked).toBe(true);
+    expect(fifthRes.remainingSeconds).toBeGreaterThan(0);
+
+    const status = getLockoutStatus(testEmail);
+    expect(status.isLocked).toBe(true);
+    expect(status.remainingSeconds).toBeGreaterThan(50);
+  });
+
+  it('rejects sign in immediately when user account is in locked state', async () => {
+    setDemoModeOverride(true);
+
+    // Trigger lockout
+    for (let i = 0; i < 5; i++) {
+      recordFailedAttempt(testEmail);
+    }
+
+    await expect(signInWithCredentials({
+      email: testEmail,
+      password: 'AnyPassword123!'
+    })).rejects.toThrow(/Too many failed sign-in attempts/i);
+  });
+});
+
+describe('Phase 1: Patient Self-Registration Flow', () => {
+  it('automatically sets patient self-registration status to approved', async () => {
+    setDemoModeOverride(true);
+
+    const result = await signUpWithCredentials({
+      email: 'newpatient@ruralcare.in',
+      password: 'PatientPass123!',
+      fullName: 'Sunita Bai',
+      role: 'patient',
+      phone: '+91 9876500000',
+      village: 'Vimanapura'
+    });
+
+    expect(result.status).toBe('approved');
+    expect(result.message).toContain('Patient account');
+  });
+
+  it('requires supervisor approval for staff role signups', async () => {
+    setDemoModeOverride(true);
+
+    const result = await signUpWithCredentials({
+      email: 'newdoctor@districtmed.org',
+      password: 'DoctorPass123!',
+      fullName: 'Dr. Ramesh Joshi',
+      role: 'doctor'
+    });
+
+    expect(result.status).toBe('pending');
+    expect(result.message).toContain('pending');
   });
 });
 

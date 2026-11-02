@@ -2,7 +2,7 @@
 -- Community Health Worker (CHW) Healthcare Toolkit
 -- Supabase / PostgreSQL Schema Migration: Normalized Production Architecture
 -- =============================================================================
-
+SET check_function_bodies = off;
 -- Enable required extensions
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";

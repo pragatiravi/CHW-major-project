@@ -1,232 +1,140 @@
 # Community Health Worker (CHW) Healthcare Toolkit
 
-A role-based React web application for community screening, deterministic clinical decision support, emergency referrals, medication workflows, patient self-service, program supervision, and system administration.
+An offline-first, clinical decision support Progressive Web App (PWA) designed for frontline Community Health Workers (ASHAs) and Primary Health Centres in rural India (Karnataka & Maharashtra). Built with React 19, Vite 8, Dexie.js (IndexedDB), Supabase (PostgreSQL 16-table schema), Web Crypto AES-GCM 256, and Vercel Serverless AI.
 
-> **Clinical Disclaimer**: This application is a demonstration prototype built with synthetic data for trained community health personnel. Risk scores follow deterministic rules informed by AHA hypertension and ADA diabetes guidelines. It does not establish an autonomous medical diagnosis, replace laboratory confirmation, or substitute for qualified clinical judgment.
-
----
-
-## 🌟 Key Features
-
-- **Community Health Worker (CHW) Workspace**: Patient registration, 7-step guided screening wizard, AHA/ADA risk stratification, ThinkLets interactive patient counselling, medication delivery tracking, and offline batch sync.
-- **Medical Officer / Clinician Workspace**: Priority referral triage queue, historical patient vitals review, clinical medication ordering, and referral approval/decline workflows.
-- **Patient & Family Health Portal**: Bilingual health passport, daily medication adherence checklist with missed-dose tracking, simulated prescription OCR, family health circle, and appointment booking.
-- **Supervisor Dashboard**: Population risk analytics, CHW field coverage metrics, referral pipeline performance, and CSV / PDF report exports.
-- **System Administrator Portal**: Facility registry management, clinical scoring cutoffs configurator, algorithm benchmark lab (5 clinical test cases), and HL7 FHIR R4 JSON bundle exporter.
-- **Cross-Cutting UX**: Light/dark themes, multilingual support (English, Hindi, Marathi, Telugu), unread notification drawer, global search, and accessible keyboard controls.
+> **Clinical Decision Support Disclaimer**: This application is a decision-support and community triage tool intended for trained community healthcare personnel (ASHAs, ANMs, Medical Officers). Risk predictions follow deterministic algorithms informed by American Heart Association (AHA) and American Diabetes Association (ADA) guidelines. It does not provide autonomous clinical diagnoses, replace diagnostic laboratory testing, or prescribe prescription medications.
 
 ---
 
-## 🏗️ Architecture
+## 🌟 Key Capabilities
+
+- **Frontline CHW Workspace**: Offline-first patient registry, 7-step guided clinical screening wizard, deterministic AHA/ADA risk stratification, interactive ThinkLets audio/visual patient counselling, and automatic background outbox synchronization.
+- **Medical Officer Referral Triage**: Priority-sorted referral queue, longitudinal vital trends, clinical medication ordering, and structured referral accept/decline decisions.
+- **Patient & Family Health Passport**: Bilingual health passport, daily medication adherence checklist with missed-dose tracking, prescription scanner, and family health circle.
+- **Supervisor Dashboard**: Population risk analytics, CHW village coverage metrics, staff registration approval queue (Approve / Suspend / Reject), and CSV / PDF report exports.
+- **System Administrator Portal**: Facility registry, clinical scoring cutoffs configurator, algorithm benchmark lab, account status control, and HL7 FHIR R4 JSON bundle exporter.
+- **Multilingual & Low-Literacy Support**: 100% key parity across English (`en-IN`), Kannada (`kn-IN`), Hindi (`hi-IN`), and Marathi (`mr-IN`), Web Speech API STT/TTS, and 48px touch targets for mobile accessibility.
+- **Clinical Chatbot & Red-Flag Detector**: Deterministic emergency detector (cardiac, stroke, severe dyspnea, hemorrhage, vitals crisis) that immediately triggers emergency guidance (108 Ambulance) before falling back to Vercel Serverless Gemini 1.5 Flash or bundled offline knowledge retrieval.
+
+---
+
+## 🏗️ Technical Architecture
 
 ```text
-Browser Client
-  React 19 + Vite
-    App.jsx                         Application & session orchestration
-    components/layout               App shell, navigation, theme & language controls
-    components/{role}               Role-specific portals (CHW, Doctor, Patient, Supervisor, Admin)
-    components/shared               Drawers, toasts, detail modals, and reusable UI
-    utils/predictionEngine.js       Guideline-informed AHA/ADA risk scoring engine (CDSS)
-    utils/pdfExport.js              Escaped print & CSV export utilities
-    data/initialData.js             Synthetic seed records
-  Client Storage
-    sessionStorage                  Active user session persistence
-    localStorage                    Offline screening queue, patient records, sync logs
+Frontline Device (Mobile PWA / Tablet)
+  ├── React 19 + Vite 8 Single Page App
+  ├── Offline Storage: Dexie.js (IndexedDB)
+  │     ├── patients (PII encrypted at rest via AES-GCM 256)
+  │     ├── visits (longitudinal encounters)
+  │     ├── referrals, prescriptions, counselling_sessions
+  │     └── sync_queue (persistent outbox with exponential backoff)
+  ├── Security Layer: Web Crypto API (PBKDF2 100,000 iterations + Device Salt)
+  ├── Offline Engine: Fuse.js + Bundled ICMR/WHO-PEN NCD Knowledge Base
+  └── Voice Engine: Web Speech API (STT & TTS in kn-IN, hi-IN, mr-IN, en-IN)
+          │
+          │ (Background Bidirectional Sync when Online)
+          ▼
+Central Cloud Tier (Supabase & Vercel)
+  ├── Supabase Auth (GoTrue JWT, role derived strictly from server-side profiles)
+  ├── PostgreSQL Database (16 Normalized Tables with Row-Level Security)
+  │     ├── profiles, patients, visits, predictions, counselling_sessions
+  │     ├── referrals, doctors, medications, prescriptions, follow_ups
+  │     ├── vaccinations, emergency_reports, inventory, inventory_transactions
+  │     └── chat_logs, audit_logs
+  └── Vercel Serverless Function: POST /api/chat
+        ├── Bearer Token Verification & IP Rate Limiting (30 req/min)
+        └── Google Gemini 1.5 Flash Proxy with Clinical Guardrails
 ```
 
 ---
 
-## 🧠 Clinical Decision Support Engine (CHW-CDSS v2.4.1)
+## 🗄️ Database Architecture (16 Normalized Tables)
 
-The application incorporates a **Deterministic, Guideline-Informed Decision Support System**. It relies on transparent, explainable expert algorithms rather than black-box machine learning models, ensuring 100% auditability and clinical safety.
+The production Supabase PostgreSQL database implements 16 relational tables with Row-Level Security (RLS) policies:
 
-### Clinical Guidelines Implemented
-1. **AHA/ACC 2017 Hypertension Guidelines** (American Heart Association / American College of Cardiology)
-2. **ADA 2024 Standards of Care in Diabetes** (American Diabetes Association)
-3. **WHO PEN Guidelines** (Package of Essential Noncommunicable Disease Interventions)
-
----
-
-### Configurable Scoring Models
-
-Administrators can toggle between **3 risk calculation algorithms**:
-
-#### 1. Guideline Ensemble Score (Default)
-Combines categorical clinical thresholds with continuous non-linear vital sign penalties and risk factors.
-
-##### Hypertension Risk Formula
-$$\text{RawHypertensionScore} = \text{BasePoints} + 0.65 \times \max(0, \text{Systolic} - 120)$$
-$$\text{Hypertension Risk \%} = \min(99, \max(5, \text{RawHypertensionScore}))$$
-
-- **Blood Pressure Cutoffs (AHA 2017)**:
-  - **Hypertensive Crisis** ($\ge 180 / \ge 120$ mmHg): **+55%**
-  - **Stage 2 Hypertension** ($\ge 140 / \ge 90$ mmHg): **+38%**
-  - **Stage 1 Hypertension** ($130\text{--}139 / 80\text{--}89$ mmHg): **+22%**
-  - **Elevated BP** ($120\text{--}129 / <80$ mmHg): **+12%**
-- **Demographic & Behavioral Factors**:
-  - Age $\ge 60$: **+18%** | Age $45\text{--}59$: **+10%**
-  - Obesity ($\text{BMI} \ge 30$): **+15%** | Overweight ($\text{BMI } 25\text{--}29.9$): **+8%**
-  - Active Tobacco: **+14%** | Hereditary History: **+12%** | Sedentary: **+8%** | Alcohol: **+6%**
-- **Symptom Flags**:
-  - Chest Pain / Angina: **+28%** *(Triggers Emergency Red Flag)*
-  - Vascular Headache / Dizziness: **+12%**
-
-##### Diabetes Risk Formula
-$$\text{ScoringBaseline} = \begin{cases} 100 & \text{Fasting} \\ 140 & \text{Postprandial} \\ 200 & \text{Random} \end{cases}$$
-$$\text{RawDiabetesScore} = \text{BasePoints} + 0.38 \times \max(0, \text{Glucose} - \text{ScoringBaseline})$$
-$$\text{Diabetes Risk \%} = \min(99, \max(5, \text{RawDiabetesScore}))$$
-
-- **Glucose Tiers (ADA 2024)**:
-  - **Severe Hyperglycemia** ($\ge 300$ mg/dL): **+55%**
-  - **Diabetic Range** ($\ge 126$ Fasting / $\ge 200$ Random): **+38%**
-  - **Prediabetes** ($100\text{--}125$ Fasting / $140\text{--}199$ Postprandial): **+20%**
-- **Osmotic Symptoms**:
-  - Polyuria: **+12%** | Polydipsia: **+12%** | Blurred Vision: **+10%** | Fatigue: **+6%**
+1. `profiles`: Extends `auth.users` with `role` (`chw`, `doctor`, `supervisor`, `admin`), `status` (`pending`, `approved`, `suspended`, `rejected`), and `subcenter`.
+2. `patients`: Demographics, `custom_id`, `legacy_id`, village, encrypted contact details, ABHA ID, and consent tracking.
+3. `visits`: Longitudinal vital encounters (systolic, diastolic, glucose, glucose_type, BMI, symptoms, lifestyle). Historical encounters are never overwritten.
+4. `predictions`: CDSS audit log capturing risk scores, algorithm used, and clinical flags for each screening.
+5. `counselling_sessions`: ThinkLets protocol completion logs, comprehension scores, and audio playback tracking.
+6. `referrals`: Bi-directional triage queue linking CHW screening to PHC / CHC facility with urgency tiers (`routine`, `priority`, `emergency`).
+7. `doctors`: Hospital clinician registry with specialty and facility affiliations.
+8. `medications`: National essential medicines list formulary with strength and dosage forms.
+9. `prescriptions`: Clinical medication orders, active status, duration, and instructions.
+10. `follow_ups`: Scheduled CHW home visit dates and completion status.
+11. `vaccinations`: Adult and community immunization records.
+12. `emergency_reports`: Critical distress alerts and SOS logs.
+13. `inventory`: Subcentre medical supply stock tracking (glucometer strips, BP cuffs, essential tablets).
+14. `inventory_transactions`: Stock additions, dispatches, and expiry adjustments.
+15. `chat_logs`: Clinical assistant interactions (logged only when explicit patient consent is granted).
+16. `audit_logs`: Immutable security audit trail recording patient views, exports, referral decisions, and role approvals.
 
 ---
 
-#### 2. Multivariable Logistic Risk Formula
-Calculates probabilistic risk using a logistic sigmoid equation:
-$$P(X) = \frac{1}{1 + e^{-z}}$$
+## 🔒 Security & DPDP Act Compliance
 
-- **Hypertension Logit ($z_{\text{HT}}$)**:
-  $$z_{\text{HT}} = -3.5 + 0.035(\text{Systolic}) + 0.04(\text{Diastolic}) + 0.03(\text{Age}) + 0.04(\text{BMI}) + 0.8(\text{Smoking})$$
-
-- **Diabetes Logit ($z_{\text{DB}}$)**:
-  $$z_{\text{DB}} = -3.8 + 0.022(\text{Glucose}) + 0.05(\text{BMI}) + 0.025(\text{Age}) + 0.9(\text{FamilyHistory})$$
+- **Endpoint Protection at Rest**: Sensitive patient PII (`phone`, `address`) stored in browser IndexedDB is encrypted using AES-GCM 256. Cryptographic keys are derived in volatile memory via PBKDF2 (100,000 iterations, SHA-256) using a persistent device salt and user identity.
+- **Server-Side Role Authority**: User roles and approval statuses are enforced by database triggers and RLS policies on the server. Client-side role spoofing is blocked by `<RoleGuard />`.
+- **Brute-Force Rate Limiting**: Client-side authentication enforces a sliding window lockout after 5 consecutive failed attempts. The `/api/chat` serverless proxy enforces an IP-based limit of 30 requests per minute.
+- **Production Demo Gating**: Evaluator demo personas (`*.demo@ruralhealth.org`) require `VITE_DEMO_MODE=true` to function. When disabled in production, demo logins are completely blocked.
+- **HTTP Security Headers**: Configured via `vercel.json` with strict Content Security Policy (CSP), `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, and HSTS.
 
 ---
 
-#### 3. Hierarchical Clinical Decision Tree
-Evaluates risk using sequential branching nodes:
-1. `Systolic >= 180 OR Chest Pain` $\rightarrow$ **95% Probability (Critical)**
-2. `Systolic >= 140 AND Age >= 45` $\rightarrow$ **78% Probability (High)**
-3. `Systolic >= 130 OR BMI >= 28` $\rightarrow$ **48% Probability (Moderate)**
-4. `Otherwise` $\rightarrow$ **12% Probability (Low)**
+## 🧪 Automated Testing Suite
 
----
+The repository includes a rigorous Vitest test suite with **74 passing tests** across 7 test modules:
 
-### Triage Matrix & Clinical Action Plan
+```bash
+npm test
+```
 
-| Risk Level | Trigger Criteria | Automated Clinical Action |
-|---|---|---|
-| **Critical** | $\text{BP} \ge 180/120$ or Glucose $\ge 300$ or Chest Pain | Urgent 24–48h Emergency Referral; Alert Medical Officer; 2-day follow-up. |
-| **High** | $\text{BP} \ge 140/90$ or Glucose $\ge 126$ Fasting / $\ge 200$ Random | 7-day Primary Care consultation; Lab confirmation (HbA1c/BP series). |
-| **Moderate** | $\text{BP} \ge 130/80$ or Glucose $\ge 100$ Fasting / $\ge 140$ Random | 14-day CHW re-screening; ThinkLets sodium/dietary counselling. |
-| **Low** | Normal Vitals & No Symptoms | Routine healthy lifestyle maintenance; 30–60 day annual follow-up. |
-
----
-
-## 🌐 Interoperability & Data Standards
-
-- **HL7 FHIR R4 Bundle Export**: Generates compliant FHIR R4 JSON bundles containing `Patient`, `Observation`, and `DiagnosticReport` resources mapped to standard LOINC codes:
-  - `85354-9`: Blood Pressure Panel (Systolic / Diastolic)
-  - `2339-0`: Glucose measurement
-  - `39156-5`: Body Mass Index (BMI)
-- **Printable Medical Summaries**: HTML-escaped print export for physical clinical referral slips and patient health passports.
+- `src/lib/auth.test.js` (20 tests): Role guards, brute-force lockout, session restoration, demo gating, patient self-registration, and user cache isolation.
+- `src/lib/chat/chat.test.js` (18 tests): Deterministic red-flag emergency detector, Fuse.js offline retrieval, consent-based chat logging, and the **30-Item Clinical AI & Triage Benchmark**.
+- `src/lib/sync/syncEngine.test.js` (12 tests): IndexedDB storage, outbox push queue, conflict resolution (tablet vs clinic), AES-GCM encryption, PBKDF2 device salt derivation, and safe logout checks.
+- `src/lib/speech/speech.test.js` (11 tests): Web Speech STT transcript parsing (BP numbers, decimals), TTS voice controllers, and 4-language dialect mappings.
+- `src/utils/predictionEngine.test.js` (7 tests): AHA 2017 hypertension tiers, ADA 2024 glucose thresholds, logistic risk formulas, and decision tree edge cases.
+- `src/utils/translations.test.js` (4 tests): 100% key parity across English, Kannada, Hindi, and Marathi dictionaries, and ThinkLets counselling scripts.
+- `src/utils/pdfExport.test.js` (2 tests): Escaped clinical printing and CSV sanitization.
 
 ---
 
 ## 🚀 Getting Started
 
 ### Prerequisites
-- **Node.js**: v18.0.0 or higher
-- **npm**: v9.0.0 or higher
+- Node.js 18+ (tested on Node v20/v22/v24)
+- npm or pnpm
 
-### Installation & Execution
+### Installation & Local Setup
 
-1. **Clone the repository**:
+1. Clone repository and install dependencies:
    ```bash
    git clone https://github.com/pragatiravi/CHW-major-project.git
    cd CHW-major-project
-   ```
-
-2. **Install dependencies**:
-   ```bash
    npm install
    ```
 
-3. **Start the development server**:
+2. Environment configuration:
+   Copy `.env.example` to `.env`:
+   ```bash
+   cp .env.example .env
+   ```
+   Configure your Supabase credentials:
+   ```ini
+   VITE_SUPABASE_URL=https://your-project-ref.supabase.co
+   VITE_SUPABASE_ANON_KEY=your-anon-key
+   VITE_DEMO_MODE=true
+   ```
+
+3. Run local development server:
    ```bash
    npm run dev
    ```
+   The local Vite dev server includes an embedded `/api/chat` serverless middleware so the AI assistant functions locally without 404s.
 
-4. **Access the application**:
-   Open [http://localhost:5173](http://localhost:5173) in your browser.
-
----
-
-## 🔑 Demo Access Personas
-
-The application includes built-in demo personas for evaluator sessions:
-
-| Role | Demo Name | Institutional Email | Key Workflows |
-|---|---|---|---|
-| **CHW** | Sunita Patil | `sunita.patil@communityhealth.org` | Screening, vitals entry, ThinkLets counselling, offline sync |
-| **Doctor** | Dr. Ananya Roy (M.D.) | `ananya.roy@districtmed.org` | Referral triage, medication orders, clinical notes |
-| **Patient** | Priya Sharma | `priya.sharma@patienthealth.net` | Health passport, daily med checklist, appointment booking |
-| **Supervisor** | Vikram Singh | `vikram.singh@subdistrictops.org` | Population risk analytics, CHW coverage, CSV reporting |
-| **Admin** | Admin Operations | `admin.lead@healthsystem.gov` | Facility registry, scoring model lab, FHIR R4 bundle export |
-
----
-
-## 🧪 Quality Gates & Testing
-
-Run automated tests and quality checks:
-
-```bash
-# Run unit tests (Vitest: auth, sync, speech, translations, CDSS)
-npm test
-
-# Run ESLint check
-npm run lint
-
-# Build production bundle and generate PWA service worker
-npm run build
-```
-
----
-
-## 🔒 Storage Security & Cryptography (DPDP Act 2023)
-
-### Client-Side Encryption at Rest (AES-GCM 256-bit)
-To protect sensitive patient information on shared frontline devices in accordance with India's Digital Personal Data Protection (DPDP) Act 2023, data stored locally in Dexie IndexedDB is segmented:
-
-- **Key Derivation**: The 256-bit AES-GCM symmetric key is dynamically derived using **PBKDF2** (100,000 iterations of SHA-256 with a static application salt `CHW_HEALTHCARE_ENCRYPTION_SALT_v1`) from a session-scoped user credential / PIN. Key material is kept strictly in volatile memory during the active session.
-- **Encrypted Fields in IndexedDB**:
-  - `phone`: Mobile contact number
-  - `address`: Village street and residential address
-  - Encrypted payloads are stored as serialized IV + ciphertext tuples (`{"__enc":true,"iv":[...],"data":[...]}`).
-- **Plaintext Fields in IndexedDB**:
-  - `id`, `legacy_id`: UUIDs and legacy reference IDs
-  - `name`: Display name required for fast offline search
-  - `age`, `gender`, `village`: Demographic parameters required for offline cohort filtering
-  - `created_by`, `assigned_chw`: User ownership identifiers for RLS-compatible local scoping
-  - `risk_tier`, `sync_status`, `updated_at`: Operational indexing properties used by Dexie queries and the background sync outbox.
-
----
-
-## 🎙️ Speech Recognition (STT) & Synthesis (TTS) Notes
-
-1. **Speech-to-Text (Voice Input)**:
-   - Uses the browser's native `webkitSpeechRecognition` / `SpeechRecognition` API.
-   - **Internet Connectivity Requirement**: In Google Chrome and Android WebView, speech-to-text relies on Google's cloud transcription service and **requires an active internet connection**. In offline mode, the app gracefully prompts the CHW to enter vitals via standard keypad input.
-2. **Text-to-Speech (Audio ThinkLets & Advice)**:
-   - Uses `window.speechSynthesis` with BCP 47 language tags (`kn-IN`, `hi-IN`, `mr-IN`, `en-IN`).
-   - **Device Voice Dependency**: Synthesized playback depends entirely on the voice models installed in the host operating system (Android TTS, Windows Speech, or iOS).
-   - If a regional voice (such as Kannada or Marathi) is not installed on the user's phone, the toolkit displays a clear warning toast:
-     > *"Notice: No native Kannada (ಕನ್ನಡ) / Marathi (मराठी) TTS voice installed on this device. Install regional speech in system settings for best audio."*
-
----
-
-## 🌐 Offline PWA & Self-Hosted Typography
-
-- **Self-Hosted Regional Fonts**: Rather than relying on external CDNs like Google Fonts when offline in rural Karnataka and Maharashtra, the application self-hosts **Noto Sans Kannada** and **Noto Sans Devanagari** via `@fontsource`. All `.woff2` font files are pre-cached in CacheStorage on first load by Workbox.
-- **PWA Manifest & Icons**: Includes standard 192×192 and 512×512 PNG assets as well as SVG and maskable icons.
-
-
----
-
-## 📄 License
-
-This project is released under the **MIT License**.
+4. Run test suite & linter:
+   ```bash
+   npm test
+   npm run lint
+   npm run build
+   ```

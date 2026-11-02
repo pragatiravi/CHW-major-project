@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Heart, 
   Lock, 
@@ -13,9 +13,17 @@ import {
   CheckCircle2,
   KeyRound,
   UserPlus,
-  LogIn
+  LogIn,
+  AlertTriangle,
+  Clock,
+  FlaskConical
 } from 'lucide-react';
-import { DEMO_CREDENTIALS, signUpWithCredentials } from '../../lib/auth';
+import { 
+  isDemoModeActive, 
+  getAvailableDemoCredentials, 
+  signUpWithCredentials 
+} from '../../lib/auth';
+import { getLockoutStatus } from '../../lib/authRateLimiter';
 
 export default function SignInPage({
   onAuthenticate,
@@ -23,89 +31,111 @@ export default function SignInPage({
   onBackToLanding,
   initialRole = 'chw',
 }) {
+  const isDemo = isDemoModeActive();
+  const demoAccountsMap = getAvailableDemoCredentials();
+  const initialCreds = isDemo && demoAccountsMap[initialRole] ? demoAccountsMap[initialRole] : { email: '', password: '' };
+
   const [mode, setMode] = useState('signin'); // 'signin' | 'signup' | 'forgot'
-  const initialCreds = DEMO_CREDENTIALS[initialRole] || DEMO_CREDENTIALS.chw;
-  const [email, setEmail] = useState(initialCreds.email);
-  const [password, setPassword] = useState(initialCreds.password);
+  const [accountType, setAccountType] = useState('staff'); // 'staff' | 'patient'
+  const [selectedStaffRole, setSelectedStaffRole] = useState('chw');
+  const [email, setEmail] = useState(initialCreds.email || '');
+  const [password, setPassword] = useState(initialCreds.password || '');
   const [fullName, setFullName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [village, setVillage] = useState('');
   const [languagePref, setLanguagePref] = useState('en');
   const [authError, setAuthError] = useState('');
   const [authSuccess, setAuthSuccess] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [lockoutSeconds, setLockoutSeconds] = useState(() => {
+    const status = getLockoutStatus(initialCreds.email || '');
+    return status.isLocked ? status.remainingSeconds : 0;
+  });
 
-  const demoAccounts = [
+  // Live countdown timer for brute force lockout
+  useEffect(() => {
+    if (lockoutSeconds <= 0) return;
+    const interval = setInterval(() => {
+      setLockoutSeconds(prev => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          setAuthError('');
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [lockoutSeconds]);
+
+  const demoAccounts = isDemo ? [
     {
       role: 'chw',
       name: 'Sunita Patil',
       title: 'Community Health Worker (CHW)',
-      email: DEMO_CREDENTIALS.chw.email,
-      password: DEMO_CREDENTIALS.chw.password,
+      email: demoAccountsMap.chw?.email || '',
+      password: demoAccountsMap.chw?.password || '',
       icon: User,
       color: 'text-sky-600',
-      bgColor: 'bg-sky-50',
-      borderHover: 'hover:border-sky-400',
       desc: 'Field screening, vitals recording & ThinkLets counselling'
     },
     {
       role: 'doctor',
       name: 'Dr. Ananya Roy (M.D.)',
       title: 'Medical Officer / Clinician',
-      email: DEMO_CREDENTIALS.doctor.email,
-      password: DEMO_CREDENTIALS.doctor.password,
+      email: demoAccountsMap.doctor?.email || '',
+      password: demoAccountsMap.doctor?.password || '',
       icon: Stethoscope,
       color: 'text-indigo-600',
-      bgColor: 'bg-indigo-50',
-      borderHover: 'hover:border-indigo-400',
       desc: 'Hospital referral triage queue review & clinical orders'
     },
     {
       role: 'supervisor',
       name: 'Vikram Singh',
       title: 'Health Program Supervisor',
-      email: DEMO_CREDENTIALS.supervisor.email,
-      password: DEMO_CREDENTIALS.supervisor.password,
+      email: demoAccountsMap.supervisor?.email || '',
+      password: demoAccountsMap.supervisor?.password || '',
       icon: Activity,
       color: 'text-amber-600',
-      bgColor: 'bg-amber-50',
-      borderHover: 'hover:border-amber-400',
       desc: 'Population risk analytics, CHW field coverage & staff approvals'
     },
     {
       role: 'admin',
       name: 'Admin Operations',
       title: 'System Administrator',
-      email: DEMO_CREDENTIALS.admin.email,
-      password: DEMO_CREDENTIALS.admin.password,
+      email: demoAccountsMap.admin?.email || '',
+      password: demoAccountsMap.admin?.password || '',
       icon: Settings,
       color: 'text-purple-600',
-      bgColor: 'bg-purple-50',
-      borderHover: 'hover:border-purple-400',
       desc: 'Facility registry, role management & HL7 FHIR R4 export'
     },
     {
       role: 'patient',
       name: 'Priya Sharma',
       title: 'Patient & Family Portal',
-      email: DEMO_CREDENTIALS.patient.email,
-      password: DEMO_CREDENTIALS.patient.password,
+      email: demoAccountsMap.patient?.email || '',
+      password: demoAccountsMap.patient?.password || '',
       icon: UserCheck,
       color: 'text-emerald-600',
-      bgColor: 'bg-emerald-50',
-      borderHover: 'hover:border-emerald-400',
       desc: 'Bilingual health passport & daily medication tracking'
     }
-  ];
+  ] : [];
 
   const handleFillDemoCredentials = (account) => {
+    if (!isDemo) return;
     setEmail(account.email);
     setPassword(account.password);
     setMode('signin');
     setAuthError('');
+    const status = getLockoutStatus(account.email);
+    setLockoutSeconds(status.isLocked ? status.remainingSeconds : 0);
     setAuthSuccess(`Loaded demo credentials for ${account.name}. Click "Sign In" below to authenticate.`);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (lockoutSeconds > 0) return;
+
     setAuthError('');
     setAuthSuccess('');
     setIsSubmitting(true);
@@ -114,32 +144,42 @@ export default function SignInPage({
       if (mode === 'forgot') {
         const sent = await onResetPassword(email);
         if (sent) {
-          setAuthSuccess('Password reset link sent! Please check your email inbox.');
+          setAuthSuccess('Password recovery email dispatched. Please check your inbox.');
         } else {
-          setAuthError('Could not send reset link. Please verify your email format.');
+          setAuthError('Could not send reset instructions. Please verify your email format.');
         }
         return;
       }
 
       if (mode === 'signup') {
+        const targetRole = accountType === 'patient' ? 'patient' : selectedStaffRole;
         const result = await signUpWithCredentials({
           email: email.trim().toLowerCase(),
           password,
           fullName: fullName.trim() || email.split('@')[0],
-          languagePref
+          role: targetRole,
+          languagePref,
+          phone: phone.trim(),
+          village: village.trim()
         });
-        setAuthSuccess(result.message || 'Registration submitted! Your account is pending supervisor approval.');
+
+        setAuthSuccess(result.message || 'Registration submitted! Staff accounts require supervisor approval.');
         setMode('signin');
         return;
       }
 
-      // Standard real authentication
+      // Standard authentication
       await onAuthenticate({
         email: email.trim().toLowerCase(),
         password,
       });
     } catch (error) {
-      setAuthError(error.message || 'Authentication failed. Please check your credentials.');
+      setAuthError(error.message || 'Authentication failed. Please verify your credentials.');
+      // Update lockout state
+      const status = getLockoutStatus(email);
+      if (status.isLocked) {
+        setLockoutSeconds(status.remainingSeconds);
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -148,6 +188,7 @@ export default function SignInPage({
   return (
     <div className="signin-page-wrapper">
       <a className="skip-link" href="#main-content">Skip to sign-in form</a>
+
       {/* Top Header Bar */}
       <header className="signin-topbar">
         <button 
@@ -161,6 +202,15 @@ export default function SignInPage({
             <Heart className="text-sky-600" size={18} />
           </div>
           <span className="font-bold text-slate-800 text-sm">CHW Healthcare Toolkit</span>
+          {isDemo ? (
+            <span className="badge badge-warning text-3xs font-mono font-bold flex items-center gap-1">
+              <FlaskConical size={11} /> DEMO MODE
+            </span>
+          ) : (
+            <span className="badge badge-success text-3xs font-mono font-bold flex items-center gap-1">
+              <ShieldCheck size={11} /> PRODUCTION AUTH
+            </span>
+          )}
         </div>
       </header>
 
@@ -198,35 +248,40 @@ export default function SignInPage({
               <div className="highlight-item">
                 <CheckCircle2 size={18} className="text-emerald-600 flex-shrink-0" />
                 <div>
-                  <strong>Longitudinal Encounters</strong>
-                  <p className="text-2xs text-slate-500">Every screening persists a new visit row with complete vital trends over time.</p>
+                  <strong>Brute-Force Attack Prevention</strong>
+                  <p className="text-2xs text-slate-500">Automated lockouts after 5 consecutive failures protect rural accounts from credential stuffing.</p>
                 </div>
               </div>
             </div>
 
-            {/* Quick Demo Pre-Fill Selector */}
-            <div className="mt-6 pt-5 border-t border-slate-200">
-              <span className="metric-label text-3xs text-slate-400 block mb-2">Evaluator Demo Credential Helper</span>
-              <div className="grid grid-cols-1 gap-2">
-                {demoAccounts.map(account => (
-                  <button
-                    key={account.role}
-                    type="button"
-                    className="p-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 flex items-center justify-between text-left text-xs transition-all"
-                    onClick={() => handleFillDemoCredentials(account)}
-                  >
-                    <div className="flex items-center gap-2">
-                      <account.icon size={14} className={account.color} />
-                      <div>
-                        <strong className="text-slate-900 block text-2xs">{account.name} ({account.title.split(' ')[0]})</strong>
-                        <span className="text-3xs text-slate-400 font-mono">{account.email}</span>
+            {/* Quick Demo Pre-Fill Selector (Visible ONLY when VITE_DEMO_MODE=true) */}
+            {isDemo && demoAccounts.length > 0 && (
+              <div className="mt-6 pt-5 border-t border-slate-200">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="metric-label text-3xs text-slate-500 block">Evaluator Demo Accounts</span>
+                  <span className="badge badge-warning text-3xs font-mono">VITE_DEMO_MODE=true</span>
+                </div>
+                <div className="grid grid-cols-1 gap-2">
+                  {demoAccounts.map(account => (
+                    <button
+                      key={account.role}
+                      type="button"
+                      className="p-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 flex items-center justify-between text-left text-xs transition-all"
+                      onClick={() => handleFillDemoCredentials(account)}
+                    >
+                      <div className="flex items-center gap-2">
+                        <account.icon size={14} className={account.color} />
+                        <div>
+                          <strong className="text-slate-900 block text-2xs">{account.name} ({account.title.split(' ')[0]})</strong>
+                          <span className="text-3xs text-slate-400 font-mono">{account.email}</span>
+                        </div>
                       </div>
-                    </div>
-                    <span className="badge badge-neutral text-3xs font-mono">Fill Form</span>
-                  </button>
-                ))}
+                      <span className="badge badge-neutral text-3xs font-mono">Fill Form</span>
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
 
@@ -237,19 +292,19 @@ export default function SignInPage({
               <div className="flex justify-between items-center mb-3">
                 <div className="auth-badge">
                   <ShieldCheck size={14} className="text-sky-600" aria-hidden="true" />
-                  <span>{mode === 'signup' ? 'Staff Self-Registration' : 'Institutional Credentials'}</span>
+                  <span>{mode === 'signup' ? 'New Account Registration' : 'Verified Credentials'}</span>
                 </div>
                 <div className="flex gap-2">
                   <button
                     type="button"
-                    className={`text-xs font-semibold px-2 py-1 rounded ${mode === 'signin' ? 'bg-sky-100 text-sky-800' : 'text-slate-500 hover:text-slate-900'}`}
+                    className={`text-xs font-semibold px-2.5 py-1 rounded transition-colors ${mode === 'signin' ? 'bg-sky-100 text-sky-800' : 'text-slate-500 hover:text-slate-900'}`}
                     onClick={() => { setMode('signin'); setAuthError(''); setAuthSuccess(''); }}
                   >
                     Sign In
                   </button>
                   <button
                     type="button"
-                    className={`text-xs font-semibold px-2 py-1 rounded ${mode === 'signup' ? 'bg-sky-100 text-sky-800' : 'text-slate-500 hover:text-slate-900'}`}
+                    className={`text-xs font-semibold px-2.5 py-1 rounded transition-colors ${mode === 'signup' ? 'bg-sky-100 text-sky-800' : 'text-slate-500 hover:text-slate-900'}`}
                     onClick={() => { setMode('signup'); setAuthError(''); setAuthSuccess(''); }}
                   >
                     Register
@@ -258,20 +313,31 @@ export default function SignInPage({
               </div>
 
               <h3 className="text-xl font-bold text-slate-900">
-                {mode === 'signup' ? 'Create Frontline Staff Account' : (mode === 'forgot' ? 'Reset Account Password' : 'Sign In to Workspace')}
+                {mode === 'signup' ? 'Create Health Platform Account' : (mode === 'forgot' ? 'Reset Account Password' : 'Sign In to Workspace')}
               </h3>
               <p className="text-xs text-slate-500 mt-1">
                 {mode === 'signup'
-                  ? 'Sign up for community health screening access. Accounts require supervisor approval.'
+                  ? 'Frontline staff accounts require supervisor approval. Patient self-registrations activate immediately.'
                   : (mode === 'forgot'
                     ? 'Enter your registered email address to receive password recovery instructions.'
-                    : 'Enter your verified institutional email and password to continue.')}
+                    : 'Enter your institutional email address and password to continue.')}
               </p>
             </div>
 
+            {/* Lockout Warning Banner */}
+            {lockoutSeconds > 0 && (
+              <div className="p-3 my-3 rounded-lg bg-amber-50 border border-amber-300 text-amber-900 text-xs flex items-center gap-2 font-medium">
+                <Clock size={16} className="text-amber-700 animate-pulse flex-shrink-0" />
+                <span>Account temporarily locked due to failed attempts. Please wait <strong>{lockoutSeconds}s</strong>.</span>
+              </div>
+            )}
+
             {authError && (
               <div className="p-3 my-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-start gap-2">
-                <span className="font-bold">Error:</span> {authError}
+                <AlertTriangle size={15} className="text-rose-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <span className="font-bold">Error:</span> {authError}
+                </div>
               </div>
             )}
 
@@ -282,10 +348,52 @@ export default function SignInPage({
               </div>
             )}
 
-            <form onSubmit={handleSubmit} className="signin-form space-y-3.5 mt-4">
+            <form onSubmit={handleSubmit} className="signin-form space-y-3 mt-4">
+              {/* Account Type Selector for Registration */}
+              {mode === 'signup' && (
+                <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200 space-y-2">
+                  <label className="text-2xs font-bold text-slate-700 uppercase tracking-wider block">Account Type</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      className={`py-1.5 px-2 text-xs font-semibold rounded border text-center transition-all ${accountType === 'staff' ? 'bg-sky-600 text-white border-sky-600' : 'bg-white text-slate-700 border-slate-300'}`}
+                      onClick={() => setAccountType('staff')}
+                    >
+                      Frontline Staff
+                    </button>
+                    <button
+                      type="button"
+                      className={`py-1.5 px-2 text-xs font-semibold rounded border text-center transition-all ${accountType === 'patient' ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-slate-700 border-slate-300'}`}
+                      onClick={() => setAccountType('patient')}
+                    >
+                      Patient / Family
+                    </button>
+                  </div>
+
+                  {accountType === 'staff' ? (
+                    <div className="mt-2">
+                      <label className="text-2xs text-slate-500 block mb-1">Target Healthcare Role (Approval Required)</label>
+                      <select
+                        value={selectedStaffRole}
+                        onChange={(e) => setSelectedStaffRole(e.target.value)}
+                        className="form-input text-xs w-full"
+                      >
+                        <option value="chw">Community Health Worker (ASHA)</option>
+                        <option value="doctor">Medical Officer (PHC Clinician)</option>
+                        <option value="supervisor">Health Program Supervisor</option>
+                      </select>
+                    </div>
+                  ) : (
+                    <p className="text-3xs text-emerald-700 font-medium">
+                      ✓ Instant access to bilingual Health Passport and medication schedule upon registration.
+                    </p>
+                  )}
+                </div>
+              )}
+
               {mode === 'signup' && (
                 <div className="form-group">
-                  <label className="form-label" htmlFor="signup-name">Full Legal Name *</label>
+                  <label className="form-label" htmlFor="signup-name">Full Name *</label>
                   <div className="input-with-icon">
                     <User size={16} className="input-icon" />
                     <input 
@@ -293,7 +401,7 @@ export default function SignInPage({
                       type="text" 
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
-                      placeholder="e.g. Geeta Kulkarni"
+                      placeholder={accountType === 'patient' ? "e.g. Priya Sharma" : "e.g. Sunita Patil"}
                       className="form-input text-xs pl-9"
                       required
                     />
@@ -302,15 +410,21 @@ export default function SignInPage({
               )}
 
               <div className="form-group">
-                <label className="form-label" htmlFor="signin-email">Institutional Email Address *</label>
+                <label className="form-label" htmlFor="signin-email">Email Address *</label>
                 <div className="input-with-icon">
                   <Mail size={16} className="input-icon" />
                   <input 
                     id="signin-email"
                     type="email" 
                     value={email}
-                    onChange={(e) => { setEmail(e.target.value); setAuthError(''); }}
-                    placeholder="e.g. staff.id@communityhealth.org"
+                    onChange={(e) => { 
+                      const newEmail = e.target.value;
+                      setEmail(newEmail); 
+                      setAuthError(''); 
+                      const status = getLockoutStatus(newEmail);
+                      setLockoutSeconds(status.isLocked ? status.remainingSeconds : 0);
+                    }}
+                    placeholder={mode === 'signup' && accountType === 'patient' ? "patient@example.com" : "staff@communityhealth.org"}
                     className="form-input text-xs pl-9"
                     required
                     autoComplete="username"
@@ -349,6 +463,33 @@ export default function SignInPage({
               )}
 
               {mode === 'signup' && (
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="form-group">
+                    <label className="form-label" htmlFor="signup-phone">Mobile Phone</label>
+                    <input
+                      id="signup-phone"
+                      type="tel"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      placeholder="+91 9876543210"
+                      className="form-input text-xs"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label" htmlFor="signup-village">Village / Ward</label>
+                    <input
+                      id="signup-village"
+                      type="text"
+                      value={village}
+                      onChange={(e) => setVillage(e.target.value)}
+                      placeholder="e.g. Vimanapura"
+                      className="form-input text-xs"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {mode === 'signup' && (
                 <div className="form-group">
                   <label className="form-label" htmlFor="signup-lang">Preferred Regional Language</label>
                   <select
@@ -368,12 +509,17 @@ export default function SignInPage({
               <button 
                 type="submit" 
                 className="btn btn-primary text-xs w-full justify-center font-bold mt-2 py-2.5"
-                disabled={isSubmitting}
+                disabled={isSubmitting || lockoutSeconds > 0}
               >
                 {isSubmitting ? (
-                  <span>Connecting to secure auth...</span>
+                  <span>Authenticating...</span>
+                ) : lockoutSeconds > 0 ? (
+                  <span>Locked ({lockoutSeconds}s)</span>
                 ) : mode === 'signup' ? (
-                  <span className="flex items-center gap-1.5"><UserPlus size={15} /> Submit Registration</span>
+                  <span className="flex items-center gap-1.5">
+                    <UserPlus size={15} /> 
+                    {accountType === 'patient' ? 'Complete Patient Registration' : 'Submit Staff Registration'}
+                  </span>
                 ) : mode === 'forgot' ? (
                   <span className="flex items-center gap-1.5"><KeyRound size={15} /> Send Recovery Instructions</span>
                 ) : (

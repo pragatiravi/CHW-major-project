@@ -34,6 +34,7 @@ import {
 import { useLanguage } from '../shared/LanguageContext';
 import { subscribeSyncStatus, executeSync } from '../../lib/sync/syncEngine';
 import { subscribeToInstallPrompt, promptPWAInstall } from '../../registerServiceWorker';
+import { isSupabaseConfigured } from '../../lib/supabaseClient';
 
 export default function AppShell({
   children,
@@ -259,15 +260,24 @@ export default function AppShell({
               <AlertCircle size={14} />
               <span>Sync Issue ({syncState.pendingCount})</span>
             </button>
+          ) : !isSupabaseConfigured ? (
+            <button 
+              type="button"
+              className="shell-connectivity-badge offline"
+              title="Running in Local-Only Mode (IndexedDB on tablet). No remote cloud database configured."
+            >
+              <Database size={14} />
+              <span>Local-Only Mode</span>
+            </button>
           ) : (
             <button 
               type="button"
               className="shell-connectivity-badge online"
               onClick={toggleOffline}
-              title={syncState.lastSyncedAt ? `Last synced: ${new Date(syncState.lastSyncedAt).toLocaleTimeString()}` : 'Cloud Synchronized. Click to toggle offline mode.'}
+              title={syncState.lastSyncedAt ? `Cloud Connected. Last synced: ${new Date(syncState.lastSyncedAt).toLocaleTimeString()}` : 'Cloud Connected (Live Sync). Click to simulate offline mode.'}
             >
               <Wifi size={14} />
-              <span>{syncState.pendingCount > 0 ? `${syncState.pendingCount} Pending` : 'Cloud Synced'}</span>
+              <span>{syncState.pendingCount > 0 ? `${syncState.pendingCount} Pending` : 'Cloud Connected'}</span>
             </button>
           )}
 
@@ -444,6 +454,28 @@ export default function AppShell({
               );
             })}
           </nav>
+
+          {/* Dedicated User Profile & Sign Out Footer (Guarantees Sign Out is accessible on Mobile < 900px) */}
+          <div className="p-3 mt-auto border-t border-slate-200 bg-slate-50/60">
+            <div className="flex items-center gap-2.5 mb-2.5">
+              <div className="shell-avatar" style={{ width: 32, height: 32, fontSize: '0.8rem' }}>
+                {currentUser?.name ? currentUser.name.charAt(0) : 'U'}
+              </div>
+              <div className="flex-1 min-w-0">
+                <strong className="text-xs text-slate-900 block truncate">{currentUser?.name || 'Staff User'}</strong>
+                <span className="text-3xs text-slate-500 font-mono block truncate">{currentUser?.email || ''}</span>
+              </div>
+            </div>
+            <button 
+              type="button"
+              className="btn btn-danger-outline text-xs w-full py-2 flex items-center justify-center gap-1.5"
+              onClick={onLogout}
+              title="Sign Out of Session"
+            >
+              <LogOut size={14} />
+              <span>{t('signOut')}</span>
+            </button>
+          </div>
         </aside>
 
         {/* MAIN WORKSPACE CONTENT */}

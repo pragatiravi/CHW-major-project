@@ -63,7 +63,7 @@ async function pushQueueItem(item) {
   } else if (entity === 'visits') {
     const { error } = await supabase
       .from('visits')
-      .insert([payload]);
+      .upsert([payload], { onConflict: 'id' });
     if (error) throw new Error(error.message);
   } else if (entity === 'referrals') {
     const { error } = await supabase
@@ -78,7 +78,7 @@ async function pushQueueItem(item) {
   } else if (entity === 'counselling_sessions') {
     const { error } = await supabase
       .from('counselling_sessions')
-      .insert([payload]);
+      .upsert([payload], { onConflict: 'id' });
     if (error) throw new Error(error.message);
   }
 }

@@ -197,7 +197,7 @@ export default function OfflineSyncQueueModal({
 
                       <div className="grid grid-cols-2 gap-2 text-2xs">
                         <div className="p-2 bg-slate-50 rounded border border-slate-200">
-                          <strong className="text-sky-700 block mb-1">Local Version (Handheld)</strong>
+                          <strong className="text-sky-700 block mb-1">Your Tablet Record (Field)</strong>
                           <div className="text-slate-600 font-mono">
                             Name: {local.name || 'N/A'}<br/>
                             BP: {local.systolic || '-'}/{local.diastolic || '-'} mmHg<br/>
@@ -207,7 +207,7 @@ export default function OfflineSyncQueueModal({
                         </div>
 
                         <div className="p-2 bg-slate-50 rounded border border-slate-200">
-                          <strong className="text-indigo-700 block mb-1">Remote Version (Clinic Cloud)</strong>
+                          <strong className="text-indigo-700 block mb-1">Hospital Server Record (Clinic Cloud)</strong>
                           <div className="text-slate-600 font-mono">
                             Name: {remote.name || 'N/A'}<br/>
                             BP: {remote.systolic || '-'}/{remote.diastolic || '-'} mmHg<br/>
@@ -222,13 +222,13 @@ export default function OfflineSyncQueueModal({
                           className="btn btn-secondary text-2xs py-1 px-2.5 font-bold text-sky-700"
                           onClick={() => handleResolveConflict(conflict.id, 'local')}
                         >
-                          <Check size={12} /> Keep Local
+                          <Check size={12} /> Keep Tablet Record
                         </button>
                         <button 
                           className="btn btn-primary text-2xs py-1 px-2.5 font-bold"
                           onClick={() => handleResolveConflict(conflict.id, 'remote')}
                         >
-                          <ArrowRight size={12} /> Accept Remote
+                          <ArrowRight size={12} /> Accept Hospital Record
                         </button>
                       </div>
                     </div>

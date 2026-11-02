@@ -2,6 +2,7 @@ import { useState, useEffect, lazy, Suspense } from 'react';
 import LandingPage from './components/public/LandingPage';
 import SignInPage from './components/auth/SignInPage';
 import AppShell from './components/layout/AppShell';
+import RoleGuard from './components/auth/RoleGuard';
 
 // Route-Based Code Splitting: CHWs on rural 3G do not download monolithic Doctor/Supervisor/Admin code
 const CHWPortal = lazy(() => import('./components/chw/CHWPortal'));
@@ -603,63 +604,73 @@ function AppContent() {
       {/* Role-Based Portal Routing with Suspense Code Splitting */}
       <Suspense fallback={<PortalFallback />}>
         {userRole === 'chw' && (
-          <CHWPortal 
-            patients={patients}
-            onSavePatient={handleSavePatient}
-            onDeletePatient={handleDeletePatient}
-            onUpdatePatientMedicines={handleUpdatePatientMedicines}
-            onAddReport={handleAddReport}
-            onSaveCounsellingSession={handleSaveCounsellingSession}
-            onSaveReferral={handleSaveReferral}
-            isOffline={isOffline}
-            toggleOffline={() => setIsOffline(!isOffline)}
-            offlineQueue={offlineQueue}
-            syncLogs={syncLogs}
-            onSyncOfflineData={handleSyncOfflineData}
-            onRestoreBackup={handleRestoreBackup}
-            userRole={userRole}
-            globalSearch={globalSearch}
-            activeSection={activeNavSection}
-            currentUser={currentUser}
-          />
+          <RoleGuard currentUser={currentUser} requiredRole="chw" onRedirect={(r) => setUserRole(r)}>
+            <CHWPortal 
+              patients={patients}
+              onSavePatient={handleSavePatient}
+              onDeletePatient={handleDeletePatient}
+              onUpdatePatientMedicines={handleUpdatePatientMedicines}
+              onAddReport={handleAddReport}
+              onSaveCounsellingSession={handleSaveCounsellingSession}
+              onSaveReferral={handleSaveReferral}
+              isOffline={isOffline}
+              toggleOffline={() => setIsOffline(!isOffline)}
+              offlineQueue={offlineQueue}
+              syncLogs={syncLogs}
+              onSyncOfflineData={handleSyncOfflineData}
+              onRestoreBackup={handleRestoreBackup}
+              userRole={userRole}
+              globalSearch={globalSearch}
+              activeSection={activeNavSection}
+              currentUser={currentUser}
+            />
+          </RoleGuard>
         )}
 
         {userRole === 'patient' && (
-          <PatientPortal 
-            patients={patients} 
-            onSavePatient={handleSavePatient} 
-            activeSection={activeNavSection}
-          />
+          <RoleGuard currentUser={currentUser} requiredRole="patient" onRedirect={(r) => setUserRole(r)}>
+            <PatientPortal 
+              patients={patients} 
+              onSavePatient={handleSavePatient} 
+              activeSection={activeNavSection}
+            />
+          </RoleGuard>
         )}
 
         {userRole === 'doctor' && (
-          <DoctorPortal 
-            patients={patients}
-            onApproveReferral={handleApproveReferral}
-            onRejectReferral={handleRejectReferral}
-            onUpdatePatientMedicines={handleUpdatePatientMedicines}
-            onAddReport={handleAddReport}
-            onSaveReferral={handleSaveReferral}
-            activeSection={activeNavSection}
-            isLoading={false}
-          />
+          <RoleGuard currentUser={currentUser} requiredRole="doctor" onRedirect={(r) => setUserRole(r)}>
+            <DoctorPortal 
+              patients={patients}
+              onApproveReferral={handleApproveReferral}
+              onRejectReferral={handleRejectReferral}
+              onUpdatePatientMedicines={handleUpdatePatientMedicines}
+              onAddReport={handleAddReport}
+              onSaveReferral={handleSaveReferral}
+              activeSection={activeNavSection}
+              isLoading={false}
+            />
+          </RoleGuard>
         )}
 
         {userRole === 'supervisor' && (
-          <SupervisorDashboard 
-            patients={patients}
-            chwList={chwList}
-            syncLogs={syncLogs}
-            activeSection={activeNavSection}
-          />
+          <RoleGuard currentUser={currentUser} requiredRole="supervisor" onRedirect={(r) => setUserRole(r)}>
+            <SupervisorDashboard 
+              patients={patients}
+              chwList={chwList}
+              syncLogs={syncLogs}
+              activeSection={activeNavSection}
+            />
+          </RoleGuard>
         )}
 
         {userRole === 'admin' && (
-          <AdminPortal 
-            auditLogs={auditLogs} 
-            patients={patients} 
-            activeSection={activeNavSection}
-          />
+          <RoleGuard currentUser={currentUser} requiredRole="admin" onRedirect={(r) => setUserRole(r)}>
+            <AdminPortal 
+              auditLogs={auditLogs} 
+              patients={patients} 
+              activeSection={activeNavSection}
+            />
+          </RoleGuard>
         )}
       </Suspense>
 

@@ -135,3 +135,79 @@ describe('Chat Interaction Logging with Consent', () => {
     expect(result.logged).toBe(true);
   });
 });
+
+describe('Phase 3: 30-Item Clinical AI & Triage Evaluation Benchmark', () => {
+  const EMERGENCY_BENCHMARK = [
+    { id: 'E01', q: 'Severe crushing chest pain spreading to my left shoulder and arm', lang: 'en', cat: 'cardiac' },
+    { id: 'E02', q: 'ನನ್ನ ತಂದೆಗೆ ಎದೆಯಲ್ಲಿ ತುಂಬಾ ನೋವು ಮತ್ತು ಉರಿ ಬರುತ್ತಿದೆ', lang: 'kn', cat: 'cardiac' },
+    { id: 'E03', q: 'मरीज के सीने में तेज दर्द है और भारीपन लग रहा है', lang: 'hi', cat: 'cardiac' },
+    { id: 'E04', q: 'माझ्या छातीत तीव्र वेदना आणि जडपणा जाणवत आहे', lang: 'mr', cat: 'cardiac' },
+    { id: 'E05', q: 'The patient cannot breathe, gasping for air and choking', lang: 'en', cat: 'respiratory' },
+    { id: 'E06', q: 'ರೋಗಿಗೆ ಉಸಿರಾಟದ ತೊಂದರೆ ತುಂಬಾ ಜಾಸ್ತಿಯಾಗಿದೆ ಉಸಿರು ಕಟ್ಟುವುದು', lang: 'kn', cat: 'respiratory' },
+    { id: 'E07', q: 'अचानक चेहरा टेढ़ा हो गया और हाथ-पैर सुन्न होकर लकवा मार गया', lang: 'hi', cat: 'stroke' },
+    { id: 'E08', q: 'रुग्णाचे तोंड वाकडे झाले आहे आणि अर्धांगवायूची लक्षणे दिसत आहेत', lang: 'mr', cat: 'stroke' },
+    { id: 'E09', q: 'Patient blood pressure reading is 220/130 mmHg on digital cuff', lang: 'en', cat: 'critical_vitals' },
+    { id: 'E10', q: 'रक्त में शुगर 480 mg/dL आ रहा है', lang: 'hi', cat: 'critical_vitals' }
+  ];
+
+  const CLINICAL_NCD_BENCHMARK = [
+    { id: 'C01', q: 'What is the normal fasting blood glucose range?', lang: 'en', expectedTopic: 'diabetes_ranges' },
+    { id: 'C02', q: 'salt intake hypertension', lang: 'en', expectedTopic: 'hypertension_lifestyle' },
+    { id: 'C03', q: 'low sugar symptoms 15 rule', lang: 'en', expectedTopic: 'hypoglycemia' },
+    { id: 'C04', q: 'millet for diabetes diet', lang: 'en', expectedTopic: 'diabetes_diet' },
+    { id: 'C05', q: 'stop bp medicine when normal', lang: 'en', expectedTopic: 'medication_adherence' },
+    { id: 'C06', q: 'ಸಾಮಾನ್ಯ ಶುಗರ್ ಲೆವೆಲ್', lang: 'kn', expectedTopic: 'diabetes_ranges' },
+    { id: 'C07', q: 'ಮಧುಮೇಹ ಆಹಾರ ಸಿರಿಧಾನ್ಯ', lang: 'kn', expectedTopic: 'diabetes_diet' },
+    { id: 'C08', q: 'शुगर कम होने पर क्या करें', lang: 'hi', expectedTopic: 'hypoglycemia' },
+    { id: 'C09', q: 'बीपी में नमक कितना खाएं', lang: 'hi', expectedTopic: 'hypertension_lifestyle' },
+    { id: 'C10', q: 'साखर कमी झाल्यावर काय करावे', lang: 'mr', expectedTopic: 'hypoglycemia' }
+  ];
+
+  const OUT_OF_DOMAIN_BENCHMARK = [
+    { id: 'O01', q: 'How do I replace the spark plug on my Hero Honda motorcycle?', lang: 'en' },
+    { id: 'O02', q: 'Who won the Best Actor Oscar award in 2024?', lang: 'en' },
+    { id: 'O03', q: 'How far is planet Mars from Earth in kilometers?', lang: 'en' },
+    { id: 'O04', q: 'ಬೆಳಗಾವಿ ಚಿತ್ರಮಂದಿರದಲ್ಲಿ ಇವತ್ತು ಯಾವ ಹೊಸ ಸಿನಿಮಾ ಬಿಡುಗಡೆ ಆಗಿದೆ?', lang: 'kn' },
+    { id: 'O05', q: 'ಮೈಸೂರು ಪಾಕ್ ಸ್ವೀಟ್ ಮಾಡಲು ಎಷ್ಟು ತುಪ್ಪ ಮತ್ತು ಕಡಲೆ ಹಿಟ್ಟು ಬೇಕು?', lang: 'kn' },
+    { id: 'O06', q: 'कल के भारत और ऑस्ट्रेलिया क्रिकेट मैच का स्कोर क्या रहा?', lang: 'hi' },
+    { id: 'O07', q: 'मेरा स्मार्टफोन पानी में गिर गया, इसे कैसे सुखाएं?', lang: 'hi' },
+    { id: 'O08', q: 'उद्या मुंबई आणि पुण्यामध्ये किती पाऊस पडणार आहे?', lang: 'mr' },
+    { id: 'O09', q: 'शेअर बाजारात आज निफ्टी किती पॉईंट्स वाढला?', lang: 'mr' },
+    { id: 'O10', q: 'Who is the current prime minister of the United Kingdom?', lang: 'en' }
+  ];
+
+  it('correctly triggers emergency triage red flags for all 10 emergency benchmark queries', () => {
+    for (const testItem of EMERGENCY_BENCHMARK) {
+      const result = detectClinicalRedFlag(testItem.q, testItem.lang);
+      expect(result.isRedFlag, `Item ${testItem.id} (${testItem.lang}) must trigger red-flag`).toBe(true);
+      expect(result.category, `Item ${testItem.id} category mismatch`).toBe(testItem.cat);
+      expect(result.alert.action).toContain('108');
+    }
+  });
+
+  it('retrieves accurate verified clinical guidelines for all 10 non-emergency NCD inquiries without false emergency alarms', () => {
+    for (const testItem of CLINICAL_NCD_BENCHMARK) {
+      // Must not trigger emergency red flags
+      const redFlagCheck = detectClinicalRedFlag(testItem.q, testItem.lang);
+      expect(redFlagCheck.isRedFlag, `Item ${testItem.id} must not be flagged as an emergency`).toBe(false);
+
+      // Must retrieve accurate knowledge base advice
+      const retrieval = searchOfflineKnowledgeBase(testItem.q, testItem.lang);
+      expect(retrieval.isFallback, `Item ${testItem.id} should match verified knowledge base`).toBe(false);
+      expect(retrieval.topic).toBe(testItem.expectedTopic);
+      expect(retrieval.confidence).toBeGreaterThan(40);
+    }
+  });
+
+  it('returns polite humble fallback without hallucinating on all 10 out-of-domain inquiries', () => {
+    for (const testItem of OUT_OF_DOMAIN_BENCHMARK) {
+      const redFlagCheck = detectClinicalRedFlag(testItem.q, testItem.lang);
+      expect(redFlagCheck.isRedFlag, `Item ${testItem.id} must not trigger emergency`).toBe(false);
+
+      const retrieval = searchOfflineKnowledgeBase(testItem.q, testItem.lang);
+      expect(retrieval.isFallback, `Item ${testItem.id} must return honest fallback`).toBe(true);
+      expect(retrieval.confidence).toBe(0);
+      expect(retrieval.answer).toBe(OFFLINE_FALLBACK_MESSAGES[testItem.lang]);
+    }
+  });
+});

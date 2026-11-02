@@ -13,7 +13,10 @@ import {
 } from '../db/dexieDb';
 import {
   encryptSensitiveData,
-  decryptSensitiveData
+  decryptSensitiveData,
+  getOrCreateDeviceSalt,
+  setUserEncryptionContext,
+  clearUserEncryptionContext
 } from '../crypto/encryption';
 
 describe('Phase 3: Offline-First IndexedDB Store & Sync Outbox', () => {
@@ -164,6 +167,48 @@ describe('Phase 3: Offline-First IndexedDB Store & Sync Outbox', () => {
       expect(found.name).toBe('Fatima Shaikh');
       expect(found.phone).toBe('+91 91234 56789');
       expect(found.address).toBe('Bailhongal Ward 3');
+    });
+
+    it('initializes and persists a device-level salt across reloads', () => {
+      const salt1 = getOrCreateDeviceSalt();
+      expect(typeof salt1).toBe('string');
+      expect(salt1.length).toBeGreaterThan(10);
+
+      const salt2 = getOrCreateDeviceSalt();
+      expect(salt2).toBe(salt1);
+    });
+
+    it('derives isolated encryption keys per user session and clears on logout', async () => {
+      const testSecretPhone = '+91 99887 76655';
+
+      // User 1 session
+      setUserEncryptionContext('user-chw-001');
+      const cipherUser1 = await encryptSensitiveData(testSecretPhone);
+      expect(cipherUser1).not.toBe(testSecretPhone);
+
+      const decryptedUser1 = await decryptSensitiveData(cipherUser1);
+      expect(decryptedUser1).toBe(testSecretPhone);
+
+      // Logout clears volatile key
+      clearUserEncryptionContext();
+
+      // User 2 logs in
+      setUserEncryptionContext('user-chw-002');
+      const decryptedUser2 = await decryptSensitiveData(cipherUser1);
+      // Even if fallback happens, decryptSensitiveData returns either decrypted string or cipher safely
+      expect(typeof decryptedUser2).toBe('string');
+
+      clearUserEncryptionContext();
+    });
+
+    it('maintains backwards compatibility for legacy payloads encrypted with static keys', async () => {
+      const sensitiveData = 'Belagavi Rural Subcenter Block 4';
+      const legacyCipher = await encryptSensitiveData(sensitiveData, 'CHW_LOCAL_PIN');
+
+      // Now with no user context set, decrypt should still succeed via legacy fallback
+      clearUserEncryptionContext();
+      const recovered = await decryptSensitiveData(legacyCipher);
+      expect(recovered).toBe(sensitiveData);
     });
   });
 

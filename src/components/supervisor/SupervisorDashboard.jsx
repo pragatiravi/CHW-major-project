@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Users, 
   BarChart2, 
@@ -8,12 +8,17 @@ import {
   Printer, 
   CheckCircle2,
   BrainCircuit,
-  Search
+  Search,
+  UserCheck,
+  UserX,
+  Ban,
+  Shield
 } from 'lucide-react';
 import AnalyticsCharts from './AnalyticsCharts';
 import { escapeHTML, exportToCSV, printPDFReport } from '../../utils/pdfExport';
 import { useToast } from '../shared/ToastContainer';
 import PatientDetailModal from '../shared/PatientDetailModal';
+import { fetchAllProfiles, updateProfileRoleAndStatus } from '../../lib/db/profiles';
 
 export default function SupervisorDashboard({ 
   patients = [], 
@@ -21,12 +26,38 @@ export default function SupervisorDashboard({
   syncLogs = [], 
   activeSection = 'overview'
 }) {
-  const { toastSuccess } = useToast();
+  const { toastSuccess, toastError } = useToast();
   const activeTab = activeSection || 'overview';
   const [chartView, setChartView] = useState('risk'); // 'risk' | 'prevalence' | 'age'
   const [filterRisk, setFilterRisk] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [inspectedPatient, setInspectedPatient] = useState(null);
+  const [staffProfiles, setStaffProfiles] = useState([]);
+
+  useEffect(() => {
+    let active = true;
+    fetchAllProfiles()
+      .then(data => {
+        if (active && Array.isArray(data)) {
+          // Filter to CHWs and field staff
+          setStaffProfiles(data.filter(p => p.role === 'chw' || p.role === 'doctor'));
+        }
+      })
+      .catch(err => console.warn('Could not fetch staff profiles:', err));
+    return () => { active = false; };
+  }, [activeTab]);
+
+  const handleUpdateStaffStatus = async (profileId, newStatus) => {
+    const target = staffProfiles.find(p => p.id === profileId);
+    if (!target) return;
+    try {
+      await updateProfileRoleAndStatus(profileId, target.role, newStatus);
+      setStaffProfiles(prev => prev.map(p => p.id === profileId ? { ...p, status: newStatus } : p));
+      toastSuccess(`Staff account for ${target.full_name || 'Worker'} set to ${newStatus}.`);
+    } catch (err) {
+      toastError(`Failed to update staff status: ${err.message || 'Operation failed'}`);
+    }
+  };
 
   const criticalCount = patients.filter(p => (p.evaluation?.overallRiskLevel || p.evaluation?.overall?.riskLevel) === 'Critical').length;
   const highCount = patients.filter(p => (p.evaluation?.overallRiskLevel || p.evaluation?.overall?.riskLevel) === 'High').length;
@@ -195,6 +226,119 @@ export default function SupervisorDashboard({
           <AnalyticsCharts patients={patients} view={chartView} />
         </div>
       </div>
+      )}
+
+      {/* Staff Registration & Approval Queue (Supervisor Verification Gate) */}
+      {activeTab === 'chws' && (
+        <div className="card-box space-y-4">
+          <div className="flex justify-between items-center">
+            <div>
+              <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                <Shield size={18} className="text-amber-600" /> Staff Registration & Access Approvals
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Verify new frontline healthcare worker registrations. Approved accounts can sync field records.
+              </p>
+            </div>
+            <span className="badge badge-warning text-xs font-mono">
+              {staffProfiles.filter(s => s.status === 'pending').length} Pending Approval
+            </span>
+          </div>
+
+          <div className="table-responsive">
+            <table className="custom-table">
+              <thead>
+                <tr>
+                  <th>Staff Member</th>
+                  <th>Assigned Role</th>
+                  <th>Subcenter / Location</th>
+                  <th>Status</th>
+                  <th>Supervisor Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {staffProfiles.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="text-center py-6 text-xs text-slate-400">
+                      No staff registrations found.
+                    </td>
+                  </tr>
+                ) : (
+                  staffProfiles.map(p => (
+                    <tr key={p.id}>
+                      <td>
+                        <strong className="text-xs text-slate-900 block">{p.full_name || 'Staff Member'}</strong>
+                        <span className="text-3xs text-slate-400 font-mono">{p.email}</span>
+                      </td>
+                      <td>
+                        <span className="badge badge-primary uppercase text-3xs font-mono">{p.role}</span>
+                      </td>
+                      <td>
+                        <span className="text-xs text-slate-700">{p.subcenter || 'Primary Subcenter'}</span>
+                      </td>
+                      <td>
+                        {p.status === 'approved' && (
+                          <span className="badge badge-risk-low flex items-center gap-1 w-fit">
+                            <CheckCircle2 size={12} /> Approved
+                          </span>
+                        )}
+                        {p.status === 'pending' && (
+                          <span className="badge badge-risk-high flex items-center gap-1 w-fit">
+                            <Shield size={12} /> Pending Approval
+                          </span>
+                        )}
+                        {p.status === 'suspended' && (
+                          <span className="badge badge-risk-high flex items-center gap-1 w-fit" style={{ background: '#fef3c7', color: '#92400e', borderColor: '#fcd34d' }}>
+                            <Ban size={12} /> Suspended
+                          </span>
+                        )}
+                        {p.status === 'rejected' && (
+                          <span className="badge badge-risk-critical flex items-center gap-1 w-fit">
+                            <UserX size={12} /> Rejected
+                          </span>
+                        )}
+                      </td>
+                      <td>
+                        <div className="flex items-center gap-1.5">
+                          {p.status !== 'approved' && (
+                            <button
+                              type="button"
+                              className="btn btn-primary text-2xs py-1 px-2 flex items-center gap-1"
+                              onClick={() => handleUpdateStaffStatus(p.id, 'approved')}
+                              title="Approve staff account"
+                            >
+                              <UserCheck size={13} /> Approve
+                            </button>
+                          )}
+                          {p.status === 'approved' && (
+                            <button
+                              type="button"
+                              className="btn btn-secondary text-2xs py-1 px-2 flex items-center gap-1"
+                              onClick={() => handleUpdateStaffStatus(p.id, 'suspended')}
+                              title="Suspend staff account"
+                            >
+                              <Ban size={13} /> Suspend
+                            </button>
+                          )}
+                          {p.status !== 'rejected' && (
+                            <button
+                              type="button"
+                              className="btn btn-danger-outline text-2xs py-1 px-2 flex items-center gap-1"
+                              onClick={() => handleUpdateStaffStatus(p.id, 'rejected')}
+                              title="Reject staff registration"
+                            >
+                              <UserX size={13} /> Reject
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
       )}
 
       {/* CHW Field Activity Summary Table */}

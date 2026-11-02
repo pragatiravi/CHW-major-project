@@ -14,7 +14,7 @@ An offline-first, clinical decision support Progressive Web App (PWA) designed f
 - **Supervisor Dashboard**: Population risk analytics, CHW village coverage metrics, staff registration approval queue (Approve / Suspend / Reject), and CSV / PDF report exports.
 - **System Administrator Portal**: Facility registry, clinical scoring cutoffs configurator, algorithm benchmark lab, account status control, and HL7 FHIR R4 JSON bundle exporter.
 - **Multilingual & Low-Literacy Support**: 100% key parity across English (`en-IN`), Kannada (`kn-IN`), Hindi (`hi-IN`), and Marathi (`mr-IN`), Web Speech API STT/TTS, and 48px touch targets for mobile accessibility.
-- **Clinical Chatbot & Red-Flag Detector**: Deterministic emergency detector (cardiac, stroke, severe dyspnea, hemorrhage, vitals crisis) that immediately triggers emergency guidance (108 Ambulance) before falling back to Vercel Serverless Gemini 1.5 Flash or bundled offline knowledge retrieval.
+- **Clinical Chatbot & Red-Flag Detector**: Deterministic emergency detector (cardiac, stroke, severe dyspnea, hemorrhage, vitals crisis) that immediately triggers emergency guidance (108 Ambulance) before falling back to Vercel Serverless Gemini 2.0 Flash or bundled offline knowledge retrieval.
 
 ---
 
@@ -43,7 +43,7 @@ Central Cloud Tier (Supabase & Vercel)
   │     └── chat_logs, audit_logs
   └── Vercel Serverless Function: POST /api/chat
         ├── Bearer Token Verification & IP Rate Limiting (30 req/min)
-        └── Google Gemini 1.5 Flash Proxy with Clinical Guardrails
+        └── Google Gemini 2.0 Flash Proxy with Clinical Guardrails
 ```
 
 ---
@@ -52,7 +52,7 @@ Central Cloud Tier (Supabase & Vercel)
 
 The production Supabase PostgreSQL database implements 16 relational tables with Row-Level Security (RLS) policies:
 
-1. `profiles`: Extends `auth.users` with `role` (`chw`, `doctor`, `supervisor`, `admin`), `status` (`pending`, `approved`, `suspended`, `rejected`), and `subcenter`.
+1. `profiles`: Extends `auth.users` with `role` (`chw`, `doctor`, `supervisor`, `admin`, `patient`), `status` (`pending`, `approved`, `suspended`, `rejected`), and `subcenter`.
 2. `patients`: Demographics, `custom_id`, `legacy_id`, village, encrypted contact details, ABHA ID, and consent tracking.
 3. `visits`: Longitudinal vital encounters (systolic, diastolic, glucose, glucose_type, BMI, symptoms, lifestyle). Historical encounters are never overwritten.
 4. `predictions`: CDSS audit log capturing risk scores, algorithm used, and clinical flags for each screening.
@@ -80,7 +80,7 @@ The production Supabase PostgreSQL database implements 16 relational tables with
   - *If Device is Stolen*: An attacker dumping browser IndexedDB files without the user's password and active volatile session memory cannot decrypt patient PII.
 - **Server-Side Role Authority**: User roles and approval statuses are enforced by database triggers and RLS policies on the server (`supabase/migrations/20261102000000_auth_hardening.sql`). Client-side role spoofing is blocked by `<RoleGuard />`.
 - **Brute-Force Rate Limiting**: Client-side authentication enforces a sliding window lockout after 5 consecutive failed attempts. The `/api/chat` serverless proxy enforces an IP-based limit of 30 requests per minute.
-- **Production Demo Gating**: Evaluator demo personas (`*.demo@ruralhealth.org`) require `VITE_DEMO_MODE=true` to function. When disabled in production, demo logins are completely blocked and a visible banner alerts the user whenever demo mode is active.
+- **Production Demo Gating**: Evaluator demo personas (`*.demo@ruralhealth.org`) require `VITE_DEMO_MODE=true` or `VITE_ENABLE_DEMO_ACCESS=true` to function. When disabled in production, demo logins are completely blocked and a visible banner alerts the user whenever demo mode is active.
 - **HTTP Security Headers & CSP**: Configured via `vercel.json` with strict Content Security Policy (`connect-src` allowing Supabase REST/WebSockets and Gemini; `img-src` allowing data/blob URLs; strict frame denial and HSTS).
 - **PWA Lifecycle & Update Prompt**: Automatic registration via Workbox (`registerSW`) with user reload prompt when a new production bundle is deployed.
 
@@ -88,7 +88,7 @@ The production Supabase PostgreSQL database implements 16 relational tables with
 
 ## 🧪 Automated Testing Suite
 
-The repository includes a rigorous Vitest test suite with **77 passing tests** across 7 test modules, plus automated i18n key parity verification:
+The repository includes a rigorous Vitest test suite with **77+ passing tests** across 7 test modules, plus automated i18n key parity verification:
 
 ```bash
 npm test
@@ -97,13 +97,13 @@ npm run lint
 npm run build
 ```
 
-- `src/lib/auth.test.js` (21 tests): Role guards, brute-force lockout, session restoration, demo gating, patient self-registration, server-side approval constraints, and user cache isolation.
-- `src/lib/chat/chat.test.js` (18 tests): Deterministic red-flag emergency detector, Fuse.js offline retrieval, consent-based chat logging, and the **30-Item Clinical AI & Triage Benchmark**.
-- `src/lib/sync/syncEngine.test.js` (13 tests): IndexedDB storage, outbox push queue, conflict resolution (tablet vs clinic), AES-GCM encryption, PBKDF2 device salt derivation, safe logout checks, and local-to-cloud migration on first login.
-- `src/lib/speech/speech.test.js` (11 tests): Web Speech STT transcript parsing (BP numbers, decimals), TTS voice controllers, and 4-language dialect mappings.
-- `src/utils/predictionEngine.test.js` (7 tests): AHA 2017 hypertension tiers, ADA 2024 glucose thresholds, logistic risk formulas, and decision tree edge cases.
-- `src/utils/translations.test.js` (5 tests): 100% key parity across English, Kannada, Hindi, and Marathi dictionaries, and ThinkLets counselling scripts.
-- `src/utils/pdfExport.test.js` (2 tests): Escaped clinical printing and CSV sanitization.
+- `src/lib/auth.test.js`: Role guards, brute-force lockout, session restoration, demo gating (VITE_DEMO_MODE & VITE_ENABLE_DEMO_ACCESS), patient self-registration, server-side approval constraints, and user cache isolation.
+- `src/lib/chat/chat.test.js`: Deterministic red-flag emergency detector, Fuse.js offline retrieval, consent-based chat logging, and the **30-Item Clinical AI & Triage Benchmark**.
+- `src/lib/sync/syncEngine.test.js`: IndexedDB storage, outbox push queue, conflict resolution (tablet vs clinic), AES-GCM encryption, PBKDF2 device salt derivation, safe logout checks, and local-to-cloud migration on first login.
+- `src/lib/speech/speech.test.js`: Web Speech STT transcript parsing (BP numbers, decimals), TTS voice controllers, and 4-language dialect mappings.
+- `src/utils/predictionEngine.test.js`: AHA 2017 hypertension tiers, ADA 2024 glucose thresholds, logistic risk formulas, and decision tree edge cases.
+- `src/utils/translations.test.js`: 100% key parity across English, Kannada, Hindi, and Marathi dictionaries, and ThinkLets counselling scripts.
+- `src/utils/pdfExport.test.js`: Escaped clinical printing and CSV sanitization.
 
 ---
 
@@ -127,11 +127,13 @@ npm run build
    ```bash
    cp .env.example .env
    ```
-   Configure your Supabase credentials:
+   Configure your Supabase credentials (supports both standard and Vercel default names):
    ```ini
    VITE_SUPABASE_URL=https://your-project-ref.supabase.co
-   VITE_SUPABASE_ANON_KEY=your-anon-key
-   VITE_DEMO_MODE=true
+   # Accepted key: VITE_SUPABASE_ANON_KEY or VITE_SUPABASE_PUBLISHABLE_KEY
+   VITE_SUPABASE_PUBLISHABLE_KEY=your-supabase-publishable-key
+   # Evaluator mode: VITE_DEMO_MODE or VITE_ENABLE_DEMO_ACCESS ("true" or "1")
+   VITE_ENABLE_DEMO_ACCESS=true
    ```
 
 3. Run local development server:
@@ -143,6 +145,7 @@ npm run build
 4. Run test suite & linter:
    ```bash
    npm test
+   npm run check:i18n
    npm run lint
    npm run build
    ```

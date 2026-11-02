@@ -265,9 +265,9 @@ export default function SignInPage({
             <span className="bg-slate-950 text-amber-400 px-2 py-0.5 rounded text-3xs font-mono uppercase">
               Evaluator Mode
             </span>
-            <span>VITE_DEMO_MODE=true is active. Select any persona card below to pre-fill credentials.</span>
+            <span>Evaluator demo access is active. Select any persona card below to pre-fill credentials.</span>
           </div>
-          <span className="text-3xs hidden md:inline font-normal">Turn off in production .env</span>
+          <span className="text-3xs hidden md:inline font-normal">Turn off in production</span>
         </div>
       )}
 
@@ -350,11 +350,18 @@ export default function SignInPage({
 
               {showDiagnostics && (
                 <div className="mt-3 pt-3 border-t border-slate-100 space-y-1.5 text-3xs font-mono text-slate-600">
-                  <div className="flex justify-between">
-                    <span>URL Configured:</span>
-                    <span className={diagnostics.urlValid ? 'text-emerald-600 font-bold' : 'text-rose-600 font-bold'}>
-                      {diagnostics.urlPresent ? (diagnostics.host || 'Valid Host') : 'Missing'}
-                    </span>
+                  <div className="font-semibold text-slate-700 mb-1">Environment Variables Checked:</div>
+                  {diagnostics.lookedUp?.map(v => (
+                    <div key={v.name} className="flex justify-between items-center py-0.5">
+                      <span>{v.name}:</span>
+                      <span className={v.found ? 'text-emerald-600 font-bold' : 'text-slate-400 font-normal'}>
+                        {v.found ? '✓ Present' : '✗ Missing'}
+                      </span>
+                    </div>
+                  ))}
+                  <div className="flex justify-between pt-1 border-t border-slate-100">
+                    <span>Active Key Source:</span>
+                    <span className="font-bold text-slate-700">{diagnostics.activeKeySource || 'None'}</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Key Format:</span>

@@ -1,5 +1,6 @@
+/* global process */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { supabase } from './supabaseClient';
+import { supabase, sanitizeEnvValue, isValidSupabaseKey, getSupabaseDiagnostics } from './supabaseClient';
 
 // Node.js environment storage polyfill for Vitest
 class MemoryStorage {
@@ -35,7 +36,9 @@ import {
   verifyRoleAccess,
   setDemoModeOverride,
   getAvailableDemoCredentials,
-  DEMO_CREDENTIALS 
+  DEMO_CREDENTIALS,
+  parseBooleanEnv,
+  isDemoModeActive
 } from './auth';
 import { 
   recordFailedAttempt, 
@@ -412,3 +415,93 @@ describe('User-Scoped Patient Cache Isolation', () => {
     expect(patientsB.find(p => p.name === 'Ravi Kumar')).toBeUndefined();
   });
 });
+
+describe('Environment Resolution & Vercel Variable Compatibility', () => {
+  it('sanitizeEnvValue trims whitespace and strips single/double quotes', () => {
+    expect(sanitizeEnvValue('  https://test.supabase.co  ')).toBe('https://test.supabase.co');
+    expect(sanitizeEnvValue('"https://test.supabase.co"')).toBe('https://test.supabase.co');
+    expect(sanitizeEnvValue("'https://test.supabase.co'")).toBe('https://test.supabase.co');
+    expect(sanitizeEnvValue('  "eyJhbGciOi..."  ')).toBe('eyJhbGciOi...');
+    expect(sanitizeEnvValue(undefined)).toBe('');
+    expect(sanitizeEnvValue(null)).toBe('');
+  });
+
+  it('parseBooleanEnv correctly evaluates boolean-like strings and numbers', () => {
+    expect(parseBooleanEnv('true')).toBe(true);
+    expect(parseBooleanEnv('TRUE')).toBe(true);
+    expect(parseBooleanEnv('"true"')).toBe(true);
+    expect(parseBooleanEnv("'true'")).toBe(true);
+    expect(parseBooleanEnv('1')).toBe(true);
+    expect(parseBooleanEnv('"1"')).toBe(true);
+
+    expect(parseBooleanEnv('false')).toBe(false);
+    expect(parseBooleanEnv('"false"')).toBe(false);
+    expect(parseBooleanEnv('0')).toBe(false);
+    expect(parseBooleanEnv(undefined)).toBeNull();
+    expect(parseBooleanEnv(null)).toBeNull();
+  });
+
+  it('isValidSupabaseKey accepts both legacy JWT and modern sb_publishable formats', () => {
+    // Legacy JWT key format (eyJ...)
+    const legacyJwt = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRlc3QiLCJyb2xlIjoiYW5vbiJ9.secret';
+    expect(isValidSupabaseKey(legacyJwt)).toBe(true);
+
+    // Modern Supabase publishable key format
+    const modernPublishable = 'sb_publishable_abcdefghijklmnopqrstuvwxyz123456';
+    expect(isValidSupabaseKey(modernPublishable)).toBe(true);
+
+    // Modern Supabase anon key format
+    const modernAnon = 'sb_anon_abcdefghijklmnopqrstuvwxyz1234567890';
+    expect(isValidSupabaseKey(modernAnon)).toBe(true);
+
+    // Placeholders rejected
+    expect(isValidSupabaseKey('your-anon-key')).toBe(false);
+    expect(isValidSupabaseKey('your-publishable-key')).toBe(false);
+    expect(isValidSupabaseKey('placeholder')).toBe(false);
+    expect(isValidSupabaseKey('short')).toBe(false);
+  });
+
+  it('getSupabaseDiagnostics lists lookedUp variable names without exposing secrets', () => {
+    const diag = getSupabaseDiagnostics();
+    expect(diag).toHaveProperty('lookedUp');
+    expect(Array.isArray(diag.lookedUp)).toBe(true);
+
+    const names = diag.lookedUp.map(v => v.name);
+    expect(names).toContain('VITE_SUPABASE_URL');
+    expect(names).toContain('VITE_SUPABASE_ANON_KEY');
+    expect(names).toContain('VITE_SUPABASE_PUBLISHABLE_KEY');
+
+    // Each entry must only have name and boolean found (never raw value)
+    diag.lookedUp.forEach(item => {
+      expect(typeof item.name).toBe('string');
+      expect(typeof item.found).toBe('boolean');
+      expect(item).not.toHaveProperty('value');
+    });
+  });
+
+  it('isDemoModeActive accepts VITE_ENABLE_DEMO_ACCESS and VITE_DEMO_MODE', () => {
+    setDemoModeOverride(null);
+
+    const origDemo = process.env.VITE_DEMO_MODE;
+    const origAccess = process.env.VITE_ENABLE_DEMO_ACCESS;
+
+    try {
+      process.env.VITE_DEMO_MODE = 'false';
+      process.env.VITE_ENABLE_DEMO_ACCESS = 'true';
+      expect(isDemoModeActive()).toBe(true);
+
+      process.env.VITE_DEMO_MODE = '1';
+      process.env.VITE_ENABLE_DEMO_ACCESS = 'false';
+      expect(isDemoModeActive()).toBe(true);
+
+      process.env.VITE_DEMO_MODE = 'false';
+      process.env.VITE_ENABLE_DEMO_ACCESS = '0';
+      expect(isDemoModeActive()).toBe(false);
+    } finally {
+      process.env.VITE_DEMO_MODE = origDemo;
+      process.env.VITE_ENABLE_DEMO_ACCESS = origAccess;
+      setDemoModeOverride(null);
+    }
+  });
+});
+

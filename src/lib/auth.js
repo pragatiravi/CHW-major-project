@@ -22,28 +22,48 @@ export function setDemoModeOverride(value) {
   demoModeOverride = value;
 }
 
+export function parseBooleanEnv(val) {
+  if (val === undefined || val === null) return null;
+  const str = String(val).trim().replace(/^["']|["']$/g, '').toLowerCase();
+  if (str === 'true' || str === '1') return true;
+  if (str === 'false' || str === '0') return false;
+  return null;
+}
+
 export function isDemoModeActive() {
   if (demoModeOverride !== null) return demoModeOverride;
 
-  // Check Vite environment
-  if (typeof import.meta !== 'undefined' && import.meta.env) {
-    if (import.meta.env.VITE_DEMO_MODE !== undefined) {
-      return import.meta.env.VITE_DEMO_MODE === 'true';
-    }
-    // In production builds without explicit flag, demo mode is strictly disabled
-    if (import.meta.env.PROD) {
-      return false;
-    }
-    // In local development or Vitest without .env, allow demo mode
-    return true;
-  }
+  // Static references so Vite statically inlines them at build time
+  const vDemo = typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env.VITE_DEMO_MODE : undefined;
+  const vAccess = typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env.VITE_ENABLE_DEMO_ACCESS : undefined;
+
+  const parsedVDemo = parseBooleanEnv(vDemo);
+  const parsedVAccess = parseBooleanEnv(vAccess);
+
+  // Return true if either is explicitly enabled ("true" or "1")
+  if (parsedVDemo === true || parsedVAccess === true) return true;
+  if (parsedVDemo === false && parsedVAccess === false) return false;
 
   // Fallback for Node / Vitest
   if (typeof process !== 'undefined' && process.env) {
-    if (process.env.VITE_DEMO_MODE !== undefined) {
-      return process.env.VITE_DEMO_MODE === 'true';
-    }
-    return process.env.NODE_ENV !== 'production';
+    const pDemo = parseBooleanEnv(process.env.VITE_DEMO_MODE);
+    const pAccess = parseBooleanEnv(process.env.VITE_ENABLE_DEMO_ACCESS);
+    if (pDemo === true || pAccess === true) return true;
+    if (pDemo === false && pAccess === false) return false;
+  }
+
+  // In production builds without explicit flag, demo mode is strictly disabled
+  if (typeof import.meta !== 'undefined' && import.meta.env?.PROD) {
+    return false;
+  }
+
+  // In local development or Vitest without .env, allow demo mode
+  if (typeof import.meta !== 'undefined' && import.meta.env?.DEV) {
+    return true;
+  }
+
+  if (typeof process !== 'undefined' && process.env?.NODE_ENV !== 'production') {
+    return true;
   }
 
   return false;
@@ -303,7 +323,7 @@ export async function signUpWithCredentials({
   if (!diag.urlPresent) {
     reasonMsg = 'VITE_SUPABASE_URL was not present when the application was built.';
   } else if (!diag.keyPresent) {
-    reasonMsg = 'VITE_SUPABASE_ANON_KEY was not present when the application was built.';
+    reasonMsg = 'Neither VITE_SUPABASE_ANON_KEY nor VITE_SUPABASE_PUBLISHABLE_KEY was present when the application was built.';
   } else if (!diag.isConfigured) {
     reasonMsg = 'The provided Supabase configuration appears invalid or incomplete.';
   }

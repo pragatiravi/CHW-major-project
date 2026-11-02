@@ -78,8 +78,13 @@ export default async function handler(req, res) {
   // Supabase Bearer Token Verification
   const authHeader = req.headers.authorization;
   const token = authHeader && authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : null;
-  const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
-  const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
+  const sanitize = (v) => (v || '').trim().replace(/^["']|["']$/g, '');
+  const supabaseUrl = sanitize(process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL);
+  const supabaseKey = sanitize(
+    process.env.VITE_SUPABASE_ANON_KEY || 
+    process.env.VITE_SUPABASE_PUBLISHABLE_KEY || 
+    process.env.SUPABASE_ANON_KEY
+  );
 
   if (supabaseUrl && supabaseKey && !supabaseUrl.includes('placeholder')) {
     if (!token) {

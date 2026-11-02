@@ -23,6 +23,9 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: Translation Parity Check
+        run: npm run check:i18n
+
       - name: Test
         run: npm test
 

@@ -39,10 +39,13 @@ export async function promptPWAInstall() {
 export function initPWA() {
   if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
     try {
-      registerSW({
+      const updateSW = registerSW({
         immediate: true,
         onNeedRefresh() {
           console.info('CHW Toolkit update ready.');
+          if (typeof window !== 'undefined' && window.confirm('A new version of CHW Toolkit is available. Reload now to update?')) {
+            updateSW(true);
+          }
         },
         onOfflineReady() {
           console.info('CHW Toolkit ready to work offline.');

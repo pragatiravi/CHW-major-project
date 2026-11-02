@@ -23,7 +23,7 @@
 | **At-Rest Encryption** | Web Crypto API (AES-GCM 256 + PBKDF2) | Protects cached patient PII on stolen or lost frontline devices without relying on third-party native libraries. |
 | **Central Database** | Supabase (PostgreSQL 15+) | 16 normalized relational tables with Row-Level Security (RLS) policies enforcing role access directly in the database engine. |
 | **Offline Search** | Fuse.js (Fuzzy String Matching) | Sub-15ms client-side retrieval across a bundled 4-language ICMR/WHO-PEN NCD knowledge base with zero network overhead. |
-| **AI Assistant** | Vercel Serverless + Gemini 1.5 Flash | Server-side API key proxy with bearer authorization, IP rate limiting (30 req/min), and strict non-prescribing guardrails. |
+| **AI Assistant** | Vercel Serverless + Gemini 2.0 Flash | Server-side API key proxy with bearer authorization, IP rate limiting (30 req/min), and strict non-prescribing guardrails. |
 | **Voice Engine** | Web Speech API (STT & TTS) | Hands-free vitals entry and audio counselling in `kn-IN`, `hi-IN`, `mr-IN`, and `en-IN` for low-literacy field interactions. |
 
 ---
@@ -133,7 +133,13 @@ Evaluators respect candidates who clearly distinguish between fully implemented 
 > *"We followed WCAG 2.5.5 and Android accessibility standards: all interactive buttons have a minimum 48px touch target on mobile viewports; color-coded risk badges (green, amber, red, purple) accompany all numerical values; and the Web Speech API allows voice-based vitals entry and audio playback of ThinkLets counselling scripts."*
 
 ### Q8: "How do you know your code is reliable?"
-> *"We maintain 74 automated unit and integration tests in Vitest covering all core subsystems: risk prediction formulas, Web Speech transcript parsing, AES-GCM encryption key derivation, outbox sync queues, 4-language translation parity, role guards, and a dedicated 30-item clinical AI triage benchmark. The entire suite passes in under 7 seconds."*
+> *"We maintain 77 automated unit and integration tests in Vitest covering all core subsystems: risk prediction formulas, Web Speech transcript parsing, AES-GCM encryption key derivation, outbox sync queues, 4-language translation parity (with automated CI quality gate `npm run check:i18n`), role guards, and a dedicated 30-item clinical AI triage benchmark. The entire suite passes cleanly with zero lint errors."*
+
+### Q9: "What is the exact Encryption Key Lifecycle — what happens on logout, on a new device, or if the device is stolen?"
+> *"Our at-rest encryption uses Web Crypto API (AES-GCM 256) with PBKDF2 key derivation (100,000 iterations):*
+> 1. *On Logout: The in-memory CryptoKey instance is destroyed and garbage-collected; sessionStorage is cleared. The local Dexie ciphertexts remain safely encrypted on disk.*
+> 2. *On a New Device: Because the PBKDF2 salt is a unique, cryptographically random device salt (`localStorage.getItem('chw_device_salt')`), raw IndexedDB databases cannot be copied between devices. When a user logs in on a new tablet, the system syncs clean records directly from the central Supabase PostgreSQL server over TLS.*
+> 3. *If the Device is Stolen: Sensitive patient fields (`phone`, `address`, `notes`) stored in Dexie/IndexedDB are AES-GCM 256 ciphertexts. An attacker extracting the browser database file without the user's password and active volatile session memory cannot decrypt or view patient PII."*
 
 ---
 

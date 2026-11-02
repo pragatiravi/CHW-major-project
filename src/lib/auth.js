@@ -1,5 +1,5 @@
 /* global process */
-import { supabase, isSupabaseConfigured } from './supabaseClient';
+import { supabase, isSupabaseConfigured, getSupabaseDiagnostics } from './supabaseClient';
 import { fetchUserProfile } from './db/profiles';
 import { 
   getLockoutStatus, 
@@ -241,8 +241,7 @@ export async function signUpWithCredentials({
   const assignedRole = role === 'patient' ? 'patient' : role;
   const initialStatus = assignedRole === 'patient' ? 'approved' : 'pending';
 
-  const isTest = typeof process !== 'undefined' && process.env?.NODE_ENV === 'test';
-  if (isSupabaseConfigured && supabase && !isTest) {
+  if (isSupabaseConfigured && supabase) {
     const { data, error } = await supabase.auth.signUp({
       email: normalizedEmail,
       password: password,
@@ -289,16 +288,30 @@ export async function signUpWithCredentials({
   }
 
   // Local fallback simulation (only when demo mode is active)
-  if (!isDemoModeActive()) {
-    throw new Error('User registration requires an active Supabase cloud connection in production.');
+  if (isDemoModeActive()) {
+    return {
+      status: initialStatus,
+      message: initialStatus === 'pending'
+        ? 'Registration recorded in local evaluator mode. Requires supervisor approval.'
+        : 'Patient account registered successfully in evaluator mode.'
+    };
   }
 
-  return {
-    status: initialStatus,
-    message: initialStatus === 'pending'
-      ? 'Registration submitted with pending status. An administrator must approve your account.'
-      : 'Patient account registered successfully.'
-  };
+  // When in production without active Supabase connection, provide helpful diagnostic context
+  const diag = getSupabaseDiagnostics();
+  let reasonMsg = 'Cloud database connection is unconfigured.';
+  if (!diag.urlPresent) {
+    reasonMsg = 'VITE_SUPABASE_URL was not present when the application was built.';
+  } else if (!diag.keyPresent) {
+    reasonMsg = 'VITE_SUPABASE_ANON_KEY was not present when the application was built.';
+  } else if (!diag.isConfigured) {
+    reasonMsg = 'The provided Supabase configuration appears invalid or incomplete.';
+  }
+
+  throw new Error(
+    `User registration requires an active Supabase cloud connection in production. ${reasonMsg} ` +
+    `If environment variables were recently added in Vercel, a fresh redeploy (without build cache) is required.`
+  );
 }
 
 /**

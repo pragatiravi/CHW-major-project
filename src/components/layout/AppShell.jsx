@@ -25,13 +25,13 @@ import {
   FlaskConical, 
   Database,
   Search,
-  Languages,
   Menu,
   X,
   Download,
   AlertCircle
 } from 'lucide-react';
 import { useLanguage } from '../shared/LanguageContext';
+import LanguageSwitcher from '../shared/LanguageSwitcher';
 import { subscribeSyncStatus, executeSync } from '../../lib/sync/syncEngine';
 import { subscribeToInstallPrompt, promptPWAInstall } from '../../registerServiceWorker';
 import { isSupabaseConfigured } from '../../lib/supabaseClient';
@@ -54,8 +54,7 @@ export default function AppShell({
   globalSearch,
   setGlobalSearch
 }) {
-  const { t, language, setLanguage, languages } = useLanguage();
-  const [showLanguageMenu, setShowLanguageMenu] = useState(false);
+  const { t } = useLanguage();
   const [showMobileNav, setShowMobileNav] = useState(false);
   const [canInstallPWA, setCanInstallPWA] = useState(false);
   const [syncState, setSyncState] = useState({
@@ -177,7 +176,6 @@ export default function AppShell({
 
   const currentNavItems = navConfigs[userRole] || navConfigs.chw;
   const currentRoleMeta = roleMeta[userRole] || roleMeta.chw;
-  const currentLangObj = languages.find(l => l.code === language) || languages[0];
 
   return (
     <div className="authenticated-app-shell">
@@ -322,40 +320,7 @@ export default function AppShell({
           )}
 
           {/* Language Selector Dropdown */}
-          <div style={{ position: 'relative' }}>
-            <button 
-              type="button"
-              className="shell-icon-btn"
-              onClick={() => setShowLanguageMenu(!showLanguageMenu)}
-              title="Change Application Language"
-              aria-label={`Change language. Current language: ${currentLangObj.label}`}
-              aria-expanded={showLanguageMenu}
-              style={{ width: 'auto', padding: '0 10px', gap: '6px', fontSize: '0.78rem', fontWeight: 600 }}
-            >
-              <Languages size={15} />
-              <span>{currentLangObj.native}</span>
-            </button>
-
-            {showLanguageMenu && (
-              <div 
-                className="demo-role-dropdown-menu" 
-                style={{ top: '110%', bottom: 'auto', right: 0, left: 'auto', width: 140 }}
-              >
-                {languages.map(l => (
-                  <button
-                    key={l.code}
-                    className={`demo-role-item ${language === l.code ? 'active' : ''}`}
-                    onClick={() => {
-                      setLanguage(l.code);
-                      setShowLanguageMenu(false);
-                    }}
-                  >
-                    <strong>{l.native}</strong> ({l.label})
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+          <LanguageSwitcher variant="compact" />
 
           {/* Notifications Trigger */}
           <button 

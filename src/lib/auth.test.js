@@ -1,4 +1,5 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { supabase } from './supabaseClient';
 
 // Node.js environment storage polyfill for Vitest
 class MemoryStorage {
@@ -117,15 +118,60 @@ describe('Authentication & Role Guards', () => {
     })).rejects.toThrow('Password must be at least 8 characters long.');
   });
 
-  it('marks newly registered user status as pending approval', async () => {
+  it('marks newly registered frontline staff user status as pending approval', async () => {
+    const signUpSpy = vi.spyOn(supabase.auth, 'signUp').mockResolvedValue({
+      data: {
+        user: {
+          id: 'test-chw-uuid',
+          email: 'newchw@communityhealth.org',
+          user_metadata: { full_name: 'Pooja Naik', role: 'chw' }
+        }
+      },
+      error: null
+    });
+    const upsertSpy = vi.spyOn(supabase, 'from').mockReturnValue({
+      upsert: vi.fn().mockResolvedValue({ error: null })
+    });
+
     const result = await signUpWithCredentials({
       email: 'newchw@communityhealth.org',
       password: 'SecurePassword123!',
-      fullName: 'Pooja Naik'
+      fullName: 'Pooja Naik',
+      role: 'chw'
     });
 
     expect(result.status).toBe('pending');
     expect(result.message).toContain('pending');
+    signUpSpy.mockRestore();
+    upsertSpy.mockRestore();
+  });
+
+  it('immediately approves self-registered patient accounts', async () => {
+    const signUpSpy = vi.spyOn(supabase.auth, 'signUp').mockResolvedValue({
+      data: {
+        user: {
+          id: 'test-patient-uuid',
+          email: 'patient@example.com',
+          user_metadata: { full_name: 'Priya Sharma', role: 'patient' }
+        }
+      },
+      error: null
+    });
+    const upsertSpy = vi.spyOn(supabase, 'from').mockReturnValue({
+      upsert: vi.fn().mockResolvedValue({ error: null })
+    });
+
+    const result = await signUpWithCredentials({
+      email: 'patient@example.com',
+      password: 'SecurePassword123!',
+      fullName: 'Priya Sharma',
+      role: 'patient'
+    });
+
+    expect(result.status).toBe('approved');
+    expect(result.message).toContain('Patient account created successfully');
+    signUpSpy.mockRestore();
+    upsertSpy.mockRestore();
   });
 
   it('restores authenticated user from active session and clears on logout', async () => {
@@ -247,6 +293,19 @@ describe('Phase 1 Security: Brute-Force Rate Limiting', () => {
 describe('Phase 1: Patient Self-Registration Flow', () => {
   it('automatically sets patient self-registration status to approved', async () => {
     setDemoModeOverride(true);
+    const signUpSpy = vi.spyOn(supabase.auth, 'signUp').mockResolvedValue({
+      data: {
+        user: {
+          id: 'mock-patient-id',
+          email: 'newpatient@ruralcare.in',
+          user_metadata: { full_name: 'Sunita Bai', role: 'patient' }
+        }
+      },
+      error: null
+    });
+    const upsertSpy = vi.spyOn(supabase, 'from').mockReturnValue({
+      upsert: vi.fn().mockResolvedValue({ error: null })
+    });
 
     const result = await signUpWithCredentials({
       email: 'newpatient@ruralcare.in',
@@ -259,10 +318,25 @@ describe('Phase 1: Patient Self-Registration Flow', () => {
 
     expect(result.status).toBe('approved');
     expect(result.message).toContain('Patient account');
+    signUpSpy.mockRestore();
+    upsertSpy.mockRestore();
   });
 
   it('requires supervisor approval for staff role signups', async () => {
     setDemoModeOverride(true);
+    const signUpSpy = vi.spyOn(supabase.auth, 'signUp').mockResolvedValue({
+      data: {
+        user: {
+          id: 'mock-doctor-id',
+          email: 'newdoctor@districtmed.org',
+          user_metadata: { full_name: 'Dr. Ramesh Joshi', role: 'doctor' }
+        }
+      },
+      error: null
+    });
+    const upsertSpy = vi.spyOn(supabase, 'from').mockReturnValue({
+      upsert: vi.fn().mockResolvedValue({ error: null })
+    });
 
     const result = await signUpWithCredentials({
       email: 'newdoctor@districtmed.org',
@@ -273,13 +347,28 @@ describe('Phase 1: Patient Self-Registration Flow', () => {
 
     expect(result.status).toBe('pending');
     expect(result.message).toContain('pending');
+    signUpSpy.mockRestore();
+    upsertSpy.mockRestore();
   });
 });
 
 describe('User-Scoped Patient Cache Isolation', () => {
+  let dbSpy;
   beforeEach(() => {
     localStorage.clear();
     sessionStorage.clear();
+    dbSpy = vi.spyOn(supabase, 'from').mockReturnValue({
+      select: vi.fn().mockReturnValue({
+        is: vi.fn().mockReturnValue({
+          order: vi.fn().mockResolvedValue({ data: null, error: { message: 'offline' } })
+        })
+      }),
+      upsert: vi.fn().mockResolvedValue({ error: null })
+    });
+  });
+
+  afterEach(() => {
+    if (dbSpy) dbSpy.mockRestore();
   });
 
   it('scopes local patient cache per user id and does not leak data between different users', async () => {

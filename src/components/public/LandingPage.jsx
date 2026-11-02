@@ -10,6 +10,7 @@ import {
   ArrowRight,
   Database,
 } from 'lucide-react';
+import LanguageSwitcher from '../shared/LanguageSwitcher';
 
 export default function LandingPage({ 
   onNavigateToAuth 
@@ -67,10 +68,12 @@ export default function LandingPage({
             </a>
           </nav>
 
-          <div className="landing-nav-cta">
+          <div className="landing-nav-cta" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <LanguageSwitcher variant="compact" />
             <button 
               className="btn btn-primary"
               onClick={() => handleOpenAuth('chw')}
+              style={{ minHeight: '44px' }}
             >
               Sign In to Workspace <ArrowRight size={15} />
             </button>

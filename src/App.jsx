@@ -14,6 +14,7 @@ const PatientPortal = lazy(() => import('./components/patient/PatientPortal'));
 import NotificationsDrawer from './components/shared/NotificationsDrawer';
 import { ToastProvider, useToast } from './components/shared/ToastContainer';
 import { LanguageProvider } from './components/shared/LanguageContext';
+import ErrorBoundary from './components/shared/ErrorBoundary';
 
 import { 
   INITIAL_CHWS, 
@@ -700,10 +701,12 @@ function AppContent() {
 
 export default function App() {
   return (
-    <LanguageProvider>
-      <ToastProvider>
-        <AppContent />
-      </ToastProvider>
-    </LanguageProvider>
+    <ErrorBoundary>
+      <LanguageProvider>
+        <ToastProvider>
+          <AppContent />
+        </ToastProvider>
+      </LanguageProvider>
+    </ErrorBoundary>
   );
 }

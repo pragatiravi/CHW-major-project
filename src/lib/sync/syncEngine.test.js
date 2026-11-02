@@ -1,4 +1,6 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { supabase } from '../supabaseClient';
+import { migrateLocalDataToCloud } from './syncEngine';
 import {
   enqueueSyncOperation,
   getPendingSyncQueue,
@@ -236,6 +238,47 @@ describe('Phase 3: Offline-First IndexedDB Store & Sync Outbox', () => {
 
       const patients = await getLocalPatientsFromDB();
       expect(patients.length).toBe(0);
+    });
+  });
+
+  describe('Local-to-Cloud Migration on First Login', () => {
+    it('migrates local offline IndexedDB records to Supabase on first user login without duplicates', async () => {
+      const offlinePatient = {
+        id: 'P_OFFLINE_MIGRATE',
+        custom_id: 'P_OFFLINE_MIGRATE',
+        name: 'Gita Devi',
+        age: 48,
+        gender: 'female',
+        village: 'Sultanpur',
+        created_by: 'anon'
+      };
+      await savePatientLocally(offlinePatient);
+
+      const mockUser = {
+        id: 'real-user-uuid-1234',
+        name: 'Sunita Patil',
+        role: 'chw'
+      };
+
+      const upsertMock = vi.fn().mockResolvedValue({ error: null });
+      const fromSpy = vi.spyOn(supabase, 'from').mockReturnValue({
+        upsert: upsertMock
+      });
+
+      const result = await migrateLocalDataToCloud(mockUser);
+      expect(result.migratedCount).toBeGreaterThanOrEqual(1);
+
+      expect(upsertMock).toHaveBeenCalledWith(
+        expect.arrayContaining([
+          expect.objectContaining({
+            custom_id: 'P_OFFLINE_MIGRATE',
+            created_by: 'real-user-uuid-1234'
+          })
+        ]),
+        { onConflict: 'custom_id' }
+      );
+
+      fromSpy.mockRestore();
     });
   });
 });

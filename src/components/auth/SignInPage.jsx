@@ -16,7 +16,12 @@ import {
   LogIn,
   AlertTriangle,
   Clock,
-  FlaskConical
+  Eye,
+  EyeOff,
+  PhoneCall,
+  Database,
+  HelpCircle,
+  WifiOff
 } from 'lucide-react';
 import { 
   isDemoModeActive, 
@@ -24,6 +29,10 @@ import {
   signUpWithCredentials 
 } from '../../lib/auth';
 import { getLockoutStatus } from '../../lib/authRateLimiter';
+import { isSupabaseConfigured, getSupabaseDiagnostics } from '../../lib/supabaseClient';
+import { useLanguage } from '../shared/LanguageContext';
+import LanguageSwitcher from '../shared/LanguageSwitcher';
+import { mapSupabaseAuthError } from '../../utils/supabaseErrorMapper';
 
 export default function SignInPage({
   onAuthenticate,
@@ -31,6 +40,7 @@ export default function SignInPage({
   onBackToLanding,
   initialRole = 'chw',
 }) {
+  const { t, language } = useLanguage();
   const isDemo = isDemoModeActive();
   const demoAccountsMap = getAvailableDemoCredentials();
   const initialCreds = isDemo && demoAccountsMap[initialRole] ? demoAccountsMap[initialRole] : { email: '', password: '' };
@@ -40,19 +50,24 @@ export default function SignInPage({
   const [selectedStaffRole, setSelectedStaffRole] = useState('chw');
   const [email, setEmail] = useState(initialCreds.email || '');
   const [password, setPassword] = useState(initialCreds.password || '');
+  const [showPassword, setShowPassword] = useState(false);
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
   const [village, setVillage] = useState('');
-  const [languagePref, setLanguagePref] = useState('en');
+  const languagePref = language || 'en';
   const [authError, setAuthError] = useState('');
   const [authSuccess, setAuthSuccess] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showDiagnostics, setShowDiagnostics] = useState(false);
+
   const [lockoutSeconds, setLockoutSeconds] = useState(() => {
     const status = getLockoutStatus(initialCreds.email || '');
     return status.isLocked ? status.remainingSeconds : 0;
   });
 
-  // Live countdown timer for brute force lockout
+  const diagnostics = getSupabaseDiagnostics();
+
+  // Brute force lockout timer
   useEffect(() => {
     if (lockoutSeconds <= 0) return;
     const interval = setInterval(() => {
@@ -68,11 +83,27 @@ export default function SignInPage({
     return () => clearInterval(interval);
   }, [lockoutSeconds]);
 
+  // Password strength calculation
+  const getPasswordStrength = (pwd) => {
+    if (!pwd) return { score: 0, label: '', color: 'bg-slate-200', text: '' };
+    let score = 0;
+    if (pwd.length >= 8) score += 1;
+    if (/[A-Z]/.test(pwd) && /[a-z]/.test(pwd)) score += 1;
+    if (/\d/.test(pwd)) score += 1;
+    if (/[^A-Za-z0-9]/.test(pwd)) score += 1;
+
+    if (score <= 1) return { score: 25, label: 'Weak', color: 'bg-rose-500', text: 'text-rose-600' };
+    if (score <= 3) return { score: 65, label: 'Fair', color: 'bg-amber-500', text: 'text-amber-600' };
+    return { score: 100, label: 'Strong', color: 'bg-emerald-500', text: 'text-emerald-600' };
+  };
+
+  const pwdStrength = getPasswordStrength(password);
+
   const demoAccounts = isDemo ? [
     {
       role: 'chw',
       name: 'Sunita Patil',
-      title: 'Community Health Worker (CHW)',
+      title: 'Community Health Worker (ASHA)',
       email: demoAccountsMap.chw?.email || '',
       password: demoAccountsMap.chw?.password || '',
       icon: User,
@@ -82,7 +113,7 @@ export default function SignInPage({
     {
       role: 'doctor',
       name: 'Dr. Ananya Roy (M.D.)',
-      title: 'Medical Officer / Clinician',
+      title: 'Medical Officer / PHC Clinician',
       email: demoAccountsMap.doctor?.email || '',
       password: demoAccountsMap.doctor?.password || '',
       icon: Stethoscope,
@@ -129,7 +160,7 @@ export default function SignInPage({
     setAuthError('');
     const status = getLockoutStatus(account.email);
     setLockoutSeconds(status.isLocked ? status.remainingSeconds : 0);
-    setAuthSuccess(`Loaded demo credentials for ${account.name}. Click "Sign In" below to authenticate.`);
+    setAuthSuccess(`Loaded demo credentials for ${account.name}. Click "Sign In" below.`);
   };
 
   const handleSubmit = async (e) => {
@@ -163,7 +194,7 @@ export default function SignInPage({
           village: village.trim()
         });
 
-        setAuthSuccess(result.message || 'Registration submitted! Staff accounts require supervisor approval.');
+        setAuthSuccess(result.message || 'Registration submitted successfully.');
         setMode('signin');
         return;
       }
@@ -174,8 +205,8 @@ export default function SignInPage({
         password,
       });
     } catch (error) {
-      setAuthError(error.message || 'Authentication failed. Please verify your credentials.');
-      // Update lockout state
+      const friendlyError = mapSupabaseAuthError(error, language);
+      setAuthError(friendlyError || error.message || 'Authentication failed. Please verify credentials.');
       const status = getLockoutStatus(email);
       if (status.isLocked) {
         setLockoutSeconds(status.remainingSeconds);
@@ -189,94 +220,179 @@ export default function SignInPage({
     <div className="signin-page-wrapper">
       <a className="skip-link" href="#main-content">Skip to sign-in form</a>
 
-      {/* Top Header Bar */}
-      <header className="signin-topbar">
+      {/* Top Header Bar with Language Switcher */}
+      <header className="signin-topbar" style={{ minHeight: '64px' }}>
         <button 
+          type="button"
           className="btn btn-secondary text-xs flex items-center gap-1.5" 
           onClick={onBackToLanding}
+          style={{ minHeight: '44px' }}
         >
-          <ArrowLeft size={14} /> Return to Public Portal
+          <ArrowLeft size={16} /> 
+          <span>{t('returnToPublic') || 'Return to Public Portal'}</span>
         </button>
-        <div className="flex items-center gap-2">
+
+        <div className="flex items-center gap-3">
           <div className="brand-icon-box-sm">
             <Heart className="text-sky-600" size={18} />
           </div>
-          <span className="font-bold text-slate-800 text-sm">CHW Healthcare Toolkit</span>
-          {isDemo ? (
-            <span className="badge badge-warning text-3xs font-mono font-bold flex items-center gap-1">
-              <FlaskConical size={11} /> DEMO MODE
+          <span className="font-bold text-slate-800 text-sm hidden sm:inline">
+            CHW Healthcare Toolkit
+          </span>
+
+          {/* Connection Status Badge (No technical jargon) */}
+          {isSupabaseConfigured ? (
+            <span className="badge badge-success text-3xs font-semibold flex items-center gap-1 py-1 px-2">
+              <ShieldCheck size={12} className="text-emerald-700" />
+              <span>Verified Portal</span>
             </span>
           ) : (
-            <span className="badge badge-success text-3xs font-mono font-bold flex items-center gap-1">
-              <ShieldCheck size={11} /> PRODUCTION AUTH
+            <span className="badge badge-warning text-3xs font-semibold flex items-center gap-1 py-1 px-2">
+              <WifiOff size={12} className="text-amber-700" />
+              <span>Offline Mode</span>
             </span>
           )}
+
+          {/* Multilingual Selector */}
+          <LanguageSwitcher variant="compact" />
         </div>
       </header>
 
-      {/* Split Auth Container */}
+      {/* Evaluator Banner when Demo Mode is Active */}
+      {isDemo && (
+        <div className="bg-amber-500 text-slate-950 px-4 py-2 text-xs font-bold flex items-center justify-between border-b border-amber-600 shadow-xs">
+          <div className="flex items-center gap-2">
+            <span className="bg-slate-950 text-amber-400 px-2 py-0.5 rounded text-3xs font-mono uppercase">
+              Evaluator Mode
+            </span>
+            <span>VITE_DEMO_MODE=true is active. Select any persona card below to pre-fill credentials.</span>
+          </div>
+          <span className="text-3xs hidden md:inline font-normal">Turn off in production .env</span>
+        </div>
+      )}
+
+      {/* Main Split Authentication Container */}
       <main id="main-content" className="signin-container" tabIndex="-1">
-        {/* Left Column: Platform Trust & Features */}
+        {/* Left Column: Clinical Context, Network & Technical Diagnostics */}
         <div className="signin-left-col">
-          <div className="signin-left-content">
-            <div className="auth-badge">
-              <ShieldCheck size={14} className="text-sky-600" />
-              <span>Verified Clinical Access</span>
-            </div>
-            <h2 className="signin-headline">
-              Empowering frontline care with clinical intelligence.
-            </h2>
-            <p className="signin-subtext">
-              Secure, server-verified authentication for Community Health Workers, physicians, supervisors, administrators, and patients.
-            </p>
-
-            <div className="signin-highlights">
-              <div className="highlight-item">
-                <CheckCircle2 size={18} className="text-emerald-600 flex-shrink-0" />
-                <div>
-                  <strong>Server-Enforced Role Security</strong>
-                  <p className="text-2xs text-slate-500">Roles are cryptographically verified from the PostgreSQL database, not client state.</p>
-                </div>
+          <div className="signin-left-content space-y-5">
+            <div>
+              <div className="auth-badge mb-2">
+                <ShieldCheck size={14} className="text-sky-600" />
+                <span>Verified Clinical Platform</span>
               </div>
-              <div className="highlight-item">
-                <CheckCircle2 size={18} className="text-emerald-600 flex-shrink-0" />
-                <div>
-                  <strong>Supervisor Approval Gate</strong>
-                  <p className="text-2xs text-slate-500">New frontline registrations default to pending status until verified by a supervisor.</p>
-                </div>
-              </div>
-              <div className="highlight-item">
-                <CheckCircle2 size={18} className="text-emerald-600 flex-shrink-0" />
-                <div>
-                  <strong>Brute-Force Attack Prevention</strong>
-                  <p className="text-2xs text-slate-500">Automated lockouts after 5 consecutive failures protect rural accounts from credential stuffing.</p>
-                </div>
-              </div>
+              <h2 className="signin-headline" style={{ fontSize: 'clamp(1.75rem, 3.5vw, 2.5rem)', lineHeight: 1.2 }}>
+                Empowering frontline care with clinical intelligence.
+              </h2>
+              <p className="signin-subtext text-xs leading-relaxed mt-2 text-slate-600">
+                Offline-first clinical decision support for Community Health Workers, physicians, supervisors, and rural families in Karnataka and Maharashtra.
+              </p>
             </div>
 
-            {/* Quick Demo Pre-Fill Selector (Visible ONLY when VITE_DEMO_MODE=true) */}
+            {/* Clinical Highlights Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+              <div className="p-3.5 rounded-xl border border-slate-200 bg-white/90 shadow-xs">
+                <div className="flex items-center gap-2 mb-1">
+                  <CheckCircle2 size={16} className="text-emerald-600 flex-shrink-0" />
+                  <strong className="text-xs text-slate-900">NCD Protocols</strong>
+                </div>
+                <p className="text-3xs text-slate-500 leading-normal">
+                  Standardized AHA/ADA 2024 screening for Hypertension, Type 2 Diabetes, and Cardiovascular risks.
+                </p>
+              </div>
+
+              <div className="p-3.5 rounded-xl border border-slate-200 bg-white/90 shadow-xs">
+                <div className="flex items-center gap-2 mb-1">
+                  <PhoneCall size={16} className="text-rose-600 flex-shrink-0" />
+                  <strong className="text-xs text-slate-900">108 Emergency SOS</strong>
+                </div>
+                <p className="text-3xs text-slate-500 leading-normal">
+                  Instant triage classification and emergency transfer slip generation for acute cardiac and stroke red flags.
+                </p>
+              </div>
+            </div>
+
+            {/* Offline-First Storage Guarantee */}
+            <div className="p-3.5 rounded-xl border border-sky-100 bg-sky-50/70 text-slate-700 text-xs flex items-start gap-3">
+              <Database size={18} className="text-sky-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <strong className="text-slate-900 text-xs block">Offline-First Resilience</strong>
+                <p className="text-3xs text-slate-600 mt-0.5 leading-relaxed">
+                  Field workers can complete complete patient visits and ThinkLets counselling even with zero cellular signal. Mutations sync securely when internet connectivity resumes.
+                </p>
+              </div>
+            </div>
+
+            {/* Startup Connection Diagnostic Card */}
+            <div className="p-3.5 rounded-xl border border-slate-200 bg-white text-xs">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className={`w-2.5 h-2.5 rounded-full ${diagnostics.isConfigured ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+                  <span className="font-bold text-xs text-slate-800">
+                    {diagnostics.isConfigured ? 'Cloud Backend Connected' : 'Cloud Setup Notice'}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowDiagnostics(!showDiagnostics)}
+                  className="text-3xs font-semibold text-sky-600 hover:underline flex items-center gap-1"
+                >
+                  <HelpCircle size={12} />
+                  <span>{showDiagnostics ? 'Hide details' : 'View diagnostic'}</span>
+                </button>
+              </div>
+
+              {!diagnostics.isConfigured && (
+                <p className="text-3xs text-amber-800 mt-2 leading-relaxed bg-amber-50 p-2 rounded border border-amber-200">
+                  New account registration requires Supabase keys in production. If you have already added keys in Vercel, please trigger a fresh <strong>Redeploy without build cache</strong>.
+                </p>
+              )}
+
+              {showDiagnostics && (
+                <div className="mt-3 pt-3 border-t border-slate-100 space-y-1.5 text-3xs font-mono text-slate-600">
+                  <div className="flex justify-between">
+                    <span>URL Configured:</span>
+                    <span className={diagnostics.urlValid ? 'text-emerald-600 font-bold' : 'text-rose-600 font-bold'}>
+                      {diagnostics.urlPresent ? (diagnostics.host || 'Valid Host') : 'Missing'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Key Format:</span>
+                    <span className={diagnostics.keyValid ? 'text-emerald-600 font-bold' : 'text-rose-600 font-bold'}>
+                      {diagnostics.keyFormat}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Evaluator Demo:</span>
+                    <span className="text-slate-800 font-bold">{isDemo ? 'Active' : 'Disabled'}</span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Evaluator Quick Demo Selector (Visible when VITE_DEMO_MODE=true) */}
             {isDemo && demoAccounts.length > 0 && (
-              <div className="mt-6 pt-5 border-t border-slate-200">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="metric-label text-3xs text-slate-500 block">Evaluator Demo Accounts</span>
-                  <span className="badge badge-warning text-3xs font-mono">VITE_DEMO_MODE=true</span>
-                </div>
-                <div className="grid grid-cols-1 gap-2">
+              <div className="pt-2">
+                <span className="text-3xs font-bold uppercase tracking-wider text-slate-500 block mb-2">
+                  1-Click Evaluator Sign-In
+                </span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {demoAccounts.map(account => (
                     <button
                       key={account.role}
                       type="button"
-                      className="p-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 flex items-center justify-between text-left text-xs transition-all"
+                      className="p-2.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 hover:border-sky-300 flex items-center justify-between text-left text-xs transition-all shadow-2xs"
                       onClick={() => handleFillDemoCredentials(account)}
+                      style={{ minHeight: '48px' }}
                     >
                       <div className="flex items-center gap-2">
-                        <account.icon size={14} className={account.color} />
+                        <account.icon size={16} className={account.color} />
                         <div>
-                          <strong className="text-slate-900 block text-2xs">{account.name} ({account.title.split(' ')[0]})</strong>
-                          <span className="text-3xs text-slate-400 font-mono">{account.email}</span>
+                          <strong className="text-slate-900 block text-2xs">{account.name}</strong>
+                          <span className="text-3xs text-slate-400 font-mono">{account.role.toUpperCase()}</span>
                         </div>
                       </div>
-                      <span className="badge badge-neutral text-3xs font-mono">Fill Form</span>
+                      <span className="text-3xs text-sky-600 font-semibold">Fill</span>
                     </button>
                   ))}
                 </div>
@@ -285,27 +401,30 @@ export default function SignInPage({
           </div>
         </div>
 
-        {/* Right Column: Sign In / Register Form */}
+        {/* Right Column: Sign In / Registration Form Card */}
         <div className="signin-right-col">
           <div className="signin-form-card">
+            {/* Header with Mode Tabs */}
             <div className="signin-header">
               <div className="flex justify-between items-center mb-3">
                 <div className="auth-badge">
                   <ShieldCheck size={14} className="text-sky-600" aria-hidden="true" />
-                  <span>{mode === 'signup' ? 'New Account Registration' : 'Verified Credentials'}</span>
+                  <span>{mode === 'signup' ? 'New Registration' : (mode === 'forgot' ? 'Account Recovery' : 'Secure Login')}</span>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-1.5 p-1 bg-slate-100 rounded-lg border border-slate-200">
                   <button
                     type="button"
-                    className={`text-xs font-semibold px-2.5 py-1 rounded transition-colors ${mode === 'signin' ? 'bg-sky-100 text-sky-800' : 'text-slate-500 hover:text-slate-900'}`}
+                    className={`text-xs font-semibold px-3 py-1.5 rounded-md transition-all ${mode === 'signin' ? 'bg-white text-sky-800 shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}
                     onClick={() => { setMode('signin'); setAuthError(''); setAuthSuccess(''); }}
+                    style={{ minHeight: '36px' }}
                   >
                     Sign In
                   </button>
                   <button
                     type="button"
-                    className={`text-xs font-semibold px-2.5 py-1 rounded transition-colors ${mode === 'signup' ? 'bg-sky-100 text-sky-800' : 'text-slate-500 hover:text-slate-900'}`}
+                    className={`text-xs font-semibold px-3 py-1.5 rounded-md transition-all ${mode === 'signup' ? 'bg-white text-sky-800 shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}
                     onClick={() => { setMode('signup'); setAuthError(''); setAuthSuccess(''); }}
+                    style={{ minHeight: '36px' }}
                   >
                     Register
                   </button>
@@ -313,11 +432,11 @@ export default function SignInPage({
               </div>
 
               <h3 className="text-xl font-bold text-slate-900">
-                {mode === 'signup' ? 'Create Health Platform Account' : (mode === 'forgot' ? 'Reset Account Password' : 'Sign In to Workspace')}
+                {mode === 'signup' ? 'Create Health Platform Account' : (mode === 'forgot' ? 'Reset Account Password' : (t('signInToWorkspace') || 'Sign In to Workspace'))}
               </h3>
-              <p className="text-xs text-slate-500 mt-1">
+              <p className="text-xs text-slate-500 mt-1 leading-relaxed">
                 {mode === 'signup'
-                  ? 'Frontline staff accounts require supervisor approval. Patient self-registrations activate immediately.'
+                  ? 'Frontline staff accounts require supervisor verification. Patient self-registrations activate immediately.'
                   : (mode === 'forgot'
                     ? 'Enter your registered email address to receive password recovery instructions.'
                     : 'Enter your institutional email address and password to continue.')}
@@ -332,89 +451,120 @@ export default function SignInPage({
               </div>
             )}
 
+            {/* Error Message Banner */}
             {authError && (
-              <div className="p-3 my-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-start gap-2">
-                <AlertTriangle size={15} className="text-rose-600 flex-shrink-0 mt-0.5" />
-                <div>
-                  <span className="font-bold">Error:</span> {authError}
+              <div className="p-3 my-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-start gap-2.5">
+                <AlertTriangle size={16} className="text-rose-600 flex-shrink-0 mt-0.5" />
+                <div className="flex-1 leading-relaxed">
+                  <strong className="block text-rose-900 font-bold mb-0.5">Authentication Notice</strong>
+                  {authError}
                 </div>
               </div>
             )}
 
+            {/* Success Message Banner */}
             {authSuccess && (
-              <div className="p-3 my-3 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-start gap-2">
+              <div className="p-3 my-3 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-start gap-2.5">
                 <CheckCircle2 size={16} className="text-emerald-600 flex-shrink-0 mt-0.5" />
-                <span>{authSuccess}</span>
+                <div className="flex-1 leading-relaxed">
+                  {authSuccess}
+                </div>
               </div>
             )}
 
-            <form onSubmit={handleSubmit} className="signin-form space-y-3 mt-4">
-              {/* Account Type Selector for Registration */}
+            <form onSubmit={handleSubmit} className="signin-form space-y-4 mt-3">
+              {/* Account Type Selector for Registration - Accessible 52px Touch Targets */}
               {mode === 'signup' && (
-                <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200 space-y-2">
-                  <label className="text-2xs font-bold text-slate-700 uppercase tracking-wider block">Account Type</label>
-                  <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-2">
+                  <label className="text-2xs font-bold text-slate-700 uppercase tracking-wider block">
+                    Account Category *
+                  </label>
+                  <div className="account-type-grid">
                     <button
                       type="button"
-                      className={`py-1.5 px-2 text-xs font-semibold rounded border text-center transition-all ${accountType === 'staff' ? 'bg-sky-600 text-white border-sky-600' : 'bg-white text-slate-700 border-slate-300'}`}
+                      className={`account-type-card ${accountType === 'staff' ? 'active-staff' : ''}`}
                       onClick={() => setAccountType('staff')}
+                      aria-pressed={accountType === 'staff'}
                     >
-                      Frontline Staff
+                      <User size={18} className="text-sky-600 flex-shrink-0" />
+                      <div>
+                        <strong className="text-xs text-slate-900 block font-bold">Healthcare Staff</strong>
+                        <span className="text-3xs text-slate-500 block leading-tight">ASHA / Doctor / Supervisor</span>
+                      </div>
                     </button>
+
                     <button
                       type="button"
-                      className={`py-1.5 px-2 text-xs font-semibold rounded border text-center transition-all ${accountType === 'patient' ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-slate-700 border-slate-300'}`}
+                      className={`account-type-card ${accountType === 'patient' ? 'active-patient' : ''}`}
                       onClick={() => setAccountType('patient')}
+                      aria-pressed={accountType === 'patient'}
                     >
-                      Patient / Family
+                      <UserCheck size={18} className="text-emerald-600 flex-shrink-0" />
+                      <div>
+                        <strong className="text-xs text-slate-900 block font-bold">Patient / Family</strong>
+                        <span className="text-3xs text-slate-500 block leading-tight">Instant Passport Access</span>
+                      </div>
                     </button>
                   </div>
 
                   {accountType === 'staff' ? (
-                    <div className="mt-2">
-                      <label className="text-2xs text-slate-500 block mb-1">Target Healthcare Role (Approval Required)</label>
+                    <div className="mt-2.5 p-3 rounded-lg bg-slate-50 border border-slate-200">
+                      <label className="text-2xs font-bold text-slate-700 block mb-1" htmlFor="signup-staff-role">
+                        Target Healthcare Role (Approval Required) *
+                      </label>
                       <select
+                        id="signup-staff-role"
                         value={selectedStaffRole}
                         onChange={(e) => setSelectedStaffRole(e.target.value)}
                         className="form-input text-xs w-full"
+                        style={{ minHeight: '44px' }}
                       >
                         <option value="chw">Community Health Worker (ASHA)</option>
                         <option value="doctor">Medical Officer (PHC Clinician)</option>
                         <option value="supervisor">Health Program Supervisor</option>
                       </select>
+                      <span className="text-3xs text-slate-500 block mt-1">
+                        Frontline staff accounts default to pending status until verified by a supervisor.
+                      </span>
                     </div>
                   ) : (
-                    <p className="text-3xs text-emerald-700 font-medium">
-                      ✓ Instant access to bilingual Health Passport and medication schedule upon registration.
+                    <p className="text-3xs text-emerald-800 font-medium bg-emerald-50 p-2 rounded border border-emerald-200">
+                      ✓ Instant access to bilingual Health Passport, medication schedule, and AI health guidance.
                     </p>
                   )}
                 </div>
               )}
 
+              {/* Full Name (Sign Up only) */}
               {mode === 'signup' && (
                 <div className="form-group">
-                  <label className="form-label" htmlFor="signup-name">Full Name *</label>
+                  <label className="form-label text-xs font-semibold text-slate-700" htmlFor="signup-name">
+                    Full Name *
+                  </label>
                   <div className="input-with-icon">
-                    <User size={16} className="input-icon" />
+                    <User size={18} className="input-icon" />
                     <input 
                       id="signup-name"
                       type="text" 
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
                       placeholder={accountType === 'patient' ? "e.g. Priya Sharma" : "e.g. Sunita Patil"}
-                      className="form-input text-xs pl-9"
+                      className="form-input text-xs"
                       required
                     />
                   </div>
                 </div>
               )}
 
+              {/* Email Address */}
               <div className="form-group">
-                <label className="form-label" htmlFor="signin-email">Email Address *</label>
+                <label className="form-label text-xs font-semibold text-slate-700" htmlFor="auth-email">
+                  Email Address *
+                </label>
                 <div className="input-with-icon">
-                  <Mail size={16} className="input-icon" />
+                  <Mail size={18} className="input-icon" />
                   <input 
-                    id="signin-email"
+                    id="auth-email"
                     type="email" 
                     value={email}
                     onChange={(e) => { 
@@ -425,21 +575,24 @@ export default function SignInPage({
                       setLockoutSeconds(status.isLocked ? status.remainingSeconds : 0);
                     }}
                     placeholder={mode === 'signup' && accountType === 'patient' ? "patient@example.com" : "staff@communityhealth.org"}
-                    className="form-input text-xs pl-9"
+                    className="form-input text-xs"
                     required
                     autoComplete="username"
                   />
                 </div>
               </div>
 
+              {/* Password Field with Show/Hide Toggle & Strength Meter */}
               {mode !== 'forgot' && (
                 <div className="form-group">
                   <div className="flex justify-between items-center mb-1">
-                    <label className="form-label mb-0" htmlFor="signin-password">Password *</label>
+                    <label className="form-label text-xs font-semibold text-slate-700 mb-0" htmlFor="auth-password">
+                      Password *
+                    </label>
                     {mode === 'signin' && (
                       <button 
                         type="button" 
-                        className="text-xs text-sky-600 hover:underline"
+                        className="text-xs text-sky-600 hover:underline font-medium"
                         onClick={() => { setMode('forgot'); setAuthError(''); setAuthSuccess(''); }}
                       >
                         Forgot password?
@@ -447,25 +600,57 @@ export default function SignInPage({
                     )}
                   </div>
                   <div className="input-with-icon">
-                    <Lock size={16} className="input-icon" />
+                    <Lock size={18} className="input-icon" />
                     <input 
-                      id="signin-password"
-                      type="password" 
+                      id="auth-password"
+                      type={showPassword ? 'text' : 'password'}
                       value={password}
                       onChange={(e) => { setPassword(e.target.value); setAuthError(''); }}
                       placeholder="Minimum 8 characters"
-                      className="form-input text-xs pl-9"
+                      className="form-input text-xs has-trailing"
                       required
                       autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
                     />
+                    <button
+                      type="button"
+                      className="input-trailing-btn"
+                      onClick={() => setShowPassword(!showPassword)}
+                      aria-label={showPassword ? 'Hide password text' : 'Show password text'}
+                    >
+                      {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
                   </div>
+
+                  {/* Password Strength Meter on Registration */}
+                  {mode === 'signup' && password.length > 0 && (
+                    <div className="password-strength-container">
+                      <div className="flex justify-between items-center text-3xs mb-1">
+                        <span className="text-slate-500">Password Strength:</span>
+                        <span className={`font-bold ${pwdStrength.text}`}>{pwdStrength.label}</span>
+                      </div>
+                      <div className="password-strength-track">
+                        <div 
+                          className={`password-strength-fill ${pwdStrength.color}`} 
+                          style={{ width: `${pwdStrength.score}%` }} 
+                        />
+                      </div>
+                      {password.length < 8 && (
+                        <span className="text-3xs text-rose-600 block mt-1">
+                          Must be at least 8 characters long.
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
 
+              {/* Optional Phone & Village Fields for Sign Up */}
               {mode === 'signup' && (
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                   <div className="form-group">
-                    <label className="form-label" htmlFor="signup-phone">Mobile Phone</label>
+                    <label className="form-label text-xs font-semibold text-slate-700" htmlFor="signup-phone">
+                      Mobile Phone
+                    </label>
                     <input
                       id="signup-phone"
                       type="tel"
@@ -473,10 +658,13 @@ export default function SignInPage({
                       onChange={(e) => setPhone(e.target.value)}
                       placeholder="+91 9876543210"
                       className="form-input text-xs"
+                      style={{ minHeight: '44px' }}
                     />
                   </div>
                   <div className="form-group">
-                    <label className="form-label" htmlFor="signup-village">Village / Ward</label>
+                    <label className="form-label text-xs font-semibold text-slate-700" htmlFor="signup-village">
+                      Village / Ward
+                    </label>
                     <input
                       id="signup-village"
                       type="text"
@@ -484,46 +672,36 @@ export default function SignInPage({
                       onChange={(e) => setVillage(e.target.value)}
                       placeholder="e.g. Vimanapura"
                       className="form-input text-xs"
+                      style={{ minHeight: '44px' }}
                     />
                   </div>
                 </div>
               )}
 
-              {mode === 'signup' && (
-                <div className="form-group">
-                  <label className="form-label" htmlFor="signup-lang">Preferred Regional Language</label>
-                  <select
-                    id="signup-lang"
-                    value={languagePref}
-                    onChange={(e) => setLanguagePref(e.target.value)}
-                    className="form-input text-xs"
-                  >
-                    <option value="en">English (Default)</option>
-                    <option value="kn">Kannada (ಕನ್ನಡ)</option>
-                    <option value="hi">Hindi (हिंदी)</option>
-                    <option value="mr">Marathi (मराठी)</option>
-                  </select>
-                </div>
-              )}
-
+              {/* Submit Button with 48px minimum touch target */}
               <button 
                 type="submit" 
-                className="btn btn-primary text-xs w-full justify-center font-bold mt-2 py-2.5"
+                className="btn btn-primary text-xs w-full justify-center font-bold py-3 mt-3 shadow-md"
                 disabled={isSubmitting || lockoutSeconds > 0}
+                style={{ minHeight: '48px' }}
               >
                 {isSubmitting ? (
-                  <span>Authenticating...</span>
+                  <span>Processing...</span>
                 ) : lockoutSeconds > 0 ? (
                   <span>Locked ({lockoutSeconds}s)</span>
                 ) : mode === 'signup' ? (
-                  <span className="flex items-center gap-1.5">
-                    <UserPlus size={15} /> 
+                  <span className="flex items-center gap-2">
+                    <UserPlus size={16} /> 
                     {accountType === 'patient' ? 'Complete Patient Registration' : 'Submit Staff Registration'}
                   </span>
                 ) : mode === 'forgot' ? (
-                  <span className="flex items-center gap-1.5"><KeyRound size={15} /> Send Recovery Instructions</span>
+                  <span className="flex items-center gap-2">
+                    <KeyRound size={16} /> Send Recovery Instructions
+                  </span>
                 ) : (
-                  <span className="flex items-center gap-1.5"><LogIn size={15} /> Sign In to Workspace</span>
+                  <span className="flex items-center gap-2">
+                    <LogIn size={16} /> Sign In to Workspace
+                  </span>
                 )}
               </button>
 
@@ -532,6 +710,7 @@ export default function SignInPage({
                   type="button"
                   className="btn btn-secondary text-xs w-full justify-center mt-2"
                   onClick={() => { setMode('signin'); setAuthError(''); setAuthSuccess(''); }}
+                  style={{ minHeight: '44px' }}
                 >
                   Back to Sign In
                 </button>

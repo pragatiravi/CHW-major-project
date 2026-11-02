@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { TRANSLATIONS } from './translations';
 import { getLocalizedThinkLetsScripts } from '../data/counsellingScripts';
 
-describe('Phase 4: Multilingual Translation Coverage', () => {
+describe('Phase 4: Multilingual Translation Coverage & Parity', () => {
   const supportedLanguages = ['en', 'kn', 'hi', 'mr'];
 
   it('defines all 4 core Indian languages in TRANSLATIONS dictionary', () => {
@@ -14,7 +14,7 @@ describe('Phase 4: Multilingual Translation Coverage', () => {
 
   it('ensures 100% translation key parity across English, Kannada, Hindi, and Marathi', () => {
     const englishKeys = Object.keys(TRANSLATIONS.en);
-    expect(englishKeys.length).toBeGreaterThan(50);
+    expect(englishKeys.length).toBeGreaterThan(60);
 
     ['kn', 'hi', 'mr'].forEach(targetLang => {
       const targetDict = TRANSLATIONS[targetLang];
@@ -30,6 +30,28 @@ describe('Phase 4: Multilingual Translation Coverage', () => {
         expect(typeof val).toBe('string');
         expect(val.trim().length).toBeGreaterThan(0);
       });
+    });
+  });
+
+  it('ensures regional translations are distinct from English and not accidentally copied over', () => {
+    // Approved exceptions where universal medical abbreviations/formats are intentionally identical
+    const approvedIdenticalExceptions = new Set([
+      // No keys currently allowed to be verbatim identical to English
+    ]);
+
+    const englishKeys = Object.keys(TRANSLATIONS.en);
+
+    ['kn', 'hi', 'mr'].forEach(lang => {
+      const dict = TRANSLATIONS[lang];
+      const identicalKeys = englishKeys.filter(key => {
+        if (approvedIdenticalExceptions.has(key)) return false;
+        return dict[key] === TRANSLATIONS.en[key];
+      });
+
+      expect(
+        identicalKeys,
+        `Language '${lang}' has untranslated keys identical to English: ${identicalKeys.join(', ')}`
+      ).toEqual([]);
     });
   });
 
@@ -60,13 +82,16 @@ describe('Phase 4: Multilingual Translation Coverage', () => {
     // Kannada check
     expect(TRANSLATIONS.kn.bloodPressure).toContain('ರಕ್ತದೊತ್ತಡ');
     expect(TRANSLATIONS.kn.sos).toContain('108');
+    expect(TRANSLATIONS.kn.accountStaff).toBe('ಆರೋಗ್ಯ ಸಿಬ್ಬಂದಿ');
 
     // Hindi check
     expect(TRANSLATIONS.hi.bloodPressure).toContain('रक्तचाप');
     expect(TRANSLATIONS.hi.greetingCHW).toBe('शुभ प्रभात');
+    expect(TRANSLATIONS.hi.accountStaff).toBe('स्वास्थ्य कर्मी');
 
     // Marathi check
     expect(TRANSLATIONS.mr.bloodPressure).toContain('रक्तदाब');
     expect(TRANSLATIONS.mr.signIn).toBe('लॉग इन करा');
+    expect(TRANSLATIONS.mr.accountStaff).toBe('आरोग्य कर्मचारी');
   });
 });

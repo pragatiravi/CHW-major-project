@@ -1,4 +1,3 @@
-/* global process */
 import { supabase, isSupabaseConfigured } from '../supabaseClient';
 import { INITIAL_PATIENTS } from '../../data/initialData';
 import { recordPatientVisit, fetchVisitsForPatient } from './visits';
@@ -8,8 +7,6 @@ import {
   enqueueSyncOperation, 
   removeSyncQueueItem 
 } from './dexieDb';
-
-const isTestEnv = (typeof process !== 'undefined' && process.env?.NODE_ENV === 'test');
 
 function getCacheKey(userId) {
   return 'chw_patients_' + (userId || 'anon');
@@ -54,7 +51,7 @@ export async function fetchPatients(currentUser = null) {
   const userId = currentUser?.id;
   const userRole = currentUser?.role;
 
-  if (isSupabaseConfigured && supabase && !isTestEnv) {
+  if (isSupabaseConfigured && supabase) {
     try {
       const { data, error } = await supabase
         .from('patients')
@@ -209,7 +206,7 @@ export async function savePatient(patientRecord, currentUser = null) {
   });
 
   // 3. Persist to Supabase if online and configured
-  if (isSupabaseConfigured && supabase && typeof navigator !== 'undefined' && navigator.onLine && !isTestEnv) {
+  if (isSupabaseConfigured && supabase && typeof navigator !== 'undefined' && navigator.onLine) {
     const { error } = await supabase
       .from('patients')
       .upsert([patientPayload], { onConflict: 'custom_id' });
@@ -250,7 +247,7 @@ export async function deletePatient(patientId, currentUser = null) {
     payload: { custom_id: patientId }
   });
 
-  if (isSupabaseConfigured && supabase && typeof navigator !== 'undefined' && navigator.onLine && !isTestEnv) {
+  if (isSupabaseConfigured && supabase && typeof navigator !== 'undefined' && navigator.onLine) {
     const { error } = await supabase
       .from('patients')
       .update({ deleted_at: new Date().toISOString() })

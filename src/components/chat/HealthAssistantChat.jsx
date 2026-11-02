@@ -367,13 +367,18 @@ export default function HealthAssistantChat({
                 <>
                   <p className="bubble-text">{msg.text}</p>
                   
-                  {/* Offline Fallback Advice Tag */}
-                  {msg.isFallback && (
-                    <div className="bubble-fallback-tag">
-                      <ShieldCheck size={14} />
-                      <span>{language === 'kn' ? 'ಪರಿಶೀಲಿಸಿದ ಕ್ಲಿನಿಕಲ್ ಗೈಡ್' : 'Verified Clinical Safety Guideline'}</span>
+                  {/* Source Badge (Online AI vs Offline Protocol) */}
+                  {msg.source === 'online_ai' ? (
+                    <div className="bubble-fallback-tag" style={{ backgroundColor: '#ecfdf5', borderColor: '#a7f3d0', color: '#065f46' }}>
+                      <Sparkles size={13} className="text-emerald-600" />
+                      <span>{language === 'kn' ? 'ಲೈವ್ ಎಐ (Online AI)' : language === 'hi' ? 'ऑनलाइन एआई (Online AI)' : language === 'mr' ? 'ऑनलाइन एआय (Online AI)' : 'Online AI'}</span>
                     </div>
-                  )}
+                  ) : (msg.isFallback || msg.source === 'offline_kb' || msg.source === 'simulated_online_advisory' || msg.source === 'server_fallback') ? (
+                    <div className="bubble-fallback-tag" style={{ backgroundColor: '#f0f9ff', borderColor: '#bae6fd', color: '#0369a1' }}>
+                      <ShieldCheck size={13} className="text-sky-600" />
+                      <span>{language === 'kn' ? 'ಪರಿಶೀಲಿಸಿದ ಆಫ್‌ಲೈನ್ ಗೈಡ್ (Offline Guide)' : language === 'hi' ? 'सत्यापित ऑफलाइन गाइड (Offline Guide)' : language === 'mr' ? 'प्रमाणित ऑफलाइन मार्गदर्शक (Offline Guide)' : 'Verified Clinical Guide (Offline)'}</span>
+                    </div>
+                  ) : null}
                 </>
               )}
 

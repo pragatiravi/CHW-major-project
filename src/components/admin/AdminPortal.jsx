@@ -8,7 +8,11 @@ import {
   UserCheck,
   UserX,
   Shield,
-  Ban
+  Ban,
+  Sparkles,
+  Bot,
+  RefreshCw,
+  AlertTriangle
 } from 'lucide-react';
 import { 
   INITIAL_HOSPITALS, 
@@ -40,6 +44,69 @@ export default function AdminPortal({
   const [newHospName, setNewHospName] = useState('');
   const [newHospBeds, setNewHospBeds] = useState(10);
   const [newHospPhone, setNewHospPhone] = useState('+91 98765 00000');
+
+  const [aiTestState, setAiTestState] = useState({
+    testing: false,
+    health: null,
+    chatResponse: null,
+    latencyMs: null,
+    error: null
+  });
+
+  const handleTestAIConnection = async () => {
+    setAiTestState({ testing: true, health: null, chatResponse: null, latencyMs: null, error: null });
+    const start = performance.now();
+    try {
+      // 1. Query /api/health
+      let health = null;
+      try {
+        const healthRes = await fetch('/api/health');
+        if (healthRes.ok) health = await healthRes.json();
+      } catch (hErr) {
+        console.warn('Could not query /api/health:', hErr.message);
+      }
+
+      // 2. Query /api/chat with test prompt
+      const chatRes = await fetch('/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${sessionStorage.getItem('supabase_auth_token') || 'admin_evaluator_session'}`,
+          'x-chw-session': 'admin_evaluator_session'
+        },
+        body: JSON.stringify({
+          message: 'What is the recommended dietary salt intake for a hypertension patient?',
+          language: 'en'
+        })
+      });
+
+      const chatData = chatRes.ok ? await chatRes.json() : { reply: 'Server returned error status ' + chatRes.status, code: 'status_' + chatRes.status };
+      const latency = Math.round(performance.now() - start);
+
+      setAiTestState({
+        testing: false,
+        health,
+        chatResponse: chatData,
+        latencyMs: latency,
+        error: null
+      });
+
+      if (chatData?.source === 'online_ai') {
+        toastSuccess(`AI Connected! Responded in ${latency}ms via ${chatData.model || 'Gemini'}`);
+      } else {
+        toastInfo(`Chatbot responded via ${chatData?.source || 'verified protocol'} (${chatData?.model || 'clinical rules'})`);
+      }
+    } catch (err) {
+      setAiTestState({
+        testing: false,
+        health: null,
+        chatResponse: null,
+        latencyMs: null,
+        error: err.message
+      });
+      toastError(`AI Connection Test Failed: ${err.message}`);
+    }
+  };
 
   // FHIR R4 Collection Bundle Exporter
   const handleExportFHIR = () => {
@@ -229,6 +296,82 @@ export default function AdminPortal({
               <div className="metric-value text-emerald-700">100%</div>
               <span className="metric-sub">LOINC 85354-9 / 2339-0 Validated</span>
             </div>
+          </div>
+
+          {/* AI CHATBOT SERVICE HEALTH & CONNECTION TESTER */}
+          <div className="card-box p-5 bg-white border border-slate-200 rounded-xl space-y-4">
+            <div className="flex justify-between items-center flex-wrap gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-lg bg-sky-50 text-sky-600 flex items-center justify-center">
+                  <Bot size={20} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900">AI Health Assistant Service & Connectivity</h3>
+                  <p className="text-3xs text-slate-500">Live verification of Google Gemini API keys, active model, and /api/chat latency</p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleTestAIConnection}
+                disabled={aiTestState.testing}
+                className="btn btn-primary text-xs py-2 px-3.5 flex items-center gap-2 font-semibold shadow-xs"
+                style={{ minHeight: '44px' }}
+              >
+                {aiTestState.testing ? (
+                  <>
+                    <RefreshCw size={14} className="animate-spin" />
+                    <span>Pinging /api/chat...</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles size={14} />
+                    <span>Test AI Connection</span>
+                  </>
+                )}
+              </button>
+            </div>
+
+            {/* Test Results Output */}
+            {aiTestState.health && (
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3.5 bg-slate-50 rounded-lg border border-slate-200 text-xs">
+                <div>
+                  <span className="text-3xs text-slate-500 uppercase font-mono block">AI Configuration</span>
+                  <strong className={aiTestState.health?.ai?.isConfigured ? 'text-emerald-700' : 'text-amber-700'}>
+                    {aiTestState.health?.ai?.isConfigured ? '✓ Configured' : '⚠ Missing API Key'}
+                  </strong>
+                </div>
+                <div>
+                  <span className="text-3xs text-slate-500 uppercase font-mono block">Active Model</span>
+                  <strong className="text-slate-800 font-mono text-2xs">{aiTestState.health?.ai?.model || 'gemini-2.0-flash'}</strong>
+                </div>
+                <div>
+                  <span className="text-3xs text-slate-500 uppercase font-mono block">Round-Trip Latency</span>
+                  <strong className="text-slate-800">{aiTestState.latencyMs ? `${aiTestState.latencyMs}ms` : '--'}</strong>
+                </div>
+              </div>
+            )}
+
+            {aiTestState.chatResponse && (
+              <div className="p-3.5 rounded-lg border border-slate-200 bg-white text-xs space-y-1.5">
+                <div className="flex justify-between items-center text-3xs font-mono text-slate-500">
+                  <span>Test Prompt: "What is the recommended dietary salt intake for a hypertension patient?"</span>
+                  <span className={`px-2 py-0.5 rounded font-bold uppercase ${aiTestState.chatResponse.source === 'online_ai' ? 'bg-emerald-100 text-emerald-800' : 'bg-sky-100 text-sky-800'}`}>
+                    Source: {aiTestState.chatResponse.source || 'Verified Protocol'}
+                  </span>
+                </div>
+                <p className="text-slate-800 leading-relaxed font-sans text-xs bg-slate-50 p-2.5 rounded border border-slate-100">
+                  "{aiTestState.chatResponse.reply}"
+                </p>
+              </div>
+            )}
+
+            {aiTestState.error && (
+              <div className="p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center gap-2">
+                <AlertTriangle size={16} className="text-rose-600 flex-shrink-0" />
+                <span>Test Failed: {aiTestState.error}</span>
+              </div>
+            )}
           </div>
         </div>
       )}

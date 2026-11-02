@@ -73,28 +73,36 @@ The production Supabase PostgreSQL database implements 16 relational tables with
 
 ## 🔒 Security & DPDP Act Compliance
 
-- **Endpoint Protection at Rest**: Sensitive patient PII (`phone`, `address`) stored in browser IndexedDB is encrypted using AES-GCM 256. Cryptographic keys are derived in volatile memory via PBKDF2 (100,000 iterations, SHA-256) using a persistent device salt and user identity.
-- **Server-Side Role Authority**: User roles and approval statuses are enforced by database triggers and RLS policies on the server. Client-side role spoofing is blocked by `<RoleGuard />`.
+- **Endpoint Protection at Rest**: Sensitive patient PII (`phone`, `address`, `notes`) stored in browser IndexedDB is encrypted using AES-GCM 256. Cryptographic keys are derived in volatile memory via PBKDF2 (100,000 iterations, SHA-256) using a persistent device salt and user identity.
+- **Encryption Key Lifecycle**:
+  - *On Logout*: The in-memory `CryptoKey` instance is destroyed and garbage-collected; session tokens are removed from `sessionStorage`. The local IndexedDB cache retains ciphertexts safely encrypted on disk.
+  - *On a New Device*: Because the PBKDF2 salt is a unique, cryptographically random device salt (`localStorage.getItem('chw_device_salt')`), raw IndexedDB databases cannot be ported between devices. When logging in on a new device, the app syncs clean authorized records directly from the central Supabase PostgreSQL server over TLS.
+  - *If Device is Stolen*: An attacker dumping browser IndexedDB files without the user's password and active volatile session memory cannot decrypt patient PII.
+- **Server-Side Role Authority**: User roles and approval statuses are enforced by database triggers and RLS policies on the server (`supabase/migrations/20261102000000_auth_hardening.sql`). Client-side role spoofing is blocked by `<RoleGuard />`.
 - **Brute-Force Rate Limiting**: Client-side authentication enforces a sliding window lockout after 5 consecutive failed attempts. The `/api/chat` serverless proxy enforces an IP-based limit of 30 requests per minute.
-- **Production Demo Gating**: Evaluator demo personas (`*.demo@ruralhealth.org`) require `VITE_DEMO_MODE=true` to function. When disabled in production, demo logins are completely blocked.
-- **HTTP Security Headers**: Configured via `vercel.json` with strict Content Security Policy (CSP), `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, and HSTS.
+- **Production Demo Gating**: Evaluator demo personas (`*.demo@ruralhealth.org`) require `VITE_DEMO_MODE=true` to function. When disabled in production, demo logins are completely blocked and a visible banner alerts the user whenever demo mode is active.
+- **HTTP Security Headers & CSP**: Configured via `vercel.json` with strict Content Security Policy (`connect-src` allowing Supabase REST/WebSockets and Gemini; `img-src` allowing data/blob URLs; strict frame denial and HSTS).
+- **PWA Lifecycle & Update Prompt**: Automatic registration via Workbox (`registerSW`) with user reload prompt when a new production bundle is deployed.
 
 ---
 
 ## 🧪 Automated Testing Suite
 
-The repository includes a rigorous Vitest test suite with **74 passing tests** across 7 test modules:
+The repository includes a rigorous Vitest test suite with **77 passing tests** across 7 test modules, plus automated i18n key parity verification:
 
 ```bash
 npm test
+npm run check:i18n
+npm run lint
+npm run build
 ```
 
-- `src/lib/auth.test.js` (20 tests): Role guards, brute-force lockout, session restoration, demo gating, patient self-registration, and user cache isolation.
+- `src/lib/auth.test.js` (21 tests): Role guards, brute-force lockout, session restoration, demo gating, patient self-registration, server-side approval constraints, and user cache isolation.
 - `src/lib/chat/chat.test.js` (18 tests): Deterministic red-flag emergency detector, Fuse.js offline retrieval, consent-based chat logging, and the **30-Item Clinical AI & Triage Benchmark**.
-- `src/lib/sync/syncEngine.test.js` (12 tests): IndexedDB storage, outbox push queue, conflict resolution (tablet vs clinic), AES-GCM encryption, PBKDF2 device salt derivation, and safe logout checks.
+- `src/lib/sync/syncEngine.test.js` (13 tests): IndexedDB storage, outbox push queue, conflict resolution (tablet vs clinic), AES-GCM encryption, PBKDF2 device salt derivation, safe logout checks, and local-to-cloud migration on first login.
 - `src/lib/speech/speech.test.js` (11 tests): Web Speech STT transcript parsing (BP numbers, decimals), TTS voice controllers, and 4-language dialect mappings.
 - `src/utils/predictionEngine.test.js` (7 tests): AHA 2017 hypertension tiers, ADA 2024 glucose thresholds, logistic risk formulas, and decision tree edge cases.
-- `src/utils/translations.test.js` (4 tests): 100% key parity across English, Kannada, Hindi, and Marathi dictionaries, and ThinkLets counselling scripts.
+- `src/utils/translations.test.js` (5 tests): 100% key parity across English, Kannada, Hindi, and Marathi dictionaries, and ThinkLets counselling scripts.
 - `src/utils/pdfExport.test.js` (2 tests): Escaped clinical printing and CSV sanitization.
 
 ---

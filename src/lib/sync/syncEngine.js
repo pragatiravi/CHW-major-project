@@ -5,7 +5,8 @@ import {
   markSyncQueueFailed,
   recordConflict,
   getUnresolvedConflicts,
-  savePatientLocally
+  savePatientLocally,
+  getLocalPatientsFromDB
 } from '../db/dexieDb';
 
 let syncState = {
@@ -226,4 +227,50 @@ export function initSyncEngine() {
     window.removeEventListener('offline', handleOffline);
     if (syncTimer) clearInterval(syncTimer);
   };
+}
+
+/**
+ * Migrate local IndexedDB patients created offline to Supabase on first user login without duplicates
+ */
+export async function migrateLocalDataToCloud(currentUser) {
+  if (!isSupabaseConfigured || !supabase || !currentUser?.id) {
+    return { migratedCount: 0, reason: 'unconfigured_or_unauthenticated' };
+  }
+
+  try {
+    const localPatients = await getLocalPatientsFromDB();
+    if (!Array.isArray(localPatients) || localPatients.length === 0) {
+      return { migratedCount: 0, reason: 'no_local_records' };
+    }
+
+    let migratedCount = 0;
+    for (const p of localPatients) {
+      const payload = {
+        custom_id: p.custom_id || p.id,
+        legacy_id: p.legacy_id || p.custom_id || p.id,
+        name: p.name,
+        age: parseInt(p.age) || 45,
+        gender: (p.gender || 'female').toLowerCase(),
+        village: p.village || 'Community Sector',
+        address: p.address || '',
+        phone: p.phone || '',
+        created_by: p.created_by && p.created_by !== 'anon' ? p.created_by : currentUser.id,
+        assigned_chw: p.assigned_chw && p.assigned_chw !== 'anon' ? p.assigned_chw : currentUser.id,
+        updated_at: p.updated_at || new Date().toISOString()
+      };
+
+      const { error } = await supabase
+        .from('patients')
+        .upsert([payload], { onConflict: 'custom_id' });
+
+      if (!error) {
+        migratedCount++;
+      }
+    }
+
+    return { migratedCount, totalChecked: localPatients.length };
+  } catch (err) {
+    console.warn('Local data cloud migration error:', err);
+    return { migratedCount: 0, error: err.message };
+  }
 }

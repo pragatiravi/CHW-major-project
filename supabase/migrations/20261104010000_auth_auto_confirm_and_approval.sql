@@ -100,3 +100,4 @@ WHERE email_confirmed_at IS NULL;
 UPDATE public.profiles
 SET status = 'approved'
 WHERE status = 'pending';
+

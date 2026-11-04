@@ -86,3 +86,4 @@ BEGIN
   RETURN 'Successfully promoted ' || target_email || ' to administrator.';
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
+

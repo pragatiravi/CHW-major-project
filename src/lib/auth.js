@@ -1,14 +1,14 @@
 /* global process */
 import { supabase, isSupabaseConfigured, getSupabaseDiagnostics } from './supabaseClient';
 import { fetchUserProfile } from './db/profiles';
-import { 
-  getLockoutStatus, 
-  recordFailedAttempt, 
-  resetFailedAttempts 
+import {
+  getLockoutStatus,
+  recordFailedAttempt,
+  resetFailedAttempts
 } from './authRateLimiter';
-import { 
-  setUserEncryptionContext, 
-  clearUserEncryptionContext 
+import {
+  setUserEncryptionContext,
+  clearUserEncryptionContext
 } from './crypto/encryption';
 
 /**
@@ -250,11 +250,11 @@ export async function signInWithCredentials({ email, password }) {
  * - Staff (CHW, Doctor, Supervisor, Admin): status is strictly 'pending' and requires approval.
  * - Patient: self-registration with status 'approved'.
  */
-export async function signUpWithCredentials({ 
-  email, 
-  password, 
-  fullName, 
-  role = 'chw', 
+export async function signUpWithCredentials({
+  email,
+  password,
+  fullName,
+  role = 'chw',
   languagePref = 'en',
   phone = '',
   village = ''

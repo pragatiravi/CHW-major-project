@@ -12,20 +12,20 @@ export default function handler(req, res) {
   const sanitize = (v) => (v || '').trim().replace(/^["']|["']$/g, '');
   const supabaseUrl = sanitize(process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL);
   const supabaseKey = sanitize(
-    process.env.VITE_SUPABASE_ANON_KEY || 
-    process.env.VITE_SUPABASE_PUBLISHABLE_KEY || 
+    process.env.VITE_SUPABASE_ANON_KEY ||
+    process.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
     process.env.SUPABASE_ANON_KEY
   );
 
   const isGeminiConfigured = Boolean(
-    geminiKey && 
-    !geminiKey.includes('your-gemini-api-key') && 
+    geminiKey &&
+    !geminiKey.includes('your-gemini-api-key') &&
     geminiKey.length > 20
   );
 
   const isSupabaseConfigured = Boolean(
-    supabaseUrl && 
-    supabaseKey && 
+    supabaseUrl &&
+    supabaseKey &&
     !supabaseUrl.includes('placeholder')
   );
 

@@ -1,7 +1,7 @@
 import { supabase, isSupabaseConfigured } from '../supabaseClient';
-import { 
-  getPendingSyncQueue, 
-  removeSyncQueueItem, 
+import {
+  getPendingSyncQueue,
+  removeSyncQueueItem,
   markSyncQueueFailed,
   recordConflict,
   getUnresolvedConflicts,

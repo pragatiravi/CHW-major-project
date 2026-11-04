@@ -138,3 +138,4 @@ SELECT COUNT(*) AS doctor_referred_patients FROM public.patients;
 -- 4. Reset Session
 RESET ROLE;
 ```
+

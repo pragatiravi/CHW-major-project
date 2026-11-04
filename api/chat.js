@@ -261,23 +261,21 @@ const PREGNANCY_URGENT = {
 function buildSystemPrompt(passages) {
   const passageText = passages.length > 0
     ? passages.map((p, i) => `[Passage ${i + 1} — ${p.topic}]\n${p.answer}`).join('\n\n')
-    : 'No matching guidance found in the knowledge base.';
+    : 'No specific local passages retrieved for this question.';
 
-  return `You are the CHW Healthcare Assistant for rural India (Karnataka and Maharashtra). Your role is to help ASHA/ANM Community Health Workers and patients understand NCD (Non-Communicable Disease) topics.
+  return `You are the CHW Healthcare Assistant for rural India (supporting Karnataka and Maharashtra). Your role is to help ASHA/ANM Community Health Workers and patients understand healthcare topics, non-communicable diseases (hypertension, diabetes), maternal health, nutrition, wellness, and application features.
 
-MANDATORY RULES:
-1. Answer ONLY based on the knowledge base passages provided below. If the passages do not cover the question, say so clearly and advise the user to consult their PHC/supervisor.
-2. NEVER give a definitive diagnosis or specific drug dosing beyond what is in the passages.
-3. ALWAYS end with a referral nudge: "Please confirm with your local PHC Medical Officer or ASHA supervisor."
-4. If the question is non-health-related (e.g. weather, politics, entertainment), respond: "I can only answer health questions related to diabetes, blood pressure, and community health."
-5. Keep answers short (under 150 words) and use simple language suitable for low-literacy users.
-6. Respond in the EXACT language of the user (English, Hindi, Kannada, or Marathi).
-7. For emergencies (BP ≥180/120, chest pain, pregnancy danger signs), emphasise calling 108 immediately.
+CORE BEHAVIOR:
+1. When local verified clinical passages are provided below, prioritize and ground your advice directly in those passages.
+2. If the user asks about general health, nutrition, lifestyle, Type 1 vs Type 2 diabetes, blood pressure monitoring, or how to use the CHW Toolkit, provide an accurate, clear, helpful, educational response based on standard medical guidance.
+3. NEVER prescribe specific prescription drugs or alter medication dosages. Always remind the user to consult a qualified medical officer at the PHC or doctor.
+4. For medical emergencies (BP >= 180/120, chest pain radiating to left arm/jaw, severe shortness of breath, signs of stroke [face drooping, arm weakness, speech difficulty], or pregnancy danger signs [pre-eclampsia, severe headache, convulsions, heavy bleeding]), immediately urge the user to call 108 ambulance and reach the nearest hospital.
+5. If the query is completely unrelated to health or community medicine (e.g. software programming, movies, political opinions), politely decline by stating you are a specialized community health assistant.
+6. Respond in the user's requested language: English, Hindi, Kannada, or Marathi.
+7. Keep responses concise, supportive, and accessible (under 200 words).
 
-KNOWLEDGE BASE PASSAGES:
-${passageText}
-
-Remember: Use ONLY the information above. If it doesn't cover the question, say "I don't have verified guidance on this topic. Please consult your PHC or supervisor."`;
+VERIFIED LOCAL CLINICAL GUIDANCE:
+${passageText}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -326,9 +324,11 @@ export default async function handler(req, res) {
   }
 
   if (!authMode && isDemoRequest) {
-    // Demo path — check ALLOW_DEMO_CHAT flag
+    // Demo path — check ALLOW_DEMO_CHAT flag (allows demo chat unless explicitly 'false')
     const allowDemo = sanitize(process.env.ALLOW_DEMO_CHAT).toLowerCase();
-    if (allowDemo === 'true' || allowDemo === '1') {
+    const isDemoAllowed = allowDemo === '' || allowDemo === 'true' || allowDemo === '1' || process.env.VITE_DEMO_MODE === 'true';
+
+    if (isDemoAllowed) {
       // Demo rate limit: global cap
       const demoLimit = parseInt(process.env.DEMO_CHAT_DAILY_LIMIT || '200', 10);
       if (isDemoRateLimited(demoLimit)) {
@@ -353,7 +353,7 @@ export default async function handler(req, res) {
   }
 
   // --- Parse body ---
-  const { message: rawMessage, language = 'en', context = {} } = req.body || {};
+  const { message: rawMessage, language = 'en', context = {}, history = [] } = req.body || {};
 
   if (!rawMessage || typeof rawMessage !== 'string') {
     return res.status(400).json({ error: 'Invalid payload. "message" string is required.', code: 'invalid_payload' });
@@ -419,6 +419,27 @@ export default async function handler(req, res) {
   // --- Demo users: shorter max output ---
   const maxTokens = authMode === 'demo' ? 150 : 300;
 
+  // --- Multi-turn conversation contents ---
+  const geminiContents = [];
+  if (Array.isArray(history) && history.length > 0) {
+    const recent = history.slice(-6);
+    for (const h of recent) {
+      const msgText = typeof h.text === 'string' ? h.text.trim() : (typeof h.content === 'string' ? h.content.trim() : '');
+      if (!msgText) continue;
+      const role = (h.role === 'user' || h.sender === 'user') ? 'user' : 'model';
+      geminiContents.push({
+        role,
+        parts: [{ text: msgText.slice(0, 500) }]
+      });
+    }
+  }
+
+  // Append current turn
+  geminiContents.push({
+    role: 'user',
+    parts: [{ text: `[Language: ${lang}] ${message}` }]
+  });
+
   // --- Online Gemini call with grounded passages ---
   const systemPrompt = buildSystemPrompt(hasRelevantPassages ? passages : []);
   const controller = new AbortController();
@@ -432,10 +453,7 @@ export default async function handler(req, res) {
       signal: controller.signal,
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: systemPrompt }] },
-        contents: [{
-          role: 'user',
-          parts: [{ text: `[Language: ${lang}] ${message}` }]
-        }],
+        contents: geminiContents,
         generationConfig: { temperature: 0.2, maxOutputTokens: maxTokens }
       })
     });

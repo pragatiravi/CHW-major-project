@@ -23,6 +23,7 @@ import OfflineSyncQueueModal from './OfflineSyncQueueModal';
 import NearbyHospitalsMap from '../maps/NearbyHospitalsMap';
 import PatientDetailModal from '../shared/PatientDetailModal';
 import HealthAssistantChat from '../chat/HealthAssistantChat';
+import { useLanguage } from '../shared/LanguageContext';
 
 export default function CHWPortal({
   patients = [],
@@ -43,6 +44,7 @@ export default function CHWPortal({
   activeSection = 'home',
   currentUser
 }) {
+  const { t } = useLanguage();
   const activeTab = activeSection || 'home';
   const [filterRisk, setFilterRisk] = useState('all');
   const [localSearch, setLocalSearch] = useState('');
@@ -81,10 +83,10 @@ export default function CHWPortal({
 
   const getRiskBadge = (level) => {
     switch (level) {
-      case 'Critical': return <span className="badge badge-risk-critical">Critical Risk</span>;
-      case 'High': return <span className="badge badge-risk-high">High Risk</span>;
-      case 'Moderate': return <span className="badge badge-risk-moderate">Moderate</span>;
-      default: return <span className="badge badge-risk-low">Low Risk</span>;
+      case 'Critical': return <span className="badge badge-risk-critical">{t('criticalRisk') || 'Critical Risk'}</span>;
+      case 'High': return <span className="badge badge-risk-high">{t('highRisk') || 'High Risk'}</span>;
+      case 'Moderate': return <span className="badge badge-risk-moderate">{t('moderateRisk') || 'Moderate Risk'}</span>;
+      default: return <span className="badge badge-risk-low">{t('lowRisk') || 'Low Risk'}</span>;
     }
   };
 
@@ -115,12 +117,12 @@ export default function CHWPortal({
           {/* Header Card: Greeting + Primary Actions */}
           <div className="chw-workflow-header text-white flex justify-between items-center flex-wrap gap-4">
             <div>
-              <span className="text-sky-300 text-xs font-semibold uppercase tracking-wider block">Frontline Field Dashboard</span>
+              <span className="text-sky-300 text-xs font-semibold uppercase tracking-wider block">{t('appTitle') || 'Frontline Field Dashboard'}</span>
               <h1 className="text-2xl font-bold mt-1 text-white">
-                Good morning, {currentUser?.name ? currentUser.name.split(' ')[0] : 'Sunita'}
+                {t('greetingCHW') || 'Good morning'}, {currentUser?.name ? currentUser.name.split(' ')[0] : 'Sunita'}
               </h1>
               <p className="text-xs text-slate-300 mt-1 max-w-xl">
-                Here is your clinical summary for today: <strong>{needsAttentionList.length} priority cases</strong> need follow-up or referral.
+                {t('clinicalSummaryPrefix') || 'Here is your clinical summary for today:'} <strong>{needsAttentionList.length} {t('clinicalSummarySuffix') || 'priority cases need follow-up or referral.'}</strong>
               </p>
             </div>
 
@@ -130,13 +132,13 @@ export default function CHWPortal({
                 className="btn btn-secondary text-sm font-semibold flex items-center gap-2"
                 onClick={() => setShowAssistantModal(true)}
               >
-                <Bot size={16} className="text-sky-600" /> Health Assistant
+                <Bot size={16} className="text-sky-600" /> {t('healthAssistantButton') || 'Health Assistant'}
               </button>
               <button 
                 className="btn btn-primary btn-lg shadow-md font-bold"
                 onClick={() => setShowWizardModal(true)}
               >
-                <Plus size={18} /> New Patient Screening
+                <Plus size={18} /> {t('newScreeningButton') || 'New Patient Screening'}
               </button>
             </div>
           </div>
@@ -144,27 +146,27 @@ export default function CHWPortal({
           {/* Today's Overview: 4 Compact Metrics */}
           <div className="grid-4-col gap-4">
             <div className="metric-box border-l-4 border-l-sky-600">
-              <span className="metric-label">Assigned Patients</span>
+              <span className="metric-label">{t('assignedPatients') || 'Assigned Patients'}</span>
               <div className="metric-value">{totalPatients}</div>
-              <span className="metric-sub">Active community cases</span>
+              <span className="metric-sub">{t('activeCommunityCasesSub') || 'Active community cases'}</span>
             </div>
 
             <div className="metric-box border-l-4 border-l-rose-600">
-              <span className="metric-label">Needs Attention</span>
+              <span className="metric-label">{t('needsAttention') || 'Needs Attention'}</span>
               <div className="metric-value text-rose-700">{needsAttentionList.length}</div>
-              <span className="metric-sub">{criticalPatients.length} Critical • {highRiskPatients.length} High</span>
+              <span className="metric-sub">{criticalPatients.length} {t('criticalRisk')} • {highRiskPatients.length} {t('highRisk')}</span>
             </div>
 
             <div className="metric-box border-l-4 border-l-amber-600">
-              <span className="metric-label">Follow-ups Due</span>
+              <span className="metric-label">{t('followupsDueMetric') || 'Follow-ups Due'}</span>
               <div className="metric-value text-amber-700">{followupsDueList.length}</div>
-              <span className="metric-sub">Within next 7 days</span>
+              <span className="metric-sub">{t('within7DaysSub') || 'Within next 7 days'}</span>
             </div>
 
             <div className="metric-box border-l-4 border-l-indigo-600">
-              <span className="metric-label">Pending Referrals</span>
+              <span className="metric-label">{t('pendingReferralCount') || 'Pending Referrals'}</span>
               <div className="metric-value text-indigo-700">{pendingReferralCount}</div>
-              <span className="metric-sub">Awaiting hospital review</span>
+              <span className="metric-sub">{t('awaitingHospitalReviewSub') || 'Awaiting hospital review'}</span>
             </div>
           </div>
 
@@ -175,9 +177,9 @@ export default function CHWPortal({
               <div className="card-box-header">
                 <div>
                   <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                    <AlertTriangle size={18} className="text-rose-600" /> Needs Immediate Attention
+                    <AlertTriangle size={18} className="text-rose-600" /> {t('needsAttention') || 'Needs Immediate Attention'}
                   </h3>
-                  <p className="text-xs text-slate-500 mt-0.5">High or critical risk patients requiring clinical review</p>
+                  <p className="text-xs text-slate-500 mt-0.5">{t('criticalAndHighSub') || 'High or critical risk patients requiring clinical review'}</p>
                 </div>
                 <span className="badge badge-risk-critical font-mono">{needsAttentionList.length} flagged</span>
               </div>
@@ -197,7 +199,7 @@ export default function CHWPortal({
                           {getRiskBadge(p.evaluation?.overallRiskLevel || 'High')}
                         </div>
                         <p className="text-xs text-slate-600 mt-1">
-                          BP <strong>{p.systolic}/{p.diastolic}</strong> mmHg • Glucose <strong>{p.glucose}</strong> mg/dL • {p.address}
+                          {t('bloodPressure')} <strong>{p.systolic}/{p.diastolic}</strong> mmHg • {t('bloodSugar')} <strong>{p.glucose}</strong> mg/dL • {p.address}
                         </p>
                       </div>
 
@@ -206,13 +208,13 @@ export default function CHWPortal({
                           className="btn btn-secondary text-xs"
                           onClick={() => setShowDetailPatient(p)}
                         >
-                          Details
+                          {t('details') || 'Details'}
                         </button>
                         <button 
                           className="btn btn-primary text-xs"
                           onClick={() => handleOpenReferralForm(p)}
                         >
-                          Refer
+                          {t('refer') || 'Refer'}
                         </button>
                       </div>
                     </div>
@@ -220,7 +222,7 @@ export default function CHWPortal({
                 ) : (
                   <div className="empty-state py-8 text-center text-slate-500 text-xs">
                     <CheckCircle2 size={32} className="text-emerald-500 mx-auto mb-2" />
-                    No urgent attention cases today. All high-risk patients are managed.
+                    {t('noUrgentCasesToday') || 'No urgent attention cases today. All high-risk patients are managed.'}
                   </div>
                 )}
               </div>
@@ -232,11 +234,11 @@ export default function CHWPortal({
                 <div className="card-box-header">
                   <div>
                     <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                      <Clock size={18} className="text-sky-600" /> Upcoming Follow-ups
+                      <Clock size={18} className="text-sky-600" /> {t('upcomingFollowups') || 'Upcoming Follow-ups'}
                     </h3>
-                    <p className="text-xs text-slate-500 mt-0.5">Recalls due based on clinical guidelines</p>
+                    <p className="text-xs text-slate-500 mt-0.5">{t('upcomingRecallsSub') || 'Recalls due based on clinical guidelines'}</p>
                   </div>
-                  <span className="badge badge-primary">{followupsDueList.length} Due</span>
+                  <span className="badge badge-primary">{followupsDueList.length} {t('dueInLabel') || 'Due'}</span>
                 </div>
 
                 <div className="space-y-2.5">
@@ -246,19 +248,19 @@ export default function CHWPortal({
                         <div>
                           <strong className="text-sm text-slate-900">{p.name}</strong>
                           <div className="text-xs text-slate-500 mt-0.5">
-                            Due in <strong>{p.evaluation?.followUpDays || 7} days</strong> • {p.phone}
+                            {t('dueInLabel') || 'Due in'} <strong>{p.evaluation?.followUpDays || 7} {t('daysSuffix') || 'days'}</strong> • {p.phone}
                           </div>
                         </div>
                         <button 
                           className="btn btn-secondary text-xs"
                           onClick={() => setShowDetailPatient(p)}
                         >
-                          Start Visit
+                          {t('details') || 'Start Visit'}
                         </button>
                       </div>
                     ))
                   ) : (
-                    <p className="text-xs text-slate-500 py-4 text-center">No follow-ups due today.</p>
+                    <p className="text-xs text-slate-500 py-4 text-center">{t('noUrgentCasesToday') || 'No follow-ups due today.'}</p>
                   )}
                 </div>
               </div>
@@ -270,8 +272,8 @@ export default function CHWPortal({
                   onClick={() => setShowMapModal(true)}
                 >
                   <Hospital size={20} className="text-indigo-600 mb-1" />
-                  <strong className="text-sm text-slate-900">Hospital Bed Map</strong>
-                  <span className="text-xs text-slate-500">Nearest facility emergency routes</span>
+                  <strong className="text-sm text-slate-900">{t('navHospitals') || 'Hospital Bed Map'}</strong>
+                  <span className="text-xs text-slate-500">{t('facilityRegistryTitle') || 'Nearest facility emergency routes'}</span>
                 </button>
               </div>
             </div>
@@ -286,8 +288,8 @@ export default function CHWPortal({
         <div className="card-box space-y-4">
           <div className="flex justify-between items-center flex-wrap gap-4">
             <div>
-              <h2 className="text-lg font-bold text-slate-900">Patient Directory</h2>
-              <p className="text-xs text-slate-500">Search and manage electronic health records for community patients.</p>
+              <h2 className="text-lg font-bold text-slate-900">{t('navPatients') || 'Patient Directory'}</h2>
+              <p className="text-xs text-slate-500">{t('activeCommunityCasesSub') || 'Search and manage electronic health records for community patients.'}</p>
             </div>
 
             <div className="flex items-center gap-3">
@@ -295,7 +297,7 @@ export default function CHWPortal({
                 <Search size={14} className="text-slate-400" />
                 <input 
                   type="text" 
-                  placeholder="Search name, ID, village..."
+                  placeholder={t('searchDirectoryPlaceholder') || 'Search name, ID, village...'}
                   value={localSearch}
                   onChange={(e) => setLocalSearch(e.target.value)}
                   className="form-input text-xs"
@@ -307,11 +309,11 @@ export default function CHWPortal({
                 onChange={(e) => setFilterRisk(e.target.value)} 
                 className="form-input text-xs w-36"
               >
-                <option value="all">All Risk Levels</option>
-                <option value="critical">Critical Risk</option>
-                <option value="high">High Risk</option>
-                <option value="moderate">Moderate Risk</option>
-                <option value="low">Low Risk</option>
+                <option value="all">{t('allRiskLevelsOption') || 'All Risk Levels'}</option>
+                <option value="critical">{t('criticalRisk') || 'Critical Risk'}</option>
+                <option value="high">{t('highRisk') || 'High Risk'}</option>
+                <option value="moderate">{t('moderateRisk') || 'Moderate Risk'}</option>
+                <option value="low">{t('lowRisk') || 'Low Risk'}</option>
               </select>
 
               <button 

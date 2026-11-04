@@ -167,5 +167,83 @@ export default {
   upcomingFollowups: "आगामी पाठपुरावा",
   activeFieldCases: "सक्रिय समुदाय प्रकरणे",
   cdssNoticeTitle: "क्लिनिकल निर्णय सहाय्य प्रणाली (CDSS) सूचना",
-  cdssNoticeBody: "हे व्यासपीठ आरोग्य कार्यकर्त्यांच्या मदतीसाठी AHA आणि ADA मार्गदर्शक तत्त्वांवर आधारित निर्णय सहाय्य प्रदान करते."
+  cdssNoticeBody: "हे व्यासपीठ आरोग्य कार्यकर्त्यांच्या मदतीसाठी AHA आणि ADA मार्गदर्शक तत्त्वांवर आधारित निर्णय सहाय्य प्रदान करते.",
+
+  // Portal & Overview Metrics
+  assignedPatients: "नियुक्त रुग्ण",
+  needsAttentionList: "प्राधान्य प्रकरणे",
+  followupsDueMetric: "फॉलो-अप बाकी",
+  pendingReferralCount: "प्रलंबित रेफरल्स",
+  activeCommunityCasesSub: "सक्रिय समुदाय प्रकरणे",
+  criticalAndHighSub: "गंभीर आणि उच्च जोखीम प्रकरणे",
+  within7DaysSub: "पुढील 7 दिवसांत",
+  awaitingHospitalReviewSub: "रुग्णालय पुनरावलोकनाची प्रतीक्षा",
+  healthAssistantButton: "आरोग्य सहाय्यक",
+  newScreeningButton: "नवीन रुग्ण तपासणी",
+  noUrgentCasesToday: "आज कोणतीही तातडीची प्रकरणे नाहीत. सर्व रुग्ण सुरक्षित आहेत.",
+  clinicalSummaryPrefix: "आजचा तुमचा आरोग्य कार्य सारांश:",
+  clinicalSummarySuffix: "महत्त्वाच्या प्रकरणांना फॉलो-अप किंवा रेफरलची गरज आहे.",
+  upcomingRecallsSub: "मार्गदर्शक तत्त्वांनुसार आगामी तपासण्या",
+  dueInLabel: "बाकी कालावधी",
+  daysSuffix: "दिवस",
+  allRiskLevelsOption: "सर्व जोखीम पातळी",
+  searchDirectoryPlaceholder: "नाव, आयडी किंवा गावावरून शोधा...",
+  
+  // Doctor Portal
+  triageTabPending: "प्रलंबित रेफरल्स",
+  triageTabApproved: "मंजूर योजना",
+  openMedOrdersLabel: "औषध आदेश उघडा",
+  openPatientRecordLabel: "रुग्ण नोंद उघडा",
+  openClinicalReviewLabel: "क्लिनिकल पुनरावलोकन उघडा",
+  doctorClinicalNotes: "डॉक्टरांच्या क्लिनिकल नोंदी",
+  doctorNotesPlaceholderText: "क्लिनिकल निरीक्षणे किंवा डोस बदल नोंदवा...",
+  approvePlanButton: "उपचार योजना मंजूर करा",
+  declineReferralButton: "रेफरल नाकारा",
+  noReferralsFound: "कोणतेही रुग्ण रेफरल्स उपलब्ध नाहीत.",
+  
+  // Supervisor Portal
+  populationRiskAnalyticsTitle: "लोकसंख्या आरोग्य जोखीम विश्लेषण",
+  chwFieldCoverageTitle: "आरोग्य कार्यकर्ता कार्यक्षेत्र व्याप्ती",
+  downloadConsolidatedReport: "एकत्रित अहवाल डाउनलोड करा",
+  approvalQueueTitle: "आरोग्य कर्मचारी मंजुरी",
+  approveStaffButton: "कर्मचारी मंजूर करा",
+  rejectStaffButton: "नाकारा",
+  
+  // Admin Portal
+  systemHealthTitle: "प्रणाली संचालन आणि आरोग्य",
+  userManagementTitle: "वापरकर्ता खाती आणि भूमिका",
+  facilityRegistryTitle: "आरोग्य केंद्र नोंदणी",
+  clinicalCutoffsTitle: "क्लिनिकल मर्यादा आणि मार्गदर्शक तत्त्वे",
+  auditTrailTitle: "सुरक्षा आणि नियामक ऑडिट नोंदी",
+  exportFHIRButton: "HL7 FHIR R4 निर्यात करा",
+  
+  // Patient Portal
+  bilingualHealthPassportTitle: "द्विभाषिक आरोग्य पासपोर्ट",
+  activeDailyMedsTitle: "दैनिक औषध वेळापत्रक",
+  markTakenButton: "औषध घेतले",
+  markMissedButton: "घेतले नाही",
+  doseTakenStatus: "घेतले",
+  doseMissedStatus: "घेतले नाही",
+  vitalsHistoryTitle: "आरोग्य मोजमापांचा इतिहास",
+  upcomingAppointmentsTitle: "आगामी भेटी आणि तपासण्या",
+  
+  // Chatbot Interface
+  chatAssistantTitle: "आरोग्य मार्गदर्शन सहाय्यक",
+  chatAssistantSubtitle: "रक्तदाब, मधुमेह, पोषण किंवा ॲप वापराबद्दल प्रश्न विचारा.",
+  chatInputPlaceholderText: "तुमचा आरोग्य प्रश्न मराठी, हिंदी किंवा इंग्रजीत टाइप करा...",
+  clearConversationButton: "संभाषण साफ करा",
+  copyResponseButton: "कॉपी करा",
+  copiedNotification: "क्लिपबोर्डवर कॉपी केले!",
+  speechReadAloudButton: "ऐका (ऑडिओ)",
+  promptNormalBP: "सामान्य रक्तदाब किती असावा?",
+  promptMilletDiet: "मधुमेहासाठी भरडधान्य आहार माहिती",
+  promptLowSugar: "कमी रक्तातील साखरेची चेतावणी लक्षणे",
+  promptPregnancyBP: "गरोदरपणात उच्च रक्तदाबाची धोक्याची लक्षणे",
+
+  // Landing Page
+  landingHeroHeadline: "आरोग्य कर्मचाऱ्यांसाठी डिजिटल क्लिनिकल टूलकिट",
+  landingHeroSubheadline: "ग्रामीण भारतातील आशा आणि एएनएम कर्मचाऱ्यांना ऑफलाइन तपासणी, निर्णय समर्थन आणि रुग्ण समुपदेशनासाठी सक्षम करणे.",
+  landingExploreFeatures: "क्लिनिकल वैशिष्ट्ये एक्सप्लोर करा",
+  landingFeaturesTitle: "ग्रामीण प्राथमिक आरोग्य सेवेसाठी डिझाइन केलेले",
+  landingFooterText: "सीएचडब्ल्यू हेल्थकेयर टूलकिट — राष्ट्रीय आरोग्य मार्गदर्शक तत्त्वांनुसार"
 };

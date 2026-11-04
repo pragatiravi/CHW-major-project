@@ -19,6 +19,7 @@ import { escapeHTML, exportToCSV, printPDFReport } from '../../utils/pdfExport';
 import { useToast } from '../shared/ToastContainer';
 import PatientDetailModal from '../shared/PatientDetailModal';
 import { fetchAllProfiles, updateProfileRoleAndStatus } from '../../lib/db/profiles';
+import { useLanguage } from '../shared/LanguageContext';
 
 export default function SupervisorDashboard({ 
   patients = [], 
@@ -26,6 +27,7 @@ export default function SupervisorDashboard({
   syncLogs = [], 
   activeSection = 'overview'
 }) {
+  const { t } = useLanguage();
   const { toastSuccess, toastError } = useToast();
   const activeTab = activeSection || 'overview';
   const [chartView, setChartView] = useState('risk'); // 'risk' | 'prevalence' | 'age'
@@ -141,19 +143,19 @@ export default function SupervisorDashboard({
           </div>
           <div>
             <h1 className="text-xl font-bold text-slate-900">
-              {activeTab === 'analytics' ? 'Population Health Analytics' : activeTab === 'chws' ? 'CHW Field Activity' : activeTab === 'referrals' ? 'Referral Operations' : activeTab === 'reports' ? 'Program Reports' : 'Health Program Supervisor Dashboard'}
+              {activeTab === 'analytics' ? (t('populationRiskAnalyticsTitle') || 'Population Health Analytics') : activeTab === 'chws' ? (t('chwFieldCoverageTitle') || 'CHW Field Activity') : activeTab === 'reports' ? (t('downloadConsolidatedReport') || 'Program Reports') : (t('roleSupervisor') || 'Health Program Supervisor Dashboard')}
             </h1>
-            <p className="text-xs text-slate-500">Population health, field operations, referral oversight, and auditable reporting</p>
+            <p className="text-xs text-slate-500">{t('populationRiskAnalyticsTitle') || 'Population health, field operations, referral oversight, and auditable reporting'}</p>
           </div>
         </div>
 
         {activeTab === 'reports' && (
           <div className="flex gap-2">
             <button className="btn btn-secondary text-xs flex items-center gap-1.5" onClick={handlePrintPDF}>
-              <Printer size={14} /> Print Summary
+              <Printer size={14} /> {t('printPDF') || 'Print Summary'}
             </button>
             <button className="btn btn-primary text-xs flex items-center gap-1.5" onClick={handleDownloadCSVReport}>
-              <Download size={14} /> Export CSV Audit
+              <Download size={14} /> {t('exportCSV') || 'Export CSV Audit'}
             </button>
           </div>
         )}
@@ -163,27 +165,27 @@ export default function SupervisorDashboard({
       {activeTab === 'overview' && (
       <div className="grid-4-col gap-4">
         <div className="metric-box border-l-4 border-l-amber-600">
-          <span className="metric-label">Registered Population</span>
+          <span className="metric-label">{t('assignedPatients') || 'Registered Population'}</span>
           <div className="metric-value">{patients.length}</div>
-          <span className="metric-sub">Active community cohort</span>
+          <span className="metric-sub">{t('activeCommunityCasesSub') || 'Active community cohort'}</span>
         </div>
 
         <div className="metric-box border-l-4 border-l-sky-600">
-          <span className="metric-label">Active Field CHWs</span>
+          <span className="metric-label">{t('roleCHW') || 'Active Field CHWs'}</span>
           <div className="metric-value text-sky-700">{chwList.length}</div>
-          <span className="metric-sub">Frontline field agents</span>
+          <span className="metric-sub">{t('chwFieldCoverageTitle') || 'Frontline field agents'}</span>
         </div>
 
         <div className="metric-box border-l-4 border-l-rose-600">
-          <span className="metric-label">High / Critical Risk</span>
+          <span className="metric-label">{t('criticalRisk')} / {t('highRisk')}</span>
           <div className="metric-value text-rose-700">{criticalCount + highCount}</div>
-          <span className="metric-sub">{criticalCount} Critical • {highCount} High</span>
+          <span className="metric-sub">{criticalCount} {t('criticalRisk')} • {highCount} {t('highRisk')}</span>
         </div>
 
         <div className="metric-box border-l-4 border-l-indigo-600">
-          <span className="metric-label">Pending Hospital Referrals</span>
+          <span className="metric-label">{t('pendingReferralCount') || 'Pending Hospital Referrals'}</span>
           <div className="metric-value text-indigo-700">{pendingReferralCount}</div>
-          <span className="metric-sub">In hospital triage review</span>
+          <span className="metric-sub">{t('awaitingHospitalReviewSub') || 'In hospital triage review'}</span>
         </div>
       </div>
       )}

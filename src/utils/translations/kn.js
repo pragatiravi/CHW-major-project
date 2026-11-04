@@ -167,5 +167,83 @@ export default {
   upcomingFollowups: "ಮುಂಬರುವ ಫಾಲೋ-ಅಪ್‌ಗಳು",
   activeFieldCases: "ಸಕ್ರಿಯ ಸಮುದಾಯ ಪ್ರಕರಣಗಳು",
   cdssNoticeTitle: "ಕ್ಲಿನಿಕಲ್ ನಿರ್ಧಾರ ಬೆಂಬಲ ವ್ಯವಸ್ಥೆ (CDSS) ಮಾಹಿತಿ",
-  cdssNoticeBody: "ಈ ಪ್ಲಾಟ್‌ಫಾರ್ಮ್ ಆರೋಗ್ಯ ಕಾರ್ಯಕರ್ತೆಯರಿಗೆ ನೆರವಾಗಲು AHA ಮತ್ತು ADA ಮಾರ್ಗಸೂಚಿಗಳ ಆಧಾರದ ಮೇಲೆ ಸಲಹಾ ನಿರ್ಧಾರಗಳನ್ನು ನೀಡುತ್ತದೆ."
+  cdssNoticeBody: "ಈ ಪ್ಲಾಟ್‌ಫಾರ್ಮ್ ಆರೋಗ್ಯ ಕಾರ್ಯಕರ್ತೆಯರಿಗೆ ನೆರವಾಗಲು AHA ಮತ್ತು ADA ಮಾರ್ಗಸೂಚಿಗಳ ಆಧಾರದ ಮೇಲೆ ಸಲಹಾ ನಿರ್ಧಾರಗಳನ್ನು ನೀಡುತ್ತದೆ.",
+
+  // Portal & Overview Metrics
+  assignedPatients: "ನಿಯೋಜಿತ ರೋಗಿಗಳು",
+  needsAttentionList: "ತುರ್ತು ಗಮನ ನೀಡಬೇಕಾದ ಪ್ರಕರಣಗಳು",
+  followupsDueMetric: "ಬಾಕಿ ಇರುವ ಫಾಲೋ-ಅಪ್",
+  pendingReferralCount: "ಬಾಕಿ ಇರುವ ರೆಫರಲ್‌ಗಳು",
+  activeCommunityCasesSub: "ಸಕ್ರಿಯ ಸಮುದಾಯ ಪ್ರಕರಣಗಳು",
+  criticalAndHighSub: "ಗಂಭೀರ ಮತ್ತು ಅಧಿಕ ಅಪಾಯದ ಪ್ರಕರಣಗಳು",
+  within7DaysSub: "ಮುಂದಿನ 7 ದಿನಗಳಲ್ಲಿ",
+  awaitingHospitalReviewSub: "ಆಸ್ಪತ್ರೆ ಪರಿಶೀಲನೆಗೆ ಕಾಯುತ್ತಿವೆ",
+  healthAssistantButton: "ಆರೋಗ್ಯ ಸಹಾಯಕ",
+  newScreeningButton: "ಹೊಸ ರೋಗಿ ತಪಾಸಣೆ",
+  noUrgentCasesToday: "ಇಂದು ಯಾವುದೇ ತುರ್ತು ಪ್ರಕರಣಗಳಿಲ್ಲ. ಎಲ್ಲ ರೋಗಿಗಳನ್ನು ನಿರ್ವಹಿಸಲಾಗಿದೆ.",
+  clinicalSummaryPrefix: "ಇಂದಿನ ನಿಮ್ಮ ಆರೋಗ್ಯ ಕಾರ್ಯ ಸಾರಾಂಶ:",
+  clinicalSummarySuffix: "ಪ್ರಮುಖ ಪ್ರಕರಣಗಳಿಗೆ ಫಾಲೋ-ಅಪ್ ಅಥವಾ ರೆಫರಲ್ ಅಗತ್ಯವಿದೆ.",
+  upcomingRecallsSub: "ಮಾರ್ಗಸೂಚಿಗಳ ಆಧಾರದ ಮೇಲೆ ನಿಗದಿತ ಭೇಟಿಗಳು",
+  dueInLabel: "ಬಾಕಿ ಸಮಯ",
+  daysSuffix: "ದಿನಗಳು",
+  allRiskLevelsOption: "ಎಲ್ಲಾ ಅಪಾಯದ ಮಟ್ಟಗಳು",
+  searchDirectoryPlaceholder: "ಹೆಸರು, ಐಡಿ ಅಥವಾ ಗ್ರಾಮದ ಮೂಲಕ ಹುಡುಕಿ...",
+  
+  // Doctor Portal
+  triageTabPending: "ಬಾಕಿ ರೆಫರಲ್‌ಗಳು",
+  triageTabApproved: "ಅನುಮೋದಿತ ಯೋಜನೆಗಳು",
+  openMedOrdersLabel: "ಔಷಧ ಆದೇಶಗಳನ್ನು ತೆರೆಯಿರಿ",
+  openPatientRecordLabel: "ರೋಗಿಯ ದಾಖಲೆ ತೆರೆಯಿರಿ",
+  openClinicalReviewLabel: "ವೈದ್ಯಕೀಯ ಪರಿಶೀಲನೆ ತೆರೆಯಿರಿ",
+  doctorClinicalNotes: "ವೈದ್ಯರ ಟಿಪ್ಪಣಿಗಳು",
+  doctorNotesPlaceholderText: "ವೈದ್ಯಕೀಯ ವೀಕ್ಷಣೆಗಳು ಅಥವಾ ಔಷಧ ಬದಲಾವಣೆಗಳನ್ನು ನಮೂದಿಸಿ...",
+  approvePlanButton: "ಚಿಕಿತ್ಸಾ ಯೋಜನೆಯನ್ನು ಅನುಮೋದಿಸಿ",
+  declineReferralButton: "ರೆಫರಲ್ ತಿರಸ್ಕರಿಸಿ",
+  noReferralsFound: "ಯಾವುದೇ ರೆಫರಲ್‌ಗಳು ಲಭ್ಯವಿಲ್ಲ.",
+  
+  // Supervisor Portal
+  populationRiskAnalyticsTitle: "ಜನಸಂಖ್ಯಾ ಆರೋಗ್ಯ ಅಪಾಯದ ವಿಶ್ಲೇಷಣೆ",
+  chwFieldCoverageTitle: "ಆರೋಗ್ಯ ಕಾರ್ಯಕರ್ತರ ಕ್ಷೇತ್ರ ವ್ಯಾಪ್ತಿ",
+  downloadConsolidatedReport: "ಏಕೀಕೃತ ವರದಿ ಡೌನ್‌ಲೋಡ್ ಮಾಡಿ",
+  approvalQueueTitle: "ಆರೋಗ್ಯ ಸಿಬ್ಬಂದಿ ಅನುಮೋದನೆಗಳು",
+  approveStaffButton: "ಸಿಬ್ಬಂದಿ ಅನುಮೋದಿಸಿ",
+  rejectStaffButton: "ತಿರಸ್ಕರಿಸಿ",
+  
+  // Admin Portal
+  systemHealthTitle: "ವ್ಯವಸ್ಥೆಯ ಕಾರ್ಯಾಚರಣೆ ಮತ್ತು ಸ್ಥಿತಿ",
+  userManagementTitle: "ಬಳಕೆದಾರರ ಖಾತೆಗಳು ಮತ್ತು ಪಾತ್ರಗಳು",
+  facilityRegistryTitle: "ಆರೋಗ್ಯ ಕೇಂದ್ರಗಳ ನೋಂದಣಿ",
+  clinicalCutoffsTitle: "ವೈದ್ಯಕೀಯ ಮಿತಿಗಳು ಮತ್ತು ಮಾರ್ಗಸೂಚಿಗಳು",
+  auditTrailTitle: "ಭದ್ರತೆ ಮತ್ತು ಲೆಕ್ಕಪರಿಶೋಧನಾ ದಾಖಲೆ",
+  exportFHIRButton: "HL7 FHIR R4 ರಫ್ತು ಮಾಡಿ",
+  
+  // Patient Portal
+  bilingualHealthPassportTitle: "ದ್ವಿಭಾಷಾ ಆರೋಗ್ಯ ಪಾಸ್‌ಪೋರ್ಟ್",
+  activeDailyMedsTitle: "ದೈನಂದಿನ ಔಷಧ ವೇಳಾಪಟ್ಟಿ",
+  markTakenButton: "ಔಷಧ ಸೇವಿಸಲಾಗಿದೆ",
+  markMissedButton: "ಸೇವಿಸಿಲ್ಲ",
+  doseTakenStatus: "ಸೇವಿಸಲಾಗಿದೆ",
+  doseMissedStatus: "ಸೇವಿಸಿಲ್ಲ",
+  vitalsHistoryTitle: "ಆರೋಗ್ಯ ಅಳತೆಗಳ ಇತಿಹಾಸ",
+  upcomingAppointmentsTitle: "ಮುಂದಿನ ಭೇಟಿಗಳು ಮತ್ತು ಅಪಾಯಿಂಟ್‌ಮೆಂಟ್‌ಗಳು",
+  
+  // Chatbot Interface
+  chatAssistantTitle: "ಆರೋಗ್ಯ ಮಾರ್ಗದರ್ಶನ ಸಹಾಯಕ",
+  chatAssistantSubtitle: "ರಕ್ತದೊತ್ತಡ, ಮಧುಮೇಹ, ಪೌಷ್ಟಿಕಾಂಶ ಅಥವಾ ಅಪ್ಲಿಕೇಶನ್ ಬಗ್ಗೆ ಪ್ರಶ್ನೆಗಳನ್ನು ಕೇಳಿ.",
+  chatInputPlaceholderText: "ನಿಮ್ಮ ಆರೋಗ್ಯ ಪ್ರಶ್ನೆಯನ್ನು ಕನ್ನಡ, ಹಿಂದಿ ಅಥವಾ ಇಂಗ್ಲಿಷ್‌ನಲ್ಲಿ ಟೈಪ್ ಮಾಡಿ...",
+  clearConversationButton: "ಸಂಭಾಷಣೆ ತೆರವುಗೊಳಿಸಿ",
+  copyResponseButton: "ನಕಲಿಸಿ",
+  copiedNotification: "ಕ್ಲಿಪ್‌ಬೋರ್ಡ್‌ಗೆ ನಕಲಿಸಲಾಗಿದೆ!",
+  speechReadAloudButton: "ಧ್ವನಿಯಲ್ಲಿ ಕೇಳಿ",
+  promptNormalBP: "ಸಾಮಾನ್ಯ ರಕ್ತದೊತ್ತಡ ಎಷ್ಟು?",
+  promptMilletDiet: "ಮಧುಮೇಹಕ್ಕೆ ಸಿರಿಧಾನ್ಯ ಆಹಾರದ ಮಾಹಿತಿ",
+  promptLowSugar: "ಕಡಿಮೆ ಸಕ್ಕರೆ ಪ್ರಮಾಣದ ಲಕ್ಷಣಗಳು",
+  promptPregnancyBP: "ಗರ್ಭಾವಸ್ಥೆಯಲ್ಲಿ ಅಧಿಕ ರಕ್ತದೊತ್ತಡದ ಅಪಾಯದ ಲಕ್ಷಣಗಳು",
+
+  // Landing Page
+  landingHeroHeadline: "ಆರೋಗ್ಯ ಕಾರ್ಯಕರ್ತರಿಗಾಗಿ ಡಿಜಿಟಲ್ ಕ್ಲಿನಿಕಲ್ ಟೂಲ್‌ಕಿಟ್",
+  landingHeroSubheadline: "ಗ್ರಾಮೀಣ ಭಾರತದ ಆಶಾ ಮತ್ತು ಎಎನ್‌ಎಂ ಕಾರ್ಯಕರ್ತರಿಗೆ ಆಫ್‌ಲೈನ್ ತಪಾಸಣೆ, ನಿರ್ಧಾರ ಬೆಂಬಲ ಮತ್ತು ರೋಗಿ ಸಮಾಲೋಚನೆಗಾಗಿ ಸಹಕಾರಿ.",
+  landingExploreFeatures: "ಕ್ಲಿನಿಕಲ್ ವೈಶಿಷ್ಟ್ಯಗಳನ್ನು ಅನ್ವೇಷಿಸಿ",
+  landingFeaturesTitle: "ಗ್ರಾಮೀಣ ಪ್ರಾಥಮಿಕ ಆರೋಗ್ಯ ಸೇವೆಗಾಗಿ ರೂಪಿಸಲಾಗಿದೆ",
+  landingFooterText: "ಸಿಎಚ್‌ಡಬ್ಲ್ಯೂ ಹೆಲ್ತ್‌ಕೇರ್ ಟೂಲ್‌ಕಿಟ್ — ರಾಷ್ಟ್ರೀಯ ಆರೋಗ್ಯ ಮಾರ್ಗಸೂಚಿಗಳ ಅನುಸರಣೆ"
 };

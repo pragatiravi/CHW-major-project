@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import MedicationTrackerModal from '../chw/MedicationTrackerModal';
 import PatientDetailModal from '../shared/PatientDetailModal';
+import { useLanguage } from '../shared/LanguageContext';
 
 export default function DoctorPortal({
   patients = [],
@@ -21,6 +22,7 @@ export default function DoctorPortal({
   activeSection = 'triage',
   isLoading = false,
 }) {
+  const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState('pending'); // 'pending' | 'approved'
   const [selectedPatientId, setSelectedPatientId] = useState(null);
   const [doctorNotes, setDoctorNotes] = useState('');
@@ -101,10 +103,10 @@ export default function DoctorPortal({
 
   const getRiskBadge = (level) => {
     switch (level) {
-      case 'Critical': return <span className="badge badge-risk-critical">Critical Risk</span>;
-      case 'High': return <span className="badge badge-risk-high">High Risk</span>;
-      case 'Moderate': return <span className="badge badge-risk-moderate">Moderate</span>;
-      default: return <span className="badge badge-risk-low">Low Risk</span>;
+      case 'Critical': return <span className="badge badge-risk-critical">{t('criticalRisk') || 'Critical Risk'}</span>;
+      case 'High': return <span className="badge badge-risk-high">{t('highRisk') || 'High Risk'}</span>;
+      case 'Moderate': return <span className="badge badge-risk-moderate">{t('moderateRisk') || 'Moderate'}</span>;
+      default: return <span className="badge badge-risk-low">{t('lowRisk') || 'Low Risk'}</span>;
     }
   };
 
@@ -118,10 +120,10 @@ export default function DoctorPortal({
           </div>
           <div>
             <h1 className="text-xl font-bold text-slate-900">
-              {activeSection === 'patients' ? 'Clinical Patient Records' : activeSection === 'prescriptions' ? 'Prescription Management' : 'Clinical Referral Review Desk'}
+              {activeSection === 'patients' ? (t('navDoctorRecords') || 'Clinical Patient Records') : activeSection === 'prescriptions' ? (t('navPrescriptions') || 'Prescription Management') : (t('triageQueue') || 'Clinical Referral Review Desk')}
             </h1>
             <p className="text-xs text-slate-500">
-              {activeSection === 'patients' ? 'Review longitudinal community records and recent risk assessments' : activeSection === 'prescriptions' ? 'Review active medicines and update patient treatment orders' : 'Triage incoming community health worker referrals and authorize care plans'}
+              {activeSection === 'patients' ? (t('activeCommunityCasesSub') || 'Review longitudinal community records') : activeSection === 'prescriptions' ? (t('activeDailyMedsTitle') || 'Review active medicines and update patient treatment orders') : (t('awaitingHospitalReviewSub') || 'Triage incoming community health worker referrals')}
             </p>
           </div>
         </div>
@@ -133,13 +135,13 @@ export default function DoctorPortal({
               className={`btn text-xs ${activeTab === 'pending' ? 'btn-primary' : 'text-slate-600'}`}
               onClick={() => setActiveTab('pending')}
             >
-              Pending Reviews ({pendingReferrals.length})
+              {t('triageTabPending') || 'Pending Reviews'} ({pendingReferrals.length})
             </button>
             <button 
               className={`btn text-xs ${activeTab === 'approved' ? 'btn-primary' : 'text-slate-600'}`}
               onClick={() => setActiveTab('approved')}
             >
-              Approved ({approvedReferrals.length})
+              {t('triageTabApproved') || 'Approved'} ({approvedReferrals.length})
             </button>
           </div>
         </div>
@@ -373,10 +375,10 @@ export default function DoctorPortal({
             {/* Doctor Decision & Prescription Action Box */}
             <div className="p-4 rounded-xl border border-indigo-200 bg-indigo-50/40 space-y-3">
               <h4 className="text-xs font-bold text-slate-900">
-                Clinician Assessment & Orders
+                {t('doctorClinicalNotes') || 'Clinician Assessment & Orders'}
               </h4>
               <textarea 
-                placeholder="Enter clinical notes, diagnostic lab requests, or follow-up instructions for the field health worker..."
+                placeholder={t('doctorNotesPlaceholderText') || 'Enter clinical orders, treatment plan confirmation, or dosage adjustments...'}
                 value={doctorNotes}
                 onChange={(e) => setDoctorNotes(e.target.value)}
                 className="form-input text-xs"
@@ -388,7 +390,7 @@ export default function DoctorPortal({
                   className="btn btn-secondary text-xs flex items-center gap-1.5"
                   onClick={() => setShowMedModalPatient(selectedPatient)}
                 >
-                  <Pill size={14} className="text-indigo-600" /> Prescribe / Adjust Medications
+                  <Pill size={14} className="text-indigo-600" /> {t('prescribe') || 'Prescribe / Adjust Medications'}
                 </button>
 
                 <div className="flex gap-2">
@@ -397,14 +399,14 @@ export default function DoctorPortal({
                     onClick={() => handleReject(selectedPatient.id)}
                     disabled={isReviewSaving}
                   >
-                    {isReviewSaving ? 'Saving...' : 'Decline Referral'}
+                    {isReviewSaving ? (t('save') || 'Saving...') : (t('declineReferralButton') || 'Decline Referral')}
                   </button>
                   <button 
                     className="btn btn-primary text-xs font-bold shadow-sm"
                     onClick={() => handleApprove(selectedPatient.id)}
                     disabled={isReviewSaving}
                   >
-                    <CheckCircle2 size={14} /> {isReviewSaving ? 'Saving...' : 'Approve Treatment Plan'}
+                    <CheckCircle2 size={14} /> {isReviewSaving ? (t('save') || 'Saving...') : (t('approvePlanButton') || 'Approve Treatment Plan')}
                   </button>
                 </div>
               </div>

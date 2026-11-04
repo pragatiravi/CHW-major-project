@@ -11,10 +11,12 @@ import {
   Database,
 } from 'lucide-react';
 import LanguageSwitcher from '../shared/LanguageSwitcher';
+import { useLanguage } from '../shared/LanguageContext';
 
 export default function LandingPage({ 
   onNavigateToAuth 
 }) {
+  const { t } = useLanguage();
   const handleOpenAuth = (role) => {
     if (onNavigateToAuth) onNavigateToAuth(role);
   };
@@ -75,7 +77,7 @@ export default function LandingPage({
               onClick={() => handleOpenAuth('chw')}
               style={{ minHeight: '44px' }}
             >
-              Sign In to Workspace <ArrowRight size={15} />
+              {t('signInToWorkspace') || 'Sign In to Workspace'} <ArrowRight size={15} />
             </button>
           </div>
         </div>
@@ -88,13 +90,13 @@ export default function LandingPage({
             {/* Left Column: Headline, Description & CTAs */}
             <div className="hero-text-column">
               <span className="hero-eyebrow">
-                <BrainCircuit size={14} /> Clinical Decision Support & EMR
+                <BrainCircuit size={14} /> {t('appSubtitle') || 'Clinical Decision Support & EMR'}
               </span>
               <h1 className="hero-headline">
-                Intelligent chronic care, built for frontline healthcare.
+                {t('landingHeroHeadline') || 'Intelligent chronic care, built for frontline healthcare.'}
               </h1>
               <p className="hero-description">
-                Empowering Community Health Workers and Clinicians with offline-first risk stratification, standardized counselling protocols, and seamless hospital referral pathways.
+                {t('landingHeroSubheadline') || 'Empowering Community Health Workers and Clinicians with offline-first risk stratification, standardized counselling protocols, and seamless hospital referral pathways.'}
               </p>
 
               <div className="hero-actions">
@@ -102,13 +104,13 @@ export default function LandingPage({
                   className="btn btn-primary btn-lg"
                   onClick={() => handleOpenAuth('chw')}
                 >
-                  Access CHW Field Workspace <ArrowRight size={16} />
+                  {t('launchDemo') || 'Access CHW Field Workspace'} <ArrowRight size={16} />
                 </button>
                 <button 
                   className="btn btn-secondary btn-lg"
                   onClick={() => handleOpenAuth('chw')}
                 >
-                  Sign In to Workspace
+                  {t('signInToWorkspace') || 'Sign In to Workspace'}
                 </button>
               </div>
             </div>

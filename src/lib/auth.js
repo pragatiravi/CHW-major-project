@@ -191,8 +191,7 @@ export async function signInWithCredentials({ email, password }) {
 
     if (error) {
       recordFailedAttempt(normalizedEmail);
-      // Return generic authentication failure to prevent user enumeration
-      throw new Error('Invalid email or password. Please verify your credentials.');
+      throw error;
     }
 
     if (!data?.user) {
@@ -201,7 +200,12 @@ export async function signInWithCredentials({ email, password }) {
     }
 
     // Role and status are strictly verified from the server-side profiles table
-    const profile = await fetchUserProfile(data.user.id);
+    let profile = null;
+    try {
+      profile = await fetchUserProfile(data.user.id);
+    } catch (profErr) {
+      console.warn('Profile fetch warning on sign in:', profErr);
+    }
 
     if (profile?.status === 'pending') {
       await supabase.auth.signOut();
@@ -219,9 +223,9 @@ export async function signInWithCredentials({ email, password }) {
       id: data.user.id,
       email: data.user.email,
       name: profile?.full_name || data.user.user_metadata?.full_name || normalizedEmail.split('@')[0],
-      role: profile?.role || 'chw',
+      role: profile?.role || data.user.user_metadata?.role || 'chw',
       status: profile?.status || 'approved',
-      subcenter: profile?.subcenter || 'Primary Health Subcenter',
+      subcenter: profile?.subcenter || data.user.user_metadata?.subcenter || 'Primary Health Subcenter',
       source: 'supabase'
     };
 
@@ -265,7 +269,7 @@ export async function signUpWithCredentials({
     throw new Error('Password must be at least 8 characters long.');
   }
 
-  const assignedRole = role === 'patient' ? 'patient' : role;
+  const assignedRole = role === 'patient' ? 'patient' : (role === 'admin' ? 'chw' : role);
   const initialStatus = assignedRole === 'patient' ? 'approved' : 'pending';
 
   if (isSupabaseConfigured && supabase) {
@@ -284,11 +288,15 @@ export async function signUpWithCredentials({
     });
 
     if (error) {
+      const msg = error.message || '';
+      if (msg.includes('already registered') || msg.includes('already exists')) {
+        throw new Error('An account with this email address already exists. Please sign in or use password recovery.');
+      }
       throw new Error(error.message);
     }
 
     if (data?.user?.id) {
-      // Ensure profile row exists with strict server status
+      // Ensure profile row exists with correct column names (subcenter, not village)
       try {
         await supabase.from('profiles').upsert({
           id: data.user.id,
@@ -296,8 +304,8 @@ export async function signUpWithCredentials({
           role: assignedRole,
           status: initialStatus,
           language_pref: languagePref,
-          phone,
-          village,
+          phone: phone || null,
+          subcenter: village || 'Primary Health Subcenter',
           updated_at: new Date().toISOString()
         });
       } catch (profileErr) {

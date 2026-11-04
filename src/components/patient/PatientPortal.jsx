@@ -6,14 +6,15 @@ import {
   Users, 
   Camera, 
   CheckCircle2, 
-  Languages, 
   Plus, 
   Check
 } from 'lucide-react';
 import { useToast } from '../shared/ToastContainer';
 import HealthAssistantChat from '../chat/HealthAssistantChat';
+import { useLanguage } from '../shared/LanguageContext';
 
 export default function PatientPortal({ patientRecord, patients = [], onSavePatient, activeSection = 'overview' }) {
+  const { t } = useLanguage();
   const { toastSuccess, toastInfo, toastWarning } = useToast();
 
   const activePatient = patientRecord || patients[0] || {
@@ -40,7 +41,6 @@ export default function PatientPortal({ patientRecord, patients = [], onSavePati
   };
 
   const activeTab = activeSection || 'overview';
-  const [language, setLanguage] = useState('en'); // 'en' | 'kn'
   const [sosTriggered, setSosTriggered] = useState(false);
   const [medicines, setMedicines] = useState(activePatient.medicines || []);
 
@@ -113,27 +113,17 @@ export default function PatientPortal({ patientRecord, patients = [], onSavePati
       <div className="card-box bg-white p-5 flex justify-between items-center flex-wrap gap-4 border-slate-200">
         <div>
           <span className="text-2xs font-bold text-sky-700 uppercase tracking-wider block">
-            {language === 'kn' ? 'ವೈಯಕ್ತಿಕ ಆರೋಗ್ಯ ಪೋರ್ಟಲ್' : 'Personal Health Hub'}
+            {t('bilingualHealthPassportTitle') || 'Personal Health Hub'}
           </span>
           <h1 className="text-2xl font-bold text-slate-900 mt-0.5">
-            {language === 'kn' ? `ನಮಸ್ಕಾರ, ${activePatient.name.split(' ')[0]}!` : `Hello, ${activePatient.name.split(' ')[0]}!`}
+            {t('greetingPatient') || 'Hello'}, {activePatient.name.split(' ')[0]}!
           </h1>
           <p className="text-xs text-slate-500">
-            {language === 'kn' 
-              ? 'ನಿಮ್ಮ ಇತ್ತೀಚಿನ ಆರೋಗ್ಯ ತಪಾಸಣೆ ಮತ್ತು ಔಷಧಿಗಳ ವಿವರ ಇಲ್ಲಿದೆ.' 
-              : 'Here is your health snapshot, daily medicines, and care schedule.'}
+            {t('vitalsHistoryTitle') || 'Here is your health snapshot, daily medicines, and care schedule.'}
           </p>
         </div>
 
         <div className="flex items-center gap-3">
-          {/* Language Toggle */}
-          <button 
-            className="btn btn-secondary text-xs flex items-center gap-1.5 font-bold"
-            onClick={() => setLanguage(language === 'en' ? 'kn' : 'en')}
-          >
-            <Languages size={15} /> {language === 'en' ? 'ಕನ್ನಡಕ್ಕೆ ಬದಲಿಸಿ' : 'Switch to English'}
-          </button>
-
           {/* Emergency SOS Button */}
           <button 
             className={`btn text-xs font-bold ${sosTriggered ? 'bg-emerald-600 text-white' : 'btn-danger-outline'}`}

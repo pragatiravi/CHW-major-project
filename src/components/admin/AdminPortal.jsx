@@ -22,12 +22,14 @@ import {
 import PredictionTestLab from './PredictionTestLab';
 import { useToast } from '../shared/ToastContainer';
 import { fetchAllProfiles, updateProfileRoleAndStatus } from '../../lib/db/profiles';
+import { useLanguage } from '../shared/LanguageContext';
 
 export default function AdminPortal({ 
   auditLogs = INITIAL_AUDIT_LOGS, 
   patients = INITIAL_PATIENTS,
   activeSection = 'overview'
 }) {
+  const { t } = useLanguage();
   const { toastSuccess, toastError, toastInfo } = useToast();
   const activeTab = activeSection === 'overview' ? 'analytics' : activeSection;
   const [hospitals, setHospitals] = useState(INITIAL_HOSPITALS);
@@ -262,8 +264,8 @@ export default function AdminPortal({
             <Settings size={22} />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-slate-900">System Administration & Governance</h1>
-            <p className="text-xs text-slate-500">Manage hospital facilities, user access roles, CDSS cutoffs, and FHIR interoperability</p>
+            <h1 className="text-xl font-bold text-slate-900">{t('systemHealthTitle') || 'System Administration & Governance'}</h1>
+            <p className="text-xs text-slate-500">{t('appSubtitle') || 'Manage hospital facilities, user access roles, CDSS cutoffs, and FHIR interoperability'}</p>
           </div>
         </div>
 
@@ -274,7 +276,7 @@ export default function AdminPortal({
         <div className="space-y-6">
           <div className="grid-4-col gap-4">
             <div className="metric-box border-l-4 border-l-purple-600">
-              <span className="metric-label">Registered Cohort</span>
+              <span className="metric-label">{t('assignedPatients') || 'Registered Cohort'}</span>
               <div className="metric-value">{patients.length}</div>
               <span className="metric-sub">Active community records</span>
             </div>

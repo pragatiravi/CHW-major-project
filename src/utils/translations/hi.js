@@ -167,5 +167,83 @@ export default {
   upcomingFollowups: "आगामी फॉलो-अप",
   activeFieldCases: "सक्रिय सामुदायिक मामले",
   cdssNoticeTitle: "क्लिनिकल निर्णय समर्थन प्रणाली (CDSS) सूचना",
-  cdssNoticeBody: "यह मंच अग्रिम पंक्ति के कार्यकर्ताओं की सहायता के लिए AHA और ADA दिशानिर्देशों के आधार पर निर्णय सहायता प्रदान करता है।"
+  cdssNoticeBody: "यह मंच अग्रिम पंक्ति के कार्यकर्ताओं की सहायता के लिए AHA और ADA दिशानिर्देशों के आधार पर निर्णय सहायता प्रदान करता है।",
+
+  // Portal & Overview Metrics
+  assignedPatients: "आवंटित मरीज",
+  needsAttentionList: "प्राथमिकता वाले मामले",
+  followupsDueMetric: "फॉलो-अप देय",
+  pendingReferralCount: "लंबित रेफरल",
+  activeCommunityCasesSub: "सक्रिय सामुदायिक मामले",
+  criticalAndHighSub: "गंभीर और उच्च जोखिम मामले",
+  within7DaysSub: "अगले 7 दिनों के भीतर",
+  awaitingHospitalReviewSub: "अस्पताल समीक्षा की प्रतीक्षा में",
+  healthAssistantButton: "स्वास्थ्य सहायक",
+  newScreeningButton: "नई मरीज स्क्रीनिंग",
+  noUrgentCasesToday: "आज कोई आपातकालीन मामला नहीं है। सभी मरीज सुरक्षित हैं।",
+  clinicalSummaryPrefix: "आज का आपका कार्य सारांश:",
+  clinicalSummarySuffix: "प्राथमिकता वाले मामलों में फॉलो-अप या रेफरल की आवश्यकता है।",
+  upcomingRecallsSub: "दिशानिर्देशों के आधार पर आगामी जांच",
+  dueInLabel: "बाकी समय",
+  daysSuffix: "दिन",
+  allRiskLevelsOption: "सभी जोखिम स्तर",
+  searchDirectoryPlaceholder: "नाम, आईडी या गांव से खोजें...",
+  
+  // Doctor Portal
+  triageTabPending: "लंबित रेफरल",
+  triageTabApproved: "स्वीकृत योजनाएं",
+  openMedOrdersLabel: "दवा आदेश खोलें",
+  openPatientRecordLabel: "मरीज रिकॉर्ड खोलें",
+  openClinicalReviewLabel: "क्लिनिकल समीक्षा खोलें",
+  doctorClinicalNotes: "डॉक्टर के क्लिनिकल नोट्स",
+  doctorNotesPlaceholderText: "क्लिनिकल निर्देश या खुराक संशोधन दर्ज करें...",
+  approvePlanButton: "उपचार योजना स्वीकृत करें",
+  declineReferralButton: "रेफरल अस्वीकार करें",
+  noReferralsFound: "कोई मरीज रेफरल उपलब्ध नहीं है।",
+  
+  // Supervisor Portal
+  populationRiskAnalyticsTitle: "जनसंख्या स्वास्थ्य जोखिम विश्लेषण",
+  chwFieldCoverageTitle: "स्वास्थ्य कार्यकर्ता कार्यक्षेत्र कवरेज",
+  downloadConsolidatedReport: "समेकित रिपोर्ट डाउनलोड करें",
+  approvalQueueTitle: "स्वास्थ्य स्टाफ अनुमोदन",
+  approveStaffButton: "स्टाफ स्वीकृत करें",
+  rejectStaffButton: "अस्वीकार करें",
+  
+  // Admin Portal
+  systemHealthTitle: "सिस्टम संचालन और स्वास्थ्य",
+  userManagementTitle: "उपयोगकर्ता खाते और भूमिकाएं",
+  facilityRegistryTitle: "स्वास्थ्य केंद्र पंजीकरण",
+  clinicalCutoffsTitle: "क्लिनिकल सीमाएं और मानक",
+  auditTrailTitle: "सुरक्षा और नियामक ऑडिट रिकॉर्ड",
+  exportFHIRButton: "HL7 FHIR R4 निर्यात करें",
+  
+  // Patient Portal
+  bilingualHealthPassportTitle: "द्विभाषी स्वास्थ्य पासपोर्ट",
+  activeDailyMedsTitle: "दैनिक दवा समय सारिणी",
+  markTakenButton: "दवा ली गई",
+  markMissedButton: "छूट गई",
+  doseTakenStatus: "ली गई",
+  doseMissedStatus: "छूट गई",
+  vitalsHistoryTitle: "स्वास्थ्य मापों का इतिहास",
+  upcomingAppointmentsTitle: "आगामी नियुक्तियां और अस्पताल दौरे",
+  
+  // Chatbot Interface
+  chatAssistantTitle: "स्वास्थ्य मार्गदर्शन सहायक",
+  chatAssistantSubtitle: "रक्तचाप, मधुमेह, पोषण या ऐप उपयोग के बारे में प्रश्न पूछें।",
+  chatInputPlaceholderText: "अपना स्वास्थ्य प्रश्न हिंदी, अंग्रेजी, कन्नड़ या मराठी में लिखें...",
+  clearConversationButton: "बातचीत हटाएं",
+  copyResponseButton: "कॉपी करें",
+  copiedNotification: "क्लिपबोर्ड पर कॉपी किया गया!",
+  speechReadAloudButton: "बोलकर सुनाएं",
+  promptNormalBP: "सामान्य रक्तचाप कितना होता है?",
+  promptMilletDiet: "मधुमेह के लिए मोटा अनाज आहार",
+  promptLowSugar: "लो ब्लड शुगर के चेतावनी लक्षण",
+  promptPregnancyBP: "गर्भावस्था में उच्च रक्तचाप के खतरे के संकेत",
+
+  // Landing Page
+  landingHeroHeadline: "स्वास्थ्य कार्यकर्ताओं के लिए डिजिटल क्लिनिकल टूलकिट",
+  landingHeroSubheadline: "ग्रामीण भारत में आशा और एएनएम कार्यकर्ताओं को ऑफलाइन स्क्रीनिंग, क्लिनिकल निर्णय समर्थन और मरीज परामर्श के लिए सशक्त बनाना।",
+  landingExploreFeatures: "क्लिनिकल सुविधाएं देखें",
+  landingFeaturesTitle: "ग्रामीण प्राथमिक स्वास्थ्य सेवा के लिए निर्मित",
+  landingFooterText: "सीएचडब्ल्यू हेल्थकेयर टूलकिट — राष्ट्रीय स्वास्थ्य दिशानिर्देशों के अनुरूप"
 };

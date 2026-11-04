@@ -15,7 +15,8 @@ import {
   ThumbsUp,
   ThumbsDown,
   Copy,
-  CheckCircle2
+  CheckCircle2,
+  RotateCcw
 } from 'lucide-react';
 import { detectClinicalRedFlag } from '../../lib/chat/redFlagDetector';
 import { searchOfflineKnowledgeBase } from '../../lib/chat/offlineRetrieval';
@@ -46,7 +47,7 @@ export default function HealthAssistantChat({
   embedded = false,
   onGenerateEmergencySlip = null
 }) {
-  const { language } = useLanguage();
+  const { language, t } = useLanguage();
   const { toastWarning } = useToast();
 
   const [messages, setMessages] = useState(() => [
@@ -62,6 +63,19 @@ export default function HealthAssistantChat({
   const [isTyping, setIsTyping] = useState(false);
   const [isOnline, setIsOnline] = useState(() => (typeof navigator !== 'undefined' ? navigator.onLine : true));
   const [manualOffline, setManualOffline] = useState(false);
+
+  const handleClearChat = () => {
+    stopSpeech();
+    setMessages([
+      {
+        id: 'welcome',
+        sender: 'bot',
+        text: getWelcomeMessage(language),
+        timestamp: getCurrentTimeStr(),
+        source: 'system'
+      }
+    ]);
+  };
   const [consentLogging, setConsentLogging] = useState(false);
   const [activeEmergencySlip, setActiveEmergencySlip] = useState(null);
 
@@ -191,7 +205,7 @@ export default function HealthAssistantChat({
         if (sessionToken) {
           headers['Authorization'] = `Bearer ${sessionToken}`;
         }
-        if (isDemo) {
+        if (isDemo || !sessionToken) {
           headers['x-chw-demo-session'] = 'true';
         }
 
@@ -201,11 +215,14 @@ export default function HealthAssistantChat({
           body: JSON.stringify({
             message: textToSend,
             language,
+            history: messages.slice(-6).map(m => ({
+              role: m.sender === 'user' ? 'user' : 'model',
+              text: m.text
+            })),
             context: {
               role: currentUser?.role || 'patient',
               patientName: patientContext?.name || null,
               riskTier: patientContext?.risk_tier || null
-              // Note: no patientId in demo mode — server enforces this
             }
           })
         });
@@ -364,6 +381,17 @@ export default function HealthAssistantChat({
             title="Toggle between Online AI and Offline Clinical KB"
           >
             {manualOffline ? 'Enable AI' : 'Force Offline'}
+          </button>
+
+          <button 
+            type="button"
+            className="chat-mode-toggle-btn"
+            onClick={handleClearChat}
+            aria-label="Clear chat conversation"
+            title="Clear current conversation"
+          >
+            <RotateCcw size={12} />
+            <span>{t('clearConversationButton') || 'Clear'}</span>
           </button>
         </div>
       </div>

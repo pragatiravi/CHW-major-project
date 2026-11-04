@@ -167,5 +167,83 @@ export default {
   upcomingFollowups: "Upcoming Follow-ups",
   activeFieldCases: "Active Community Cases",
   cdssNoticeTitle: "Clinical Decision Support System (CDSS) Notice",
-  cdssNoticeBody: "This platform provides rule-based decision support aligned with AHA and ADA clinical guidelines to assist frontline health workers."
+  cdssNoticeBody: "This platform provides rule-based decision support aligned with AHA and ADA clinical guidelines to assist frontline health workers.",
+
+  // Portal & Overview Metrics
+  assignedPatients: "Assigned Patients",
+  needsAttentionList: "Priority Attention Cases",
+  followupsDueMetric: "Follow-ups Due",
+  pendingReferralCount: "Pending Referrals",
+  activeCommunityCasesSub: "Active community cases",
+  criticalAndHighSub: "Critical and High Risk cases",
+  within7DaysSub: "Within next 7 days",
+  awaitingHospitalReviewSub: "Awaiting hospital review",
+  healthAssistantButton: "Health Assistant",
+  newScreeningButton: "New Patient Screening",
+  noUrgentCasesToday: "No urgent attention cases today. All high-risk patients are managed.",
+  clinicalSummaryPrefix: "Here is your clinical summary for today:",
+  clinicalSummarySuffix: "priority cases need follow-up or referral.",
+  upcomingRecallsSub: "Recalls due based on clinical guidelines",
+  dueInLabel: "Due in",
+  daysSuffix: "days",
+  allRiskLevelsOption: "All Risk Levels",
+  searchDirectoryPlaceholder: "Search by name, ID, or village...",
+  
+  // Doctor Portal
+  triageTabPending: "Pending Referrals",
+  triageTabApproved: "Approved Plans",
+  openMedOrdersLabel: "Open medication orders",
+  openPatientRecordLabel: "Open patient record",
+  openClinicalReviewLabel: "Open clinical review",
+  doctorClinicalNotes: "Doctor Clinical Observations",
+  doctorNotesPlaceholderText: "Enter clinical orders, treatment plan confirmation, or dosage adjustments...",
+  approvePlanButton: "Approve Treatment Plan",
+  declineReferralButton: "Decline Referral",
+  noReferralsFound: "No patient referrals matching this criteria.",
+  
+  // Supervisor Portal
+  populationRiskAnalyticsTitle: "Population Health Risk Analytics",
+  chwFieldCoverageTitle: "CHW Field Activity & Coverage",
+  downloadConsolidatedReport: "Download Consolidated Report",
+  approvalQueueTitle: "Healthcare Staff Approvals",
+  approveStaffButton: "Approve Staff",
+  rejectStaffButton: "Reject",
+  
+  // Admin Portal
+  systemHealthTitle: "System Operations & Health",
+  userManagementTitle: "User Accounts & Role Directory",
+  facilityRegistryTitle: "Primary Health Facilities Registry",
+  clinicalCutoffsTitle: "Clinical Cutoffs & Thresholds",
+  auditTrailTitle: "Security & Regulatory Audit Trail",
+  exportFHIRButton: "Export HL7 FHIR R4 Bundle",
+  
+  // Patient Portal
+  bilingualHealthPassportTitle: "Bilingual Health Passport",
+  activeDailyMedsTitle: "Daily Medication Schedule",
+  markTakenButton: "Mark Taken",
+  markMissedButton: "Missed",
+  doseTakenStatus: "Taken",
+  doseMissedStatus: "Missed",
+  vitalsHistoryTitle: "Vitals History & Trends",
+  upcomingAppointmentsTitle: "Upcoming Appointments & Visits",
+  
+  // Chatbot Interface
+  chatAssistantTitle: "CHW Clinical Guidance Assistant",
+  chatAssistantSubtitle: "Ask about NCD care, blood pressure, diabetes, nutrition, or app usage.",
+  chatInputPlaceholderText: "Type your health question (EN / हिं / ಕನ್ನಡ / मराठी)...",
+  clearConversationButton: "Clear Conversation",
+  copyResponseButton: "Copy",
+  copiedNotification: "Copied to clipboard!",
+  speechReadAloudButton: "Read Aloud",
+  promptNormalBP: "What is normal blood pressure?",
+  promptMilletDiet: "Millet diet for diabetes",
+  promptLowSugar: "Warning signs of low blood sugar",
+  promptPregnancyBP: "High blood pressure danger signs in pregnancy",
+
+  // Landing Page
+  landingHeroHeadline: "Digital Clinical Toolkit for Frontline Health Workers",
+  landingHeroSubheadline: "Empowering ASHA and ANM healthcare workers across rural India with offline-first screening, NCD decision support, and patient counselling.",
+  landingExploreFeatures: "Explore Clinical Features",
+  landingFeaturesTitle: "Built for Rural Primary Healthcare Delivery",
+  landingFooterText: "CHW Healthcare Toolkit — Ministry of Health & Family Welfare Guidelines Compliant"
 };

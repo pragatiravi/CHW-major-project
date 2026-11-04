@@ -11,7 +11,11 @@ import {
   WifiOff, 
   ShieldCheck, 
   Info, 
-  Sparkles
+  Sparkles,
+  ThumbsUp,
+  ThumbsDown,
+  Copy,
+  CheckCircle2
 } from 'lucide-react';
 import { detectClinicalRedFlag } from '../../lib/chat/redFlagDetector';
 import { searchOfflineKnowledgeBase } from '../../lib/chat/offlineRetrieval';
@@ -20,6 +24,8 @@ import { speakText, stopSpeech } from '../../lib/speech/speechSynthesis';
 import VoiceInputButton from '../shared/VoiceInputButton';
 import { useLanguage } from '../shared/LanguageContext';
 import { useToast } from '../shared/ToastContainer';
+import { isDemoModeActive } from '../../lib/auth';
+import { supabase } from '../../lib/supabaseClient';
 
 let msgCounter = 1;
 function createMessageId(prefix) {
@@ -84,6 +90,34 @@ export default function HealthAssistantChat({
   const effectiveMode = isOnline && !manualOffline ? 'online' : 'offline';
 
   const quickPrompts = getQuickPrompts(language);
+  const [copiedMsgId, setCopiedMsgId] = useState(null);
+
+  const handleCopyMessage = async (msgId, text) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedMsgId(msgId);
+      setTimeout(() => setCopiedMsgId(null), 2000);
+    } catch {
+      // fallback
+    }
+  };
+
+  const handleRateMessage = (msgId, rating, topic, source) => {
+    setMessages(prev => prev.map(m => m.id === msgId ? { ...m, rating } : m));
+    try {
+      const feedbackLogs = JSON.parse(localStorage.getItem('chw_chat_feedback') || '[]');
+      feedbackLogs.push({
+        id: msgId,
+        rating,
+        topic: topic || 'general',
+        source: source || 'unknown',
+        timestamp: new Date().toISOString()
+      });
+      localStorage.setItem('chw_chat_feedback', JSON.stringify(feedbackLogs.slice(-100)));
+    } catch {
+      // ignore
+    }
+  };
 
   const handleSendMessage = async (queryText = null) => {
     const textToSend = (typeof queryText === 'string' ? queryText : inputText).trim();
@@ -143,13 +177,27 @@ export default function HealthAssistantChat({
     // =========================================================================
     if (effectiveMode === 'online') {
       try {
+        // Build auth headers:
+        // - Real users: get Supabase session token
+        // - Demo users: send x-chw-demo-session marker (server checks ALLOW_DEMO_CHAT)
+        const isDemo = isDemoModeActive() && currentUser?.source === 'local_demo';
+        let sessionToken = null;
+        if (!isDemo && supabase) {
+          const { data } = await supabase.auth.getSession().catch(() => ({ data: null }));
+          sessionToken = data?.session?.access_token || null;
+        }
+
+        const headers = { 'Content-Type': 'application/json' };
+        if (sessionToken) {
+          headers['Authorization'] = `Bearer ${sessionToken}`;
+        }
+        if (isDemo) {
+          headers['x-chw-demo-session'] = 'true';
+        }
+
         const response = await fetch('/api/chat', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('supabase_auth_token') || 'session_client'}`,
-            'x-chw-session': currentUser?.id || 'guest_user'
-          },
+          headers,
           body: JSON.stringify({
             message: textToSend,
             language,
@@ -157,18 +205,26 @@ export default function HealthAssistantChat({
               role: currentUser?.role || 'patient',
               patientName: patientContext?.name || null,
               riskTier: patientContext?.risk_tier || null
+              // Note: no patientId in demo mode — server enforces this
             }
           })
         });
 
         if (response.ok) {
           const data = await response.json();
+          // Show truncation warning if the server shortened the input
+          if (data.wasTruncated) {
+            toastWarning('Your message was shortened to 500 characters.');
+          }
           const botMsg = {
             id: createMessageId('bot'),
             sender: 'bot',
             text: data.reply,
             timestamp: getCurrentTimeStr(),
-            source: data.source || 'online_ai'
+            source: data.source || 'online_ai',
+            badge: data.badge || data.source || 'online_ai',
+            topic: data.topic || null,
+            fallbackReason: data.fallbackReason || null
           };
 
           setMessages(prev => [...prev, botMsg]);
@@ -181,10 +237,15 @@ export default function HealthAssistantChat({
             userMessage: textToSend,
             botResponse: botMsg.text,
             redFlagDetected: false,
-            retrievedTopic: null,
+            retrievedTopic: data.topic || null,
             consentGiven: consentLogging
           });
           return;
+        } else if (response.status === 401) {
+          // Not authenticated — fall through to offline
+          console.warn('Chat: 401 from /api/chat — using offline KB');
+        } else {
+          console.warn('Online chat request failed with status', response.status);
         }
       } catch (err) {
         console.warn('Online chat request failed, falling back to offline knowledge base:', err);
@@ -367,34 +428,98 @@ export default function HealthAssistantChat({
                 <>
                   <p className="bubble-text">{msg.text}</p>
                   
-                  {/* Source Badge (Online AI vs Offline Protocol) */}
+                  {/* Source Badge — HONEST: reflects what actually produced the answer */}
                   {msg.source === 'online_ai' ? (
                     <div className="bubble-fallback-tag" style={{ backgroundColor: '#ecfdf5', borderColor: '#a7f3d0', color: '#065f46' }}>
                       <Sparkles size={13} className="text-emerald-600" />
-                      <span>{language === 'kn' ? 'ಲೈವ್ ಎಐ (Online AI)' : language === 'hi' ? 'ऑनलाइन एआई (Online AI)' : language === 'mr' ? 'ऑनलाइन एआय (Online AI)' : 'Online AI'}</span>
+                      <span>{language === 'kn' ? 'ಲೈವ್ ಎಐ' : language === 'hi' ? 'ऑनलाइन एआई' : language === 'mr' ? 'ऑनलाइन एआय' : 'Online AI'}</span>
                     </div>
-                  ) : (msg.isFallback || msg.source === 'offline_kb' || msg.source === 'simulated_online_advisory' || msg.source === 'server_fallback') ? (
+                  ) : (msg.source === 'offline_kb') ? (
                     <div className="bubble-fallback-tag" style={{ backgroundColor: '#f0f9ff', borderColor: '#bae6fd', color: '#0369a1' }}>
                       <ShieldCheck size={13} className="text-sky-600" />
-                      <span>{language === 'kn' ? 'ಪರಿಶೀಲಿಸಿದ ಆಫ್‌ಲೈನ್ ಗೈಡ್ (Offline Guide)' : language === 'hi' ? 'सत्यापित ऑफलाइन गाइड (Offline Guide)' : language === 'mr' ? 'प्रमाणित ऑफलाइन मार्गदर्शक (Offline Guide)' : 'Verified Clinical Guide (Offline)'}</span>
+                      <span>
+                        {language === 'kn' ? 'ಆಫ್‌ಲೈನ್ ಮಾರ್ಗದರ್ಶಿ' : language === 'hi' ? 'ऑफलाइन गाइड' : language === 'mr' ? 'ऑफलाइन मार्गदर्शक' : 'Offline guide'}
+                        {msg.topic ? ` (${msg.topic.replace(/_/g, ' ')})` : ''}
+                      </span>
+                    </div>
+                  ) : (msg.source === 'red_flag_pregnancy' || msg.source === 'red_flag_engine') ? (
+                    <div className="bubble-fallback-tag" style={{ backgroundColor: '#fef2f2', borderColor: '#fecaca', color: '#991b1b' }}>
+                      <AlertTriangle size={13} />
+                      <span>{language === 'kn' ? 'ತಕ್ಷಣ ರೆಫರ್' : language === 'hi' ? 'तत्काल रेफरल' : language === 'mr' ? 'तात्काळ रेफरल' : 'Urgent referral'}</span>
+                    </div>
+                  ) : (msg.isFallback || msg.source === 'offline_fallback') ? (
+                    <div className="bubble-fallback-tag" style={{ backgroundColor: '#fffbeb', borderColor: '#fde68a', color: '#92400e' }}>
+                      <Info size={13} />
+                      <span>{language === 'kn' ? 'ಆಫ್‌ಲೈನ್‌ನಲ್ಲಿ ಉತ್ತರವಿಲ್ಲ' : language === 'hi' ? 'ऑफलाइन उत्तर नहीं' : language === 'mr' ? 'ऑफलाइन उत्तर नाही' : "Can't answer offline"}</span>
                     </div>
                   ) : null}
+                  {/* Show why AI fell back (e.g., timeout, bad key) */}
+                  {msg.fallbackReason && (
+                    <p style={{ fontSize: '11px', color: '#6b7280', marginTop: '4px', fontStyle: 'italic' }}>
+                      ℹ️ {msg.fallbackReason}
+                    </p>
+                  )}
                 </>
               )}
 
-              {/* Bubble Footer with timestamp and TTS button */}
-              <div className="bubble-meta">
+              {/* Bubble Footer with timestamp, Copy, TTS, and Thumbs Up/Down */}
+              <div className="bubble-meta" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '6px' }}>
                 <span className="bubble-time">{msg.timestamp}</span>
                 {msg.sender === 'bot' && !msg.isEmergency && (
-                  <button 
-                    type="button" 
-                    className="bubble-audio-btn"
-                    onClick={() => handleReadAloud(msg.text)}
-                    aria-label="Listen to message aloud"
-                    title="Read advice aloud"
-                  >
-                    <Volume2 size={14} />
-                  </button>
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', marginLeft: 'auto' }}>
+                    <button 
+                      type="button" 
+                      className="bubble-audio-btn"
+                      onClick={() => handleCopyMessage(msg.id, msg.text)}
+                      aria-label="Copy message text"
+                      title="Copy advice"
+                      style={{ padding: '3px 5px', fontSize: '11px', display: 'flex', alignItems: 'center' }}
+                    >
+                      {copiedMsgId === msg.id ? <CheckCircle2 size={13} color="#059669" /> : <Copy size={13} />}
+                    </button>
+                    <button 
+                      type="button" 
+                      className="bubble-audio-btn"
+                      onClick={() => handleReadAloud(msg.text)}
+                      aria-label="Listen to message aloud"
+                      title="Read advice aloud"
+                      style={{ padding: '3px 5px', fontSize: '11px', display: 'flex', alignItems: 'center' }}
+                    >
+                      <Volume2 size={13} />
+                    </button>
+                    <button
+                      type="button"
+                      className="bubble-audio-btn"
+                      onClick={() => handleRateMessage(msg.id, 'up', msg.topic, msg.source)}
+                      aria-label="Helpful answer"
+                      title="Mark helpful"
+                      style={{ 
+                        padding: '3px 5px', 
+                        fontSize: '11px', 
+                        display: 'flex', 
+                        alignItems: 'center',
+                        color: msg.rating === 'up' ? '#059669' : 'inherit'
+                      }}
+                    >
+                      <ThumbsUp size={13} />
+                    </button>
+                    <button
+                      type="button"
+                      className="bubble-audio-btn"
+                      onClick={() => handleRateMessage(msg.id, 'down', msg.topic, msg.source)}
+                      aria-label="Unhelpful answer"
+                      title="Mark unhelpful"
+                      style={{ 
+                        padding: '3px 5px', 
+                        fontSize: '11px', 
+                        display: 'flex', 
+                        alignItems: 'center',
+                        color: msg.rating === 'down' ? '#dc2626' : 'inherit'
+                      }}
+                    >
+                      <ThumbsDown size={13} />
+                    </button>
+                  </div>
                 )}
               </div>
             </div>

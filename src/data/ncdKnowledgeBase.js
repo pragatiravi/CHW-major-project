@@ -36,10 +36,10 @@ export const NCD_KNOWLEDGE_BASE = [
     id: 'kb-htn-ranges',
     topic: 'hypertension_ranges',
     keywords: {
-      en: ['normal blood pressure', 'bp reading', 'systolic diastolic normal', 'high bp cutoff'],
-      kn: ['ಸಾಮಾನ್ಯ ರಕ್ತದೊತ್ತಡ', 'ಬಿಪಿ ರೀಡಿಂಗ್', 'ಹೈ ಬಿಪಿ ಯಾವಾಗ', 'ಸಾಮಾನ್ಯ ಬಿಪಿ ಎಷ್ಟು'],
-      hi: ['सामान्य रक्तचाप', 'बीपी कितना होना चाहिए', 'हाई बीपी कब होता है', 'सिस्टोलिक डायस्टोलिक'],
-      mr: ['सामान्य रक्तदाब', 'बीपी पातळी', 'उच्च रक्तदाब मर्यादा', 'सिस्टोलिक डायस्टोलिक']
+      en: ['normal bp', 'what is normal bp', 'blood pressure', 'normal blood pressure', 'bp reading', 'systolic diastolic normal', 'high bp cutoff', 'bp range', 'blood pressure normal'],
+      kn: ['ಸಾಮಾನ್ಯ ಬಿಪಿ', 'ಸಾಮಾನ್ಯ ಬಿಪಿ ಮಟ್ಟ', 'ಸಾಮಾನ್ಯ ಬಿಪಿ ಏನು', 'ಸಾಮಾನ್ಯ ರಕ್ತದೊತ್ತಡ', 'ಬಿಪಿ ರೀಡಿಂಗ್', 'ಹೈ ಬಿಪಿ ಯಾವಾಗ', 'ಸಾಮಾನ್ಯ ಬಿಪಿ ಎಷ್ಟು', 'ಬಿಪಿ'],
+      hi: ['सामान्य बीपी', 'सामान्य बीपी क्या है', 'सामान्य रक्तचाप', 'बीपी कितना होना चाहिए', 'हाई बीपी कब होता है', 'सिस्टोलिक डायस्टोलिक', 'रक्तचाप'],
+      mr: ['सामान्य बीपी', 'सामान्य रक्तदाब किती', 'सामान्य रक्तदाब', 'बीपी पातळी', 'उच्च रक्तदाब मर्यादा', 'सिस्टोलिक डायस्टोलिक', 'रक्तदाब']
     },
     question: {
       en: 'What is a normal blood pressure reading and when is it high?',
@@ -196,6 +196,102 @@ export const NCD_KNOWLEDGE_BASE = [
       kn: 'ಈ ಸಂದರ್ಭಗಳಲ್ಲಿ ತಕ್ಷಣ PHC ವೈದ್ಯರಿಗೆ ರೆಫರ್ ಮಾಡಿ: (1) ರಕ್ತದೊತ್ತಡ 140/90 mmHg ಗಿಂತ ಹೆಚ್ಚಿದ್ದರೆ; (2) ರಾಂಡಮ್ ಶುಗರ್ 140 mg/dL ಮೀರಿದ್ದರೆ; (3) ವಾಸಿಯಾಗದ ಪಾದದ ಗಾಯ ಅಥವಾ ಕಣ್ಣು ಮಸುಕಾಗಿದ್ದರೆ; (4) ಗರ್ಭಿಣಿಯರಲ್ಲಿ ಬಿಪಿ ಅಥವಾ ಸಕ್ಕರೆ ಹೆಚ್ಚಾಗಿದ್ದರೆ; (5) ಸತತ ಒಂದು ವಾರ ಔಷಧಿ ತಪ್ಪಿಸಿದ್ದರೆ. ಎದೆನೋವು ಕಂಡುಬಂದರೆ ನೇರವಾಗಿ 108 ಆಂಬ್ಯುಲೆನ್ಸ್‌ಗೆ ಕರೆ ಮಾಡಿ.',
       hi: 'इन स्थितियों में मरीज को तुरंत PHC डॉक्टर के पास भेजें: (1) बीपी 140/90 mmHg या अधिक हो; (2) रैंडम शुगर 140 mg/dL से ज्यादा हो; (3) पैर में न भरने वाला घाव या आंखों से धुंधला दिखना; (4) गर्भवती महिलाओं में उच्च रक्तचाप या शुगर; (5) एक हफ्ते से ज्यादा दवा छूटी हो। सीने में दर्द होने पर सीधे 108 पर कॉल करें।',
       mr: 'खालील प्रसंगी रुग्णाला त्वरित PHC डॉक्टरांकडे पाठवा: (1) रक्तदाब 140/90 mmHg किंवा जास्त असल्यास; (2) रँडम साखर 140 mg/dL पेक्षा जास्त असल्यास; (3) पायावरील जुनी जखम किंवा अंधुक दृष्टी; (4) गरोदर महिलांमध्ये वाढलेला रक्तदाब; (5) आठवड्याहून अधिक काळ गोळ्या चुकल्या असल्यास. छातीत दुखत असल्यास थेट 108 वर संपर्क साधा.'
+    }
+  },
+
+  // 9. HYPERTENSION IN PREGNANCY / PRE-ECLAMPSIA
+  {
+    id: 'kb-pregnancy-htn',
+    topic: 'pregnancy_hypertension',
+    keywords: {
+      en: ['pregnant high blood pressure', 'pregnant high blood pressure preeclampsia', 'pregnant high bp', 'pregnancy blood pressure', 'preeclampsia', 'pregnancy danger signs', 'bp in pregnancy', 'gestational hypertension', 'pregnant swelling headache', 'pregnancy headache vision', 'high bp pregnancy', 'pre eclampsia signs'],
+      kn: ['ಗರ್ಭಿಣಿ ರಕ್ತದೊತ್ತಡ', 'ಗರ್ಭಾವಸ್ಥೆ ಬಿಪಿ', 'ಪ್ರಿ-ಎಕ್ಲಾಂಪ್ಸಿಯಾ', 'ಗರ್ಭಿಣಿ ತಲೆನೋವು ಊತ', 'ಗರ್ಭಿಣಿ ಅಪಾಯ'],
+      hi: ['गर्भावस्था में बीपी', 'प्री-एक्लेम्पसिया', 'गर्भवती हाई बीपी', 'गर्भवती खतरे के संकेत', 'गर्भवती सिरदर्द सूजन'],
+      mr: ['गरोदरपणात रक्तदाब', 'प्री-एक्लेम्पसिया', 'गरोदर उच्च बीपी', 'गरोदर धोक्याची लक्षणे', 'गरोदर डोकेदुखी सूज']
+    },
+    question: {
+      en: 'What are the danger signs of high blood pressure in pregnancy (Pre-eclampsia)?',
+      kn: 'ಗರ್ಭಾವಸ್ಥೆಯಲ್ಲಿ ಅಧಿಕ ರಕ್ತದೊತ್ತಡದ (ಪ್ರಿ-ಎಕ್ಲಾಂಪ್ಸಿಯಾ) ಅಪಾಯದ ಲಕ್ಷಣಗಳು ಯಾವುವು?',
+      hi: 'गर्भावस्था में उच्च रक्तचाप (प्री-एक्लेम्पसिया) के खतरनाक लक्षण कौन से हैं?',
+      mr: 'गरोदरपणात उच्च रक्तदाब (प्री-एक्लेम्पसिया) चे धोकादायक संकेत कोणते आहेत?'
+    },
+    answer: {
+      en: '🚨 URGENT: BP ≥140/90 mmHg in pregnancy may indicate Pre-eclampsia. Danger signs: severe headache, blurred vision or flashing lights, swelling of face/hands, upper abdominal (right-side) pain, reduced or absent fetal movement, fits/convulsions, or any bleeding. Refer to PHC/hospital IMMEDIATELY. If BP ≥160/110 or convulsions — call 108 without delay. Source: WHO ANC Guidelines 2016; FOGSI; NHM RMNCH.',
+      kn: '🚨 ತಕ್ಷಣ ರೆಫರ್ ಮಾಡಿ: ಗರ್ಭಾವಸ್ಥೆಯಲ್ಲಿ ರಕ್ತದೊತ್ತಡ ≥140/90 mmHg ಇದ್ದರೆ ಪ್ರಿ-ಎಕ್ಲಾಂಪ್ಸಿಯಾ ಸಾಧ್ಯತೆ ಇದೆ. ಅಪಾಯದ ಲಕ್ಷಣಗಳು: ತೀವ್ರ ತಲೆನೋವು, ದೃಷ್ಟಿ ಮಸುಕು, ಮುಖ/ಕೈ ಊತ, ಮೇಲ್ಭಾಗದ ಹೊಟ್ಟೆ ನೋವು, ಭ್ರೂಣದ ಚಲನೆ ಕಡಿಮೆ, ಮೂರ್ಛೆ ಅಥವಾ ರಕ್ತಸ್ರಾವ. ತಕ್ಷಣ PHC/ಆಸ್ಪತ್ರೆಗೆ ಕರೆದೊಯ್ಯಿರಿ. BP ≥160/110 ಅಥವಾ ಮೂರ್ಛೆ ಬಂದರೆ 108 ಕರೆ ಮಾಡಿ. ಮೂಲ: WHO, FOGSI, NHM.',
+      hi: '🚨 तत्काल रेफर करें: गर्भावस्था में BP ≥140/90 mmHg प्री-एक्लेम्पसिया का संकेत हो सकता है। खतरे के संकेत: तेज सिरदर्द, धुंधली दृष्टि, चेहरे/हाथों की सूजन, पेट के ऊपरी भाग में दर्द, शिशु की हलचल कम होना, झटके या रक्तस्राव। तुरंत PHC/अस्पताल ले जाएं। BP ≥160/110 या झटके आएं तो 108 पर फोन करें। स्रोत: WHO, FOGSI, NHM.',
+      mr: '🚨 तात्काळ रेफर करा: गरोदरपणात BP ≥140/90 mmHg असल्यास प्री-एक्लेम्पसिया शक्य आहे. धोक्याची लक्षणे: तीव्र डोकेदुखी, धूसर दृष्टी, चेहरा/हात सूज, वरच्या पोटात वेदना, बाळाची हालचाल कमी, झटके किंवा रक्तस्राव. त्वरित PHC/रुग्णालयात न्या. BP ≥160/110 किंवा झटके आल्यास 108 वर फोन करा. स्रोत: WHO, FOGSI, NHM.'
+    }
+  },
+
+  // 10. BP MEASUREMENT TECHNIQUE
+  {
+    id: 'kb-bp-measurement',
+    topic: 'bp_measurement_technique',
+    keywords: {
+      en: ['how to measure bp', 'bp measurement', 'blood pressure check', 'take blood pressure', 'bp machine use', 'measure blood pressure correctly'],
+      kn: ['ರಕ್ತದೊತ್ತಡ ಹೇಗೆ ಅಳೆಯುವುದು', 'ಬಿಪಿ ಅಳತೆ ವಿಧಾನ', 'ಬಿಪಿ ಮೆಷಿನ್ ಬಳಕೆ'],
+      hi: ['बीपी कैसे मापें', 'रक्तचाप मापने का तरीका', 'बीपी मशीन का उपयोग'],
+      mr: ['बीपी कसे मोजावे', 'रक्तदाब मापण्याची पद्धत', 'बीपी मशीन वापर']
+    },
+    question: {
+      en: 'What is the correct technique to measure blood pressure (BP)?',
+      kn: 'ರಕ್ತದೊತ್ತಡ (ಬಿಪಿ) ಸರಿಯಾಗಿ ಅಳೆಯುವ ವಿಧಾನ ಏನು?',
+      hi: 'रक्तचाप (बीपी) मापने की सही विधि क्या है?',
+      mr: 'रक्तदाब (बीपी) मोजण्याची योग्य पद्धत कोणती आहे?'
+    },
+    answer: {
+      en: 'BP Measurement Technique (WHO-ISH): Patient should rest for 5 minutes before measurement. Sit comfortably with back supported, feet flat on floor. Place cuff on bare upper arm at heart level. No coffee, exercise, or smoking 30 minutes before. Take 2 readings 2 minutes apart and record the lower one. Source: WHO-ISH 2020 Guidelines; NPCDCS Field Protocols.',
+      kn: 'ಬಿಪಿ ಅಳತೆ ವಿಧಾನ: ಅಳತೆ ತೆಗೆಯುವ ಮೊದಲು 5 ನಿಮಿಷ ವಿಶ್ರಾಂತಿ ತೆಗೆಯಿರಿ. ಬೆನ್ನು ಒರಗಿ, ಕಾಲು ನೆಲದ ಮೇಲಿಟ್ಟು ಕೂಡಿರಿ. ಕಫ್ ಅನ್ನು ಬಟ್ಟೆ ಇಲ್ಲದ ಮೇಲ್ಭುಜದ ಮೇಲೆ ಹೃದಯದ ಮಟ್ಟದಲ್ಲಿ ಇಡಿ. ತೆಗೆಯುವ 30 ನಿಮಿಷ ಮೊದಲು ಚಹಾ, ವ್ಯಾಯಾಮ ಅಥವಾ ಧೂಮಪಾನ ಬೇಡ. 2 ನಿಮಿಷ ಬಿಟ್ಟು ಎರಡು ಬಾರಿ ಅಳೆದು ಕಡಿಮೆ ಅಂಕಿ ನಮೂದಿಸಿ. ಮೂಲ: WHO-ISH 2020.',
+      hi: 'बीपी मापने की सही विधि: माप से 5 मिनट पहले रोगी को आराम करने दें। पीठ के सहारे, पैर जमीन पर रखकर बैठें। कफ को कोहनी से 2 सेंटीमीटर ऊपर नंगी भुजा पर हृदय की ऊंचाई पर बांधें। माप से 30 मिनट पहले चाय, व्यायाम या धूम्रपान न करें। 2 मिनट के अंतर पर दो बार माप लें और कम रीडिंग को दर्ज करें। स्रोत: WHO-ISH 2020; NPCDCS.',
+      mr: 'बीपी मोजण्याची योग्य पद्धत: मोजण्यापूर्वी ५ मिनिटे विश्रांती घ्या. पाठीला आधार देऊन, पाय जमिनीवर ठेवून बसा. कफ कोपराच्या २ सेंमी वर उघड्या दंडावर हृदयाच्या पातळीवर बांधा. ३० मिनिटे आधी चहा, व्यायाम किंवा धूम्रपान नाही. २ मिनिटांच्या अंतराने दोनदा मोजून कमी रीडिंग नोंदवा. स्रोत: WHO-ISH 2020.'
+    }
+  },
+
+  // 11. HYPERTENSIVE CRISIS
+  {
+    id: 'kb-hypertensive-crisis',
+    topic: 'hypertensive_crisis',
+    keywords: {
+      en: ['bp very high', 'bp 180', 'hypertensive crisis', 'bp 200', 'very high blood pressure', 'bp emergency', 'severe hypertension', 'dangerous bp'],
+      kn: ['ರಕ್ತದೊತ್ತಡ ತುಂಬಾ ಹೆಚ್ಚು', 'ಬಿಪಿ 180', 'ಅತ್ಯಂತ ಹೆಚ್ಚಿನ ಬಿಪಿ', 'ಬಿಪಿ ತುರ್ತು'],
+      hi: ['बीपी बहुत ज्यादा है', 'बीपी 180', 'अत्यधिक रक्तचाप', 'बीपी की आपात स्थिति', 'हाइपरटेंसिव क्राइसिस'],
+      mr: ['बीपी खूप जास्त', 'बीपी 180', 'अति उच्च रक्तदाब', 'रक्तदाब आणीबाणी']
+    },
+    question: {
+      en: 'What should be done if blood pressure is extremely high (180/120 mmHg or above)?',
+      kn: 'ರಕ್ತದೊತ್ತಡ ತುಂಬಾ ಹೆಚ್ಚಿದ್ದರೆ (180/120 mmHg ಅಥವಾ ಅದಕ್ಕಿಂತ ಹೆಚ್ಚು) ಏನು ಮಾಡಬೇಕು?',
+      hi: 'अगर रक्तचाप बहुत अधिक (180/120 mmHg या इससे अधिक) हो तो क्या करें?',
+      mr: 'रक्तदाब खूप जास्त (180/120 mmHg किंवा त्यापेक्षा जास्त) असल्यास काय करावे?'
+    },
+    answer: {
+      en: '🚨 BP ≥180/120 mmHg is a Hypertensive Crisis — a medical emergency. Symptoms may include severe headache, chest pain, shortness of breath, vision changes, or confusion. Call 108 IMMEDIATELY. Do not give extra doses of BP medicine without medical guidance. Keep the patient calm and lying down. Source: WHO-ISH 2020; American Heart Association.',
+      kn: '🚨 ರಕ್ತದೊತ್ತಡ ≥180/120 mmHg ತುರ್ತು ವೈದ್ಯಕೀಯ ಸ್ಥಿತಿ. ಲಕ್ಷಣಗಳು: ತೀವ್ರ ತಲೆನೋವು, ಎದೆ ನೋವು, ಉಸಿರಾಟದ ತೊಂದರೆ, ದೃಷ್ಟಿ ಮಸುಕು. ತಕ್ಷಣ 108 ಕರೆ ಮಾಡಿ. ವೈದ್ಯರ ಸಲಹೆ ಇಲ್ಲದೆ ಹೆಚ್ಚಿನ ಮಾತ್ರೆ ನೀಡಬೇಡಿ. ರೋಗಿಯನ್ನು ಶಾಂತವಾಗಿ ಮಲಗಿಸಿ. ಮೂಲ: WHO-ISH 2020.',
+      hi: '🚨 BP ≥180/120 mmHg हाइपरटेंसिव क्राइसिस — यह चिकित्सा आपातकाल है। लक्षण: तेज सिरदर्द, सीने में दर्द, सांस लेने में तकलीफ, धुंधली दृष्टि। तुरंत 108 पर कॉल करें। डॉक्टरी सलाह के बिना अतिरिक्त दवा न दें। मरीज को शांत लेटाएं। स्रोत: WHO-ISH 2020.',
+      mr: '🚨 BP ≥180/120 mmHg हायपरटेन्सिव क्रायसिस — वैद्यकीय आणीबाणी आहे. लक्षणे: तीव्र डोकेदुखी, छातीत दुखणे, श्वास घेण्यास त्रास, धूसर दृष्टी. त्वरित 108 वर कॉल करा. डॉक्टरांच्या सल्ल्याशिवाय अतिरिक्त गोळी देऊ नका. रुग्णाला शांत झोपवा. स्रोत: WHO-ISH 2020.'
+    }
+  },
+
+  // 12. GESTATIONAL DIABETES
+  {
+    id: 'kb-gestational-diabetes',
+    topic: 'gestational_diabetes',
+    keywords: {
+      en: ['gestational diabetes', 'sugar in pregnancy', 'diabetes pregnancy', 'pregnancy blood sugar', 'gdm', 'glucose during pregnancy'],
+      kn: ['ಗರ್ಭಾವಸ್ಥೆ ಮಧುಮೇಹ', 'ಗರ್ಭಿಣಿ ಸಕ್ಕರೆ', 'ಗರ್ಭಾವಸ್ಥೆ ಸಕ್ಕರೆ ಕಾಯಿಲೆ'],
+      hi: ['गर्भावस्था में शुगर', 'गेस्टेशनल डायबिटीज', 'प्रेगनेंसी में मधुमेह'],
+      mr: ['गरोदरपणातील मधुमेह', 'गर्भावस्थेतील साखर', 'गेस्टेशनल डायबेटीस']
+    },
+    question: {
+      en: 'What is Gestational Diabetes and what should pregnant women do about it?',
+      kn: 'ಗರ್ಭಾವಸ್ಥೆ ಮಧುಮೇಹ (Gestational Diabetes) ಏನು? ಗರ್ಭಿಣಿ ಮಹಿಳೆಯರು ಏನು ಮಾಡಬೇಕು?',
+      hi: 'गेस्टेशनल डायबिटीज (गर्भावस्था में मधुमेह) क्या है और गर्भवती महिलाओं को इसमें क्या करना चाहिए?',
+      mr: 'गेस्टेशनल डायबेटीस म्हणजे काय आणि गरोदर महिलांनी काय करावे?'
+    },
+    answer: {
+      en: 'Gestational Diabetes (GDM) is high blood sugar during pregnancy. It usually resolves after delivery but raises the risk of Type 2 diabetes later. If fasting glucose ≥92 mg/dL or post-meal ≥153 mg/dL during pregnancy, refer to PHC immediately. Management: regular glucose monitoring, reduce sweets and white rice, light walking (30 mins), regular ANC check-ups. Never skip ANC visits. Source: FOGSI GDM Guidelines; WHO ANC 2016.',
+      kn: 'ಗರ್ಭಾವಸ್ಥೆ ಮಧುಮೇಹ (GDM): ಗರ್ಭದ ಸಮಯದಲ್ಲಿ ರಕ್ತದಲ್ಲಿ ಸಕ್ಕರೆ ಹೆಚ್ಚಾಗುವ ಸ್ಥಿತಿ. ಹೆರಿಗೆ ನಂತರ ಸಾಮಾನ್ಯವಾಗಿ ಸರಿಯಾಗುತ್ತದೆ ಆದರೆ ಭವಿಷ್ಯದಲ್ಲಿ ಮಧುಮೇಹದ ಅಪಾಯ ಹೆಚ್ಚಾಗುತ್ತದೆ. ಫಾಸ್ಟಿಂಗ್ ಸಕ್ಕರೆ ≥92 mg/dL ಅಥವಾ ಊಟದ ನಂತರ ≥153 mg/dL ಇದ್ದರೆ ತಕ್ಷಣ PHC ಗೆ ರೆಫರ್ ಮಾಡಿ. ನಿಯಮಿತ ANC ತಪಾಸಣೆ ಮರೆಯಬೇಡಿ. ಮೂಲ: FOGSI, WHO.',
+      hi: 'गेस्टेशनल डायबिटीज (GDM): गर्भावस्था में रक्त शर्करा बढ़ने की स्थिति है। आमतौर पर प्रसव के बाद ठीक हो जाती है, लेकिन बाद में टाइप 2 मधुमेह का खतरा बढ़ जाता है। फास्टिंग शुगर ≥92 mg/dL या भोजन के बाद ≥153 mg/dL हो तो तुरंत PHC रेफर करें। नियमित ANC जांच न छोड़ें। स्रोत: FOGSI, WHO ANC 2016.',
+      mr: 'गेस्टेशनल डायबेटीस (GDM): गरोदरपणात रक्तातील साखर वाढण्याची स्थिती. बाळंतपणानंतर सामान्यतः बरी होते, पण नंतर टाइप 2 मधुमेहाचा धोका वाढतो. उपाशी साखर ≥92 mg/dL किंवा जेवणानंतर ≥153 mg/dL असल्यास तात्काळ PHC कडे पाठवा. नियमित ANC तपासणी चुकवू नका. स्रोत: FOGSI, WHO ANC 2016.'
     }
   }
 ];

@@ -72,17 +72,18 @@ export async function fetchAllProfiles() {
 }
 
 /**
- * Admin approval: update staff status and assign role or supervisor
+ * Admin / Supervisor approval: update staff status and assign role, supervisor, or subcenter
  */
-export async function updateProfileRoleAndStatus(profileId, newRole, newStatus, supervisorId = null) {
+export async function updateProfileRoleAndStatus(profileId, newRole, newStatus, supervisorId = null, subcenter = null) {
   if (isSupabaseConfigured && supabase) {
     try {
       const updatePayload = {
         role: newRole,
         status: newStatus,
-        supervisor_id: supervisorId,
         updated_at: new Date().toISOString()
       };
+      if (supervisorId) updatePayload.supervisor_id = supervisorId;
+      if (subcenter) updatePayload.subcenter = subcenter;
 
       const { data, error } = await supabase
         .from('profiles')
@@ -98,12 +99,17 @@ export async function updateProfileRoleAndStatus(profileId, newRole, newStatus, 
   }
 
   const profiles = getLocalProfiles();
-  const updated = profiles.map(p => {
-    if (p.id === profileId) {
-      return { ...p, role: newRole, status: newStatus, supervisor_id: supervisorId };
-    }
-    return p;
-  });
-  saveLocalProfiles(updated);
-  return updated.find(p => p.id === profileId);
+  const idx = profiles.findIndex(p => p.id === profileId);
+  if (idx >= 0) {
+    profiles[idx] = { 
+      ...profiles[idx], 
+      role: newRole, 
+      status: newStatus,
+      ...(supervisorId ? { supervisor_id: supervisorId } : {}),
+      ...(subcenter ? { subcenter } : {})
+    };
+    saveLocalProfiles(profiles);
+    return profiles[idx];
+  }
+  return null;
 }

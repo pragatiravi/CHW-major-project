@@ -21,6 +21,7 @@ import {
   PhoneCall,
   Database,
   HelpCircle,
+  Wifi,
   WifiOff
 } from 'lucide-react';
 import { 
@@ -66,6 +67,19 @@ export default function SignInPage({
   });
 
   const diagnostics = getSupabaseDiagnostics();
+
+  const [isDeviceOnline, setIsDeviceOnline] = useState(() => (typeof navigator !== 'undefined' ? navigator.onLine : true));
+
+  useEffect(() => {
+    const handleOnline = () => setIsDeviceOnline(true);
+    const handleOffline = () => setIsDeviceOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   // Brute force lockout timer
   useEffect(() => {
@@ -240,16 +254,29 @@ export default function SignInPage({
             CHW Healthcare Toolkit
           </span>
 
-          {/* Connection Status Badge (No technical jargon) */}
-          {isSupabaseConfigured ? (
-            <span className="badge badge-success text-3xs font-semibold flex items-center gap-1 py-1 px-2">
-              <ShieldCheck size={12} className="text-emerald-700" />
-              <span>Verified Portal</span>
+          {/* Network Status Badge (Truthful: checks actual internet connectivity) */}
+          {isDeviceOnline ? (
+            <span className="badge badge-success text-3xs font-semibold flex items-center gap-1 py-1 px-2" title="Device is connected to the internet">
+              <Wifi size={12} className="text-emerald-700" />
+              <span>Online</span>
             </span>
           ) : (
-            <span className="badge badge-warning text-3xs font-semibold flex items-center gap-1 py-1 px-2">
-              <WifiOff size={12} className="text-amber-700" />
-              <span>Offline Mode</span>
+            <span className="badge badge-danger text-3xs font-semibold flex items-center gap-1 py-1 px-2" title="Device has no internet connection">
+              <WifiOff size={12} className="text-rose-700" />
+              <span>Offline</span>
+            </span>
+          )}
+
+          {/* Cloud Database Status Badge */}
+          {isSupabaseConfigured ? (
+            <span className="badge badge-primary text-3xs font-semibold flex items-center gap-1 py-1 px-2" title="Connected to remote Supabase Postgres cloud">
+              <ShieldCheck size={12} className="text-sky-700" />
+              <span>Cloud Connected</span>
+            </span>
+          ) : (
+            <span className="badge badge-warning text-3xs font-semibold flex items-center gap-1 py-1 px-2" title="Running in local evaluation mode (no cloud database configured)">
+              <Database size={12} className="text-amber-700" />
+              <span>Local-only</span>
             </span>
           )}
 

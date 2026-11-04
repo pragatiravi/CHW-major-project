@@ -35,6 +35,7 @@ import LanguageSwitcher from '../shared/LanguageSwitcher';
 import { subscribeSyncStatus, executeSync } from '../../lib/sync/syncEngine';
 import { subscribeToInstallPrompt, promptPWAInstall } from '../../registerServiceWorker';
 import { isSupabaseConfigured } from '../../lib/supabaseClient';
+import { resetDemoData } from '../../lib/db/dexieDb';
 
 export default function AppShell({
   children,
@@ -177,9 +178,68 @@ export default function AppShell({
   const currentNavItems = navConfigs[userRole] || navConfigs.chw;
   const currentRoleMeta = roleMeta[userRole] || roleMeta.chw;
 
+  const handleResetDemo = async () => {
+    if (window.confirm('Reset all demo data in the local demo database?')) {
+      await resetDemoData();
+      window.location.reload();
+    }
+  };
+
   return (
     <div className="authenticated-app-shell">
       <a className="skip-link" href="#main-content">Skip to main content</a>
+      {currentUser?.source === 'local_demo' && (
+        <div 
+          className="demo-mode-persistent-banner"
+          style={{
+            backgroundColor: '#f59e0b',
+            color: '#0f172a',
+            padding: '8px 16px',
+            fontSize: '12px',
+            fontWeight: 700,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '8px',
+            borderBottom: '1px solid #d97706',
+            position: 'sticky',
+            top: 0,
+            zIndex: 100
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{
+              backgroundColor: '#0f172a',
+              color: '#fbbf24',
+              padding: '2px 6px',
+              borderRadius: '4px',
+              fontSize: '10px',
+              fontFamily: 'monospace',
+              letterSpacing: '0.05em'
+            }}>
+              DEMO MODE
+            </span>
+            <span>DEMO MODE: sample data only — stored in separate local database, never synced to cloud.</span>
+          </div>
+          <button
+            type="button"
+            onClick={handleResetDemo}
+            style={{
+              backgroundColor: '#0f172a',
+              color: '#fef3c7',
+              border: 'none',
+              borderRadius: '4px',
+              padding: '4px 10px',
+              fontSize: '11px',
+              fontWeight: 600,
+              cursor: 'pointer'
+            }}
+          >
+            Reset demo data
+          </button>
+        </div>
+      )}
       {/* TOPBAR */}
       <header className="shell-topbar">
         <button
@@ -262,7 +322,7 @@ export default function AppShell({
             <button 
               type="button"
               className="shell-connectivity-badge offline"
-              title="Running in Local-Only Mode (IndexedDB on tablet). No remote cloud database configured."
+              title="Running in Local-Only Mode (Stored safely on device). No remote cloud database configured."
             >
               <Database size={14} />
               <span>Local-Only Mode</span>

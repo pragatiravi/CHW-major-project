@@ -2,8 +2,8 @@ import Dexie from 'dexie';
 import { encryptSensitiveData, decryptSensitiveData } from '../crypto/encryption';
 
 export class CHWDatabase extends Dexie {
-  constructor() {
-    super('CHWToolkitDB');
+  constructor(dbName = 'CHWToolkitDB') {
+    super(dbName);
 
     this.version(1).stores({
       patients: 'id, custom_id, legacy_id, name, created_by, assigned_chw, updated_at, [assigned_chw+updated_at]',
@@ -24,7 +24,72 @@ export class CHWDatabase extends Dexie {
 
 // In-memory fallback if IndexedDB is unavailable in current runtime (e.g., Node.js unit tests)
 const isIndexedDBAvailable = typeof indexedDB !== 'undefined';
-export const db = isIndexedDBAvailable ? new CHWDatabase() : null;
+
+function isDemoSessionActive() {
+  try {
+    if (typeof sessionStorage !== 'undefined') {
+      const s = sessionStorage.getItem('chw_auth_session');
+      if (s) {
+        const u = JSON.parse(s);
+        return u.source === 'local_demo';
+      }
+    }
+  } catch {
+    // fallback
+  }
+  return false;
+}
+
+export const realDb = isIndexedDBAvailable ? new CHWDatabase('CHWToolkitDB') : null;
+export const demoDb = isIndexedDBAvailable ? new CHWDatabase('CHWToolkitDB_demo') : null;
+
+export function getActiveDb() {
+  if (!isIndexedDBAvailable) return null;
+  return isDemoSessionActive() ? demoDb : realDb;
+}
+
+// Proxy routes calls to the appropriate database (CHWToolkitDB_demo vs CHWToolkitDB)
+export const db = isIndexedDBAvailable
+  ? new Proxy({}, {
+      get(target, prop) {
+        const active = getActiveDb();
+        if (!active) return undefined;
+        const val = active[prop];
+        return typeof val === 'function' ? val.bind(active) : val;
+      }
+    })
+  : null;
+
+/**
+ * Reset all local demo data from the isolated demo database
+ */
+export async function resetDemoData() {
+  if (isIndexedDBAvailable && demoDb) {
+    try {
+      await demoDb.patients.clear();
+      await demoDb.visits.clear();
+      await demoDb.referrals.clear();
+      await demoDb.prescriptions.clear();
+      await demoDb.counselling_sessions.clear();
+      await demoDb.sync_queue.clear();
+      await demoDb.conflicts.clear();
+    } catch (e) {
+      console.warn('Error clearing demo DB:', e);
+    }
+  }
+  // Clear any demo-specific localStorage keys
+  if (typeof localStorage !== 'undefined') {
+    const keys = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && (k.startsWith('chw_patients_00000000-') || k.startsWith('chw_patients_11111111-') || k.includes('demo'))) {
+        keys.push(k);
+      }
+    }
+    keys.forEach(k => localStorage.removeItem(k));
+  }
+  return true;
+}
 
 // Memory storage fallback for Node.js Vitest environments
 const memoryStore = {

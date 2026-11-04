@@ -389,7 +389,7 @@ export default function AdminPortal({
           <div className="flex justify-between items-center flex-wrap gap-2">
             <div>
               <h3 className="text-base font-bold text-slate-900">User Access & Role Management</h3>
-              <p className="text-xs text-slate-500">Approve pending signups and assign operational role permissions (DB RLS enforced)</p>
+              <p className="text-xs text-slate-500">Approve pending signups and assign operational role permissions</p>
             </div>
             <span className="badge badge-primary text-xs font-mono">{profiles.length} Total Registered Staff</span>
           </div>

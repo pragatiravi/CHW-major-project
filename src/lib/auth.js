@@ -57,12 +57,8 @@ export function isDemoModeActive() {
     return false;
   }
 
-  // In local development or Vitest without .env, allow demo mode
+  // In local development or dev server without .env, allow demo mode
   if (typeof import.meta !== 'undefined' && import.meta.env?.DEV) {
-    return true;
-  }
-
-  if (typeof process !== 'undefined' && process.env?.NODE_ENV !== 'production') {
     return true;
   }
 
@@ -70,10 +66,21 @@ export function isDemoModeActive() {
 }
 
 /**
- * Seeded Demo Account Registry
- * Note: Only active when isDemoModeActive() is true.
+ * Statically evaluable demo flag for build-time tree-shaking (Rollup dead-code elimination)
  */
-export const RAW_DEMO_CREDENTIALS = {
+const IS_DEMO_BUILD = (
+  import.meta.env?.VITE_DEMO_MODE === 'true' ||
+  import.meta.env?.VITE_DEMO_MODE === '1' ||
+  import.meta.env?.VITE_ENABLE_DEMO_ACCESS === 'true' ||
+  import.meta.env?.VITE_ENABLE_DEMO_ACCESS === '1' ||
+  Boolean(import.meta.env?.DEV)
+);
+
+/**
+ * Seeded Demo Account Registry
+ * Tree-shaken out of production bundle when VITE_DEMO_MODE=false.
+ */
+export const RAW_DEMO_CREDENTIALS = IS_DEMO_BUILD ? {
   chw: {
     email: 'sunita.patil@communityhealth.org',
     password: 'DemoCHW@123!',
@@ -114,7 +121,7 @@ export const RAW_DEMO_CREDENTIALS = {
     status: 'approved',
     id: '11111111-1111-1111-1111-111111111111'
   }
-};
+} : {};
 
 export const DEMO_CREDENTIALS = RAW_DEMO_CREDENTIALS;
 

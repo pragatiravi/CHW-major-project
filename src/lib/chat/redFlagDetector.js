@@ -2,9 +2,19 @@
  * Deterministic Clinical Red-Flag Detector
  * Evaluates patient symptoms and chat queries across English, Kannada, Hindi, and Marathi.
  * Runs BEFORE any AI model or search retrieval to guarantee emergency triage safety.
+ *
+ * Categories:
+ *  - PREGNANCY_DANGER: Pre-eclampsia / eclampsia danger signs (highest priority)
+ *  - CARDIAC: Chest pain, heart attack
+ *  - RESPIRATORY: Severe shortness of breath
+ *  - STROKE: Facial drooping, arm weakness, speech problems
+ *  - CONSCIOUSNESS: Seizures, unconsciousness
+ *  - HEMORRHAGE: Severe bleeding
+ *  - CRITICAL_VITALS: BP ≥180/120, glucose ≥400
  */
 
 export const RED_FLAG_CATEGORIES = {
+  PREGNANCY_DANGER: 'pregnancy_danger',
   CARDIAC: 'cardiac',
   RESPIRATORY: 'respiratory',
   STROKE: 'stroke',
@@ -44,10 +54,69 @@ const EMERGENCY_MESSAGES = {
   }
 };
 
+/** Pregnancy-specific emergency messages */
+const PREGNANCY_EMERGENCY_MESSAGES = {
+  en: {
+    title: '🚨 PREGNANCY DANGER SIGN DETECTED — URGENT REFERRAL',
+    warning: 'High blood pressure in pregnancy (BP ≥140/90 mmHg) with these symptoms may indicate Pre-eclampsia or Eclampsia — a life-threatening emergency for both mother and baby.',
+    action: 'Take the patient to the nearest hospital or PHC IMMEDIATELY. If BP ≥160/110, fits/convulsions occur, or there is severe headache, blurred vision, face/hand swelling, upper abdominal pain, reduced fetal movement, or any bleeding — CALL 108 NOW.',
+    callBtn: 'Call 108 Ambulance Now',
+    reportBtn: 'Generate Emergency Referral Slip'
+  },
+  kn: {
+    title: '🚨 ಗರ್ಭಾವಸ್ಥೆಯ ಅಪಾಯದ ಲಕ್ಷಣ — ತಕ್ಷಣ ರೆಫರ್',
+    warning: 'ಗರ್ಭಾವಸ್ಥೆಯಲ್ಲಿ ಹೆಚ್ಚಿನ ರಕ್ತದೊತ್ತಡ ಪ್ರಿ-ಎಕ್ಲಾಂಪ್ಸಿಯಾ ಸಂಕೇತವಾಗಿರಬಹುದು. ಇದು ಅಮ್ಮ ಮತ್ತು ಮಗುವಿಗೆ ಅಪಾಯಕಾರಿ.',
+    action: 'ತಕ್ಷಣ ಹತ್ತಿರದ PHC/ಆಸ್ಪತ್ರೆಗೆ ಕರೆದೊಯ್ಯಿರಿ. ತೀವ್ರ ತಲೆನೋವು, ದೃಷ್ಟಿ ಮಸುಕು, ಮುಖ/ಕೈ ಊತ, ಏದುಸಿರು, ಮೂರ್ಛೆ ಅಥವಾ ರಕ್ತಸ್ರಾವ ಕಂಡರೆ — ಈಗಲೇ 108 ಕರೆ ಮಾಡಿ.',
+    callBtn: 'ಈಗಲೇ 108 ಆಂಬ್ಯುಲೆನ್ಸ್‌ಗೆ ಕರೆ ಮಾಡಿ',
+    reportBtn: 'ತುರ್ತು ರೆಫರಲ್ ಚೀಟಿ ತಯಾರಿಸಿ'
+  },
+  hi: {
+    title: '🚨 गर्भावस्था में खतरे का संकेत — तत्काल रेफरल',
+    warning: 'गर्भावस्था में उच्च रक्तचाप प्री-एक्लेम्पसिया का संकेत हो सकता है — यह माँ और शिशु दोनों के लिए जानलेवा आपातकाल है।',
+    action: 'तुरंत नजदीकी PHC/अस्पताल ले जाएं। तेज सिरदर्द, धुंधली दृष्टि, चेहरे/हाथों की सूजन, पेट के ऊपरी भाग में दर्द, झटके या खून बह रहा हो — अभी 108 पर कॉल करें।',
+    callBtn: 'अभी 108 एम्बुलेंस को कॉल करें',
+    reportBtn: 'आपातकालीन रेफरल पर्ची बनाएं'
+  },
+  mr: {
+    title: '🚨 गरोदरपणातील धोक्याचे लक्षण — तात्काळ रेफरल',
+    warning: 'गरोदरपणात उच्च रक्तदाब हे प्री-एक्लेम्पसियाचे लक्षण असू शकते — हे आई आणि बाळ दोघांसाठी जीवघेणे आहे.',
+    action: 'त्वरित जवळच्या PHC/रुग्णालयात न्या. तीव्र डोकेदुखी, धूसर दृष्टी, चेहरा/हात सूज, वरच्या पोटात वेदना, झटके किंवा रक्तस्राव असल्यास — आत्ताच 108 वर फोन करा.',
+    callBtn: 'आता 108 रुग्णवाहिकेला कॉल करा',
+    reportBtn: 'आणीबाणी रेफरल स्लिप तयार करा'
+  }
+};
+
 /**
- * Robust pair and keyword rules for clinical emergency detection
+ * Robust pair and keyword rules for clinical emergency detection.
+ * PREGNANCY_DANGER is checked first (highest priority).
  */
 const CLINICAL_RULES = [
+  // 0. PREGNANCY DANGER SIGNS (PRE-ECLAMPSIA / ECLAMPSIA) — HIGHEST PRIORITY
+  {
+    category: RED_FLAG_CATEGORIES.PREGNANCY_DANGER,
+    emergencyMessages: PREGNANCY_EMERGENCY_MESSAGES,
+    test: (text) => {
+      // English
+      if (/(?:pregnant|pregnancy).{0,40}(?:bp|blood pressure|high bp|140|150|160|170|headache|vision|swelling|blurring|bleeding|fits|convul|epigastric|fetal movement)/i.test(text)) return 'pregnancy hypertension / pre-eclampsia';
+      if (/(?:preeclampsia|pre-eclampsia|eclampsia)/i.test(text)) return 'pre-eclampsia / eclampsia';
+      if (/(?:gestational hypertension|gestational diabetes with bp|high bp in pregnancy)/i.test(text)) return 'gestational hypertension';
+      if (/(?:pregnant.{0,30}severe headache|severe headache.{0,30}pregnant)/i.test(text)) return 'pregnancy danger — severe headache';
+      if (/(?:pregnant.{0,30}blurred vision|blurred vision.{0,30}pregnant)/i.test(text)) return 'pregnancy danger — blurred vision';
+      if (/(?:pregnant.{0,30}swelling|face.{0,20}swelling.{0,30}pregnant)/i.test(text)) return 'pregnancy danger — oedema';
+      if (/(?:reduced fetal movement|no fetal movement|baby not moving)/i.test(text)) return 'reduced fetal movement — urgent';
+      // Kannada
+      if (/(?:ಗರ್ಭಿಣಿ|ಗರ್ಭ).{0,30}(?:ರಕ್ತದೊತ್ತಡ|ಬಿಪಿ|ತಲೆನೋವು|ದೃಷ್ಟಿ ಮಸುಕು|ಊತ|ರಕ್ತಸ್ರಾವ|ಮೂರ್ಛೆ)/.test(text)) return 'ಗರ್ಭಾವಸ್ಥೆ ಅಪಾಯ';
+      if (/ಪ್ರಿ-ಎಕ್ಲಾಂಪ್ಸಿಯಾ|ಎಕ್ಲಾಂಪ್ಸಿಯಾ/.test(text)) return 'ಪ್ರಿ-ಎಕ್ಲಾಂಪ್ಸಿಯಾ';
+      // Hindi
+      if (/(?:गर्भवती|गर्भावस्था).{0,30}(?:रक्तचाप|बीपी|सिरदर्द|दृष्टि|सूजन|खून|दौरे)/.test(text)) return 'गर्भावस्था में अपाय';
+      if (/प्री-एक्लेम्पसिया|एक्लेम्पसिया/.test(text)) return 'प्री-एक्लेम्पसिया';
+      // Marathi
+      if (/(?:गरोदर|गरोदरपण).{0,30}(?:रक्तदाब|बीपी|डोकेदुखी|दृष्टी|सूज|रक्तस्राव|झटके)/.test(text)) return 'गरोदरपणातील धोका';
+      if (/प्री-एक्लेम्पसिया|एक्लेम्पसिया/.test(text)) return 'प्री-एक्लेम्पसिया';
+      return null;
+    }
+  },
+
   // 1. CARDIAC
   {
     category: RED_FLAG_CATEGORIES.CARDIAC,
@@ -162,7 +231,9 @@ export function detectClinicalRedFlag(text, lang = 'en') {
   for (const rule of CLINICAL_RULES) {
     const matched = rule.test(normalized);
     if (matched) {
-      const emergencyInfo = EMERGENCY_MESSAGES[activeLang] || EMERGENCY_MESSAGES.en;
+      // Use rule-specific emergency messages if provided (e.g. pregnancy), else generic
+      const msgSource = rule.emergencyMessages || EMERGENCY_MESSAGES;
+      const emergencyInfo = msgSource[activeLang] || msgSource.en;
       return {
         isRedFlag: true,
         category: rule.category,

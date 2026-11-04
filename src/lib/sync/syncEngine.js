@@ -87,7 +87,16 @@ async function pushQueueItem(item) {
 /**
  * Execute full bidirectional sync: Outbox Push + Remote Pull with Conflict Detection
  */
-export async function executeSync() {
+export async function executeSync(currentUser = null) {
+  // Demo users: data is isolated locally and never synced to cloud
+  if (currentUser?.source === 'local_demo') {
+    syncState.status = 'synced';
+    syncState.pendingCount = 0;
+    syncState.lastSyncedAt = Date.now();
+    notify();
+    return { success: true, pushed: 0, failed: 0, pulled: 0, conflicts: 0, isDemo: true };
+  }
+
   if (typeof navigator !== 'undefined' && !navigator.onLine) {
     syncState.isOnline = false;
     syncState.status = 'offline';

@@ -519,7 +519,7 @@ function AppContent() {
           toastSuccess('All records are already fully synchronized.');
         }
       } else if (result.reason === 'offline') {
-        toastWarning('Network is currently offline. Screenings remain safely queued in local IndexedDB outbox.');
+        toastWarning('Network is currently offline. Screenings remain safely queued on device.');
       } else {
         toastError(result.error || `${result.failed || 1} record(s) failed to sync. Review the sync queue.`);
       }

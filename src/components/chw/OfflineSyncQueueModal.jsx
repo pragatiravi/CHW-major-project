@@ -141,7 +141,7 @@ export default function OfflineSyncQueueModal({
             </div>
             <div>
               <h2 className="text-base font-bold text-slate-900">Offline Storage & Outbox Sync Hub</h2>
-              <p className="text-2xs text-slate-500">IndexedDB local database with bidirectional sync & conflict resolution</p>
+              <p className="text-2xs text-slate-500">Secure local device storage with bidirectional cloud sync</p>
             </div>
           </div>
           <button className="btn-icon-xs" onClick={onClose} aria-label="Close sync manager"><X size={16} /></button>
@@ -153,7 +153,7 @@ export default function OfflineSyncQueueModal({
           <div className="p-4 rounded-xl border border-sky-200 bg-sky-50 flex justify-between items-center flex-wrap gap-3">
             <div>
               <h4 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                <WifiOff size={16} className="text-sky-700" /> Pending IndexedDB Outbox
+                <WifiOff size={16} className="text-sky-700" /> Pending Offline Outbox
               </h4>
               <p className="text-xs text-slate-600 mt-0.5">
                 {dexieQueue.length} mutation(s) queued for cloud sync.
@@ -319,7 +319,7 @@ export default function OfflineSyncQueueModal({
         {/* Footer */}
         <div className="px-6 py-3 bg-slate-50 border-t border-slate-200 flex justify-between items-center">
           <span className="text-2xs text-slate-500 flex items-center gap-1">
-            <Database size={12} className="text-sky-600" /> IndexedDB AES-GCM Encrypted at Rest
+            <Database size={12} className="text-sky-600" /> Device Storage Encrypted at Rest
           </span>
           <button className="btn btn-secondary text-xs" onClick={onClose}>Close</button>
         </div>

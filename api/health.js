@@ -29,13 +29,19 @@ export default function handler(req, res) {
     !supabaseUrl.includes('placeholder')
   );
 
+  const isDemoChatAllowed = Boolean(
+    process.env.ALLOW_DEMO_CHAT === 'true' ||
+    process.env.ALLOW_DEMO_CHAT === '1'
+  );
+
   return res.status(200).json({
     status: 'ok',
     timestamp: new Date().toISOString(),
     ai: {
       isConfigured: isGeminiConfigured,
       model: modelName,
-      provider: 'Google Gemini'
+      provider: 'Google Gemini',
+      allowDemoChat: isDemoChatAllowed
     },
     database: {
       isConfigured: isSupabaseConfigured,

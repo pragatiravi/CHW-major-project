@@ -2521,3 +2521,69 @@ button:disabled {
   gap: 10px;
 }
 
+
+
+/* Prevent browser autofill blue/yellow background discoloration */
+input:-webkit-autofill,
+input:-webkit-autofill:hover, 
+input:-webkit-autofill:focus, 
+input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 30px #ffffff inset !important;
+  -webkit-text-fill-color: #0f172a !important;
+  transition: background-color 5000s ease-in-out 0s;
+}
+
+[data-theme='dark'] input:-webkit-autofill,
+[data-theme='dark'] input:-webkit-autofill:hover, 
+[data-theme='dark'] input:-webkit-autofill:focus, 
+[data-theme='dark'] input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 30px #1e293b inset !important;
+  -webkit-text-fill-color: #f8fafc !important;
+  transition: background-color 5000s ease-in-out 0s;
+}
+
+
+/* Chat UI Viewport & Responsiveness Enhancements */
+.health-assistant-chat-container {
+  height: calc(100vh - 170px) !important;
+  max-height: 720px !important;
+  min-height: 480px !important;
+  overflow: hidden !important;
+  position: relative !important;
+}
+
+.health-assistant-chat-container.embedded {
+  height: calc(100vh - 190px) !important;
+  max-height: none !important;
+  min-height: 480px !important;
+}
+
+.chat-disclaimer-banner {
+  flex-shrink: 0 !important;
+  white-space: normal !important;
+  overflow: visible !important;
+}
+
+.chat-quick-prompts {
+  flex-shrink: 0 !important;
+  display: flex !important;
+  flex-wrap: nowrap !important;
+  overflow-x: auto !important;
+  scrollbar-width: thin !important;
+}
+
+.chat-input-wrapper {
+  flex-shrink: 0 !important;
+}
+
+/* Touch targets and mobile view improvements */
+@media (max-width: 640px) {
+  .health-assistant-chat-container {
+    height: calc(100vh - 120px) !important;
+    border-radius: var(--radius-md) !important;
+  }
+  
+  .chat-bubble {
+    max-width: 90% !important;
+  }
+}

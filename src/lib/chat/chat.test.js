@@ -291,6 +291,14 @@ describe('Phase 3: 60-Item Clinical AI & Triage Evaluation Benchmark', () => {
     { id: 'E14', q: 'ಗರ್ಭಿಣಿ ಮಹಿಳೆಗೆ ರಕ್ತದೊತ್ತಡ 155/100 ಮತ್ತು ದೃಷ್ಟಿ ಮಸುಕು ಇದೆ', lang: 'kn', cat: 'pregnancy_danger' },
     { id: 'E15', q: 'गरोदर बाईचा रक्तदाब 150/95 आहे आणि डोकेदुखी व हात सूजले आहेत', lang: 'mr', cat: 'pregnancy_danger' },
     { id: 'E16', q: 'Reduced fetal movement in pregnancy — baby not moving since morning', lang: 'en', cat: 'pregnancy_danger' },
+    { id: 'E17', q: 'Pregnant woman with BP 140/90', lang: 'en', cat: 'pregnancy_danger' },
+    { id: 'E18', q: 'Pregnant woman has severe headache', lang: 'en', cat: 'pregnancy_danger' },
+    { id: 'E19', q: 'Pregnancy with blurred vision', lang: 'en', cat: 'pregnancy_danger' },
+    { id: 'E20', q: 'Pregnant woman has facial swelling', lang: 'en', cat: 'pregnancy_danger' },
+    { id: 'E21', q: 'Pregnant woman has upper abdominal pain', lang: 'en', cat: 'pregnancy_danger' },
+    { id: 'E22', q: 'Pregnant woman is having fits', lang: 'en', cat: 'pregnancy_danger' },
+    { id: 'E23', q: 'Pregnant woman has vaginal bleeding', lang: 'en', cat: 'pregnancy_danger' },
+    { id: 'E24', q: 'Pregnant woman reports reduced fetal movement', lang: 'en', cat: 'pregnancy_danger' },
   ];
 
   const CLINICAL_NCD_BENCHMARK = [
@@ -316,6 +324,9 @@ describe('Phase 3: 60-Item Clinical AI & Triage Evaluation Benchmark', () => {
     { id: 'C18', q: 'बीपी में नमक कितना खाएं', lang: 'hi', expectedTopic: 'hypertension_lifestyle' },
     { id: 'C19', q: 'साखर कमी झाल्यावर काय करावे', lang: 'mr', expectedTopic: 'hypoglycemia' },
     { id: 'C20', q: 'gestational diabetes sugar in pregnancy basics', lang: 'en', expectedTopic: 'gestational_diabetes' },
+    { id: 'C21', q: 'How should I measure blood pressure correctly?', lang: 'en', expectedTopic: 'bp_measurement_technique' },
+    { id: 'C22', q: 'What should I do for a hypertensive crisis?', lang: 'en', expectedTopic: 'hypertensive_crisis' },
+    { id: 'C23', q: 'When should a CHW refer a patient to PHC?', lang: 'en', expectedTopic: 'chw_referral_criteria' },
   ];
 
   const OUT_OF_DOMAIN_BENCHMARK = [

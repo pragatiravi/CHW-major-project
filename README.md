@@ -14,7 +14,7 @@ An offline-first, clinical decision support Progressive Web App (PWA) designed f
 - **Supervisor Dashboard**: Population risk analytics, CHW village coverage metrics, staff registration approval queue (Approve / Suspend / Reject), and CSV / PDF report exports.
 - **System Administrator Portal**: Facility registry, clinical scoring cutoffs configurator, algorithm benchmark lab, account status control, and HL7 FHIR R4 JSON bundle exporter.
 - **Multilingual & Low-Literacy Support**: 100% key parity across English (`en-IN`), Kannada (`kn-IN`), Hindi (`hi-IN`), and Marathi (`mr-IN`), Web Speech API STT/TTS, and 48px touch targets for mobile accessibility.
-- **Clinical Chatbot & Red-Flag Detector**: Deterministic emergency detector (cardiac, stroke, severe dyspnea, hemorrhage, vitals crisis) that immediately triggers emergency guidance (108 Ambulance) before falling back to Vercel Serverless Gemini 2.0 Flash or bundled offline knowledge retrieval.
+- **Clinical Chatbot & Red-Flag Detector**: Deterministic emergency detector (cardiac, stroke, severe dyspnea, hemorrhage, vitals crisis, and pregnancy dangers) that triggers urgent guidance before the Gemini 3.8 Flash API or verified offline guide.
 
 ---
 
@@ -43,8 +43,16 @@ Central Cloud Tier (Supabase & Vercel)
   │     └── chat_logs, audit_logs
   └── Vercel Serverless Function: POST /api/chat
         ├── Bearer Token Verification & IP Rate Limiting (30 req/min)
-        └── Google Gemini 2.0 Flash Proxy with Clinical Guardrails
+        └── Google Gemini 3.8 Flash Proxy with Clinical Guardrails
 ```
+
+---
+
+## AI chat deployment notes
+
+Set `GEMINI_API_KEY` and `GEMINI_MODEL=gemini-3.8-flash` in Vercel. The demo marker header is spoofable and is only a viva convenience; set `ALLOW_DEMO_CHAT=false` after the viva. Demo requests reject account and patient context. The IP limiter and daily demo counter currently live in serverless memory and reset across cold starts/instances, so they are best-effort safeguards, not a truly global quota. Use a shared store (for example, Upstash Redis) before keeping demo chat enabled for public traffic.
+
+The server runs the same four-language red-flag detector before Gemini, then retrieves up to three guide passages. The app shows whether an online response used a relevant guide passage, came from general model knowledge, or fell back to an offline result.
 
 ---
 

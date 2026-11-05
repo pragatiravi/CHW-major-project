@@ -97,7 +97,7 @@ const CLINICAL_RULES = [
     emergencyMessages: PREGNANCY_EMERGENCY_MESSAGES,
     test: (text) => {
       // English
-      if (/(?:pregnant|pregnancy).{0,40}(?:bp|blood pressure|high bp|140|150|160|170|headache|vision|swelling|blurring|bleeding|fits|convul|epigastric|fetal movement)/i.test(text)) return 'pregnancy hypertension / pre-eclampsia';
+      if (/(?:pregnant|pregnancy).{0,40}(?:bp|blood pressure|high bp|140|150|160|170|headache|vision|swelling|blurring|bleeding|fits|convul|epigastric|upper abdominal pain|fetal movement)/i.test(text)) return 'pregnancy hypertension / pre-eclampsia';
       if (/(?:preeclampsia|pre-eclampsia|eclampsia)/i.test(text)) return 'pre-eclampsia / eclampsia';
       if (/(?:gestational hypertension|gestational diabetes with bp|high bp in pregnancy)/i.test(text)) return 'gestational hypertension';
       if (/(?:pregnant.{0,30}severe headache|severe headache.{0,30}pregnant)/i.test(text)) return 'pregnancy danger — severe headache';

@@ -65,3 +65,4 @@ Before primary field deployment in Primary Health Centres (PHCs) and Sub-Centres
 - [ ] **Karnataka PHC Medical Officer Review**: Verify that dialect matches Belagavi / North Karnataka Kannada idioms understood by ASHA workers.
 - [ ] **Maharashtra Sub-Centre ANM Review**: Confirm Marathi health terminology aligns with standard state health society communications.
 - [ ] **ASHA Field Comprehension Test**: Conduct roleplay testing with 5 frontline workers using the voice recognition and audio ThinkLets modules.
+The new authentication verification labels and AI source/failure messages in `src/utils/translations/{en,hi,kn,mr}.js` were drafted for this change. Please have native Kannada, Hindi, and Marathi speakers review terminology and tone before clinical use.

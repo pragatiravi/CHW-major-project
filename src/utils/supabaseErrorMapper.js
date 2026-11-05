@@ -9,6 +9,24 @@ const ERROR_MAP = {
     hi: 'गलत ईमेल या पासवर्ड। कृपया अपनी साख सत्यापित करें और पुनः प्रयास करें।',
     mr: 'चुकीचा ईमेल किंवा पासवर्ड. कृपया माहिती तपासा आणि पुन्हा प्रयत्न करा.'
   },
+  user_not_found: {
+    en: 'No account was found for this email address. Check the address or register.',
+    kn: 'ಈ ಇಮೇಲ್ ವಿಳಾಸಕ್ಕೆ ಖಾತೆ ಕಂಡುಬಂದಿಲ್ಲ. ವಿಳಾಸ ಪರಿಶೀಲಿಸಿ ಅಥವಾ ನೋಂದಾಯಿಸಿ.',
+    hi: 'इस ईमेल पते के लिए कोई खाता नहीं मिला। पता जाँचें या पंजीकरण करें।',
+    mr: 'या ईमेल पत्त्यासाठी खाते सापडले नाही. पत्ता तपासा किंवा नोंदणी करा.'
+  },
+  profile_missing: {
+    en: 'Your account profile is missing. Please contact your supervisor.',
+    kn: 'ನಿಮ್ಮ ಖಾತೆಯ ಪ್ರೊಫೈಲ್ ಕಾಣೆಯಾಗಿದೆ. ದಯವಿಟ್ಟು ಮೇಲ್ವಿಚಾರಕರನ್ನು ಸಂಪರ್ಕಿಸಿ.',
+    hi: 'आपकी खाता प्रोफ़ाइल नहीं मिली। कृपया अपने पर्यवेक्षक से संपर्क करें।',
+    mr: 'तुमचे खाते प्रोफाइल सापडले नाही. कृपया पर्यवेक्षकाशी संपर्क साधा.'
+  },
+  profile_read_failed: {
+    en: 'Could not load your account profile. Please try again or contact your supervisor.',
+    kn: 'ನಿಮ್ಮ ಖಾತೆಯ ಪ್ರೊಫೈಲ್ ಲೋಡ್ ಆಗಲಿಲ್ಲ. ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ ಅಥವಾ ಮೇಲ್ವಿಚಾರಕರನ್ನು ಸಂಪರ್ಕಿಸಿ.',
+    hi: 'आपकी खाता प्रोफ़ाइल लोड नहीं हो सकी। फिर प्रयास करें या पर्यवेक्षक से संपर्क करें।',
+    mr: 'तुमचे खाते प्रोफाइल लोड झाले नाही. पुन्हा प्रयत्न करा किंवा पर्यवेक्षकाशी संपर्क साधा.'
+  },
   email_not_confirmed: {
     en: 'Your email address has not been confirmed yet. Please check your inbox for the activation link.',
     kn: 'ನಿಮ್ಮ ಇಮೇಲ್ ವಿಳಾಸವನ್ನು ಇನ್ನೂ ದೃಢೀಕರಿಸಲಾಗಿಲ್ಲ. ದಯವಿಟ್ಟು ಪರಿಶೀಲನಾ ಲಿಂಕ್‌ಗಾಗಿ ನಿಮ್ಮ ಇನ್‌ಬಾಕ್ಸ್ ನೋಡಿ.',
@@ -61,12 +79,21 @@ const ERROR_MAP = {
 
 export function mapSupabaseAuthError(rawError, lang = 'en') {
   if (!rawError) return '';
+  const code = typeof rawError === 'object' ? String(rawError.code || '').toLowerCase() : '';
+  if (code === 'account_pending') return ERROR_MAP.account_pending[['en', 'kn', 'hi', 'mr'].includes(lang) ? lang : 'en'];
+  if (code === 'account_rejected') return ERROR_MAP.account_rejected[['en', 'kn', 'hi', 'mr'].includes(lang) ? lang : 'en'];
+  if (code === 'account_suspended') return ERROR_MAP.account_suspended[['en', 'kn', 'hi', 'mr'].includes(lang) ? lang : 'en'];
+  if (code === 'email_not_confirmed') return ERROR_MAP.email_not_confirmed[['en', 'kn', 'hi', 'mr'].includes(lang) ? lang : 'en'];
+  if (['over_email_send_rate_limit', 'too_many_requests', 'rate_limit_exceeded'].includes(code)) return ERROR_MAP.rate_limit[['en', 'kn', 'hi', 'mr'].includes(lang) ? lang : 'en'];
+  if (code === 'invalid_credentials') return ERROR_MAP.invalid_credentials[['en', 'kn', 'hi', 'mr'].includes(lang) ? lang : 'en'];
+  if (ERROR_MAP[code]) return ERROR_MAP[code][['en', 'kn', 'hi', 'mr'].includes(lang) ? lang : 'en'];
   const message = (typeof rawError === 'string' ? rawError : rawError.message || '').toLowerCase();
   const currentLang = ['en', 'kn', 'hi', 'mr'].includes(lang) ? lang : 'en';
 
   if (message.includes('invalid login credentials') || message.includes('invalid credentials')) {
     return ERROR_MAP.invalid_credentials[currentLang];
   }
+  if (message.includes('user not found') || message.includes('no user')) return ERROR_MAP.user_not_found[currentLang];
   if (message.includes('email not confirmed') || message.includes('confirm your email')) {
     return ERROR_MAP.email_not_confirmed[currentLang];
   }

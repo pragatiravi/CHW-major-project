@@ -6,9 +6,14 @@
 
 export default function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store, max-age=0');
+  if (req.method !== 'GET') {
+    res.setHeader('Allow', 'GET');
+    return res.status(405).json({ error: 'Method Not Allowed. Use GET.', code: 'method_not_allowed' });
+  }
 
   const geminiKey = process.env.AI_API_KEY || process.env.GEMINI_API_KEY;
-  const modelName = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
+  const configuredModel = (process.env.GEMINI_MODEL || '').trim();
+  const modelName = configuredModel || 'gemini-3.8-flash';
   const sanitize = (v) => (v || '').trim().replace(/^["']|["']$/g, '');
   const supabaseUrl = sanitize(process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL);
   const supabaseKey = sanitize(
@@ -39,6 +44,8 @@ export default function handler(req, res) {
     timestamp: new Date().toISOString(),
     ai: {
       isConfigured: isGeminiConfigured,
+      keyConfigured: isGeminiConfigured,
+      modelConfigured: Boolean(configuredModel),
       model: modelName,
       provider: 'Google Gemini',
       allowDemoChat: isDemoChatAllowed

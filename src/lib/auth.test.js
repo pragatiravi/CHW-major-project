@@ -66,14 +66,16 @@ describe('Authentication & Role Guards', () => {
   it('rejects authentication with invalid password for a known account', async () => {
     await expect(signInWithCredentials({ 
       email: DEMO_CREDENTIALS.chw.email, 
-      password: 'WrongPassword123!' 
+      password: 'WrongPassword123!',
+      useDemoCredentials: true
     })).rejects.toThrow('Invalid email or password');
   });
 
   it('authenticates CHW demo account with exact password and assigns chw role', async () => {
     const user = await signInWithCredentials({
       email: DEMO_CREDENTIALS.chw.email,
-      password: DEMO_CREDENTIALS.chw.password
+      password: DEMO_CREDENTIALS.chw.password,
+      useDemoCredentials: true
     });
 
     expect(user).toBeDefined();
@@ -86,7 +88,8 @@ describe('Authentication & Role Guards', () => {
   it('authenticates Doctor demo account with doctor role and approved status', async () => {
     const doctor = await signInWithCredentials({
       email: DEMO_CREDENTIALS.doctor.email,
-      password: DEMO_CREDENTIALS.doctor.password
+      password: DEMO_CREDENTIALS.doctor.password,
+      useDemoCredentials: true
     });
 
     expect(doctor.role).toBe('doctor');
@@ -96,7 +99,8 @@ describe('Authentication & Role Guards', () => {
   it('authenticates Admin demo account with admin role', async () => {
     const admin = await signInWithCredentials({
       email: DEMO_CREDENTIALS.admin.email,
-      password: DEMO_CREDENTIALS.admin.password
+      password: DEMO_CREDENTIALS.admin.password,
+      useDemoCredentials: true
     });
 
     expect(admin.role).toBe('admin');
@@ -106,7 +110,8 @@ describe('Authentication & Role Guards', () => {
   it('authenticates Supervisor demo account with supervisor role', async () => {
     const supervisor = await signInWithCredentials({
       email: DEMO_CREDENTIALS.supervisor.email,
-      password: DEMO_CREDENTIALS.supervisor.password
+      password: DEMO_CREDENTIALS.supervisor.password,
+      useDemoCredentials: true
     });
 
     expect(supervisor.role).toBe('supervisor');
@@ -180,7 +185,8 @@ describe('Authentication & Role Guards', () => {
   it('restores authenticated user from active session and clears on logout', async () => {
     await signInWithCredentials({
       email: DEMO_CREDENTIALS.chw.email,
-      password: DEMO_CREDENTIALS.chw.password
+      password: DEMO_CREDENTIALS.chw.password,
+      useDemoCredentials: true
     });
 
     const restored = await restoreAuthenticatedUser();
@@ -205,7 +211,8 @@ describe('Phase 1 Security: Demo Mode Gating', () => {
 
     await expect(signInWithCredentials({
       email: DEMO_CREDENTIALS.chw.email,
-      password: DEMO_CREDENTIALS.chw.password
+      password: DEMO_CREDENTIALS.chw.password,
+      useDemoCredentials: true
     })).rejects.toThrow(/Demo mode is disabled in production/i);
 
     expect(getAvailableDemoCredentials()).toEqual({});
@@ -216,11 +223,23 @@ describe('Phase 1 Security: Demo Mode Gating', () => {
 
     const user = await signInWithCredentials({
       email: DEMO_CREDENTIALS.chw.email,
-      password: DEMO_CREDENTIALS.chw.password
+      password: DEMO_CREDENTIALS.chw.password,
+      useDemoCredentials: true
     });
 
     expect(user.role).toBe('chw');
     expect(user.status).toBe('approved');
+  });
+
+  it('sends real sign-ins to Supabase with normalized email and unchanged password, even for a demo-looking email', async () => {
+    const signInSpy = vi.spyOn(supabase.auth, 'signInWithPassword').mockResolvedValue({
+      data: { user: null },
+      error: { code: 'invalid_credentials', message: 'Invalid login credentials' }
+    });
+    await expect(signInWithCredentials({ email: ' SUNITA.PATIL@COMMUNITYHEALTH.ORG ', password: ' pass word ' }))
+      .rejects.toMatchObject({ code: 'invalid_credentials' });
+    expect(signInSpy).toHaveBeenCalledWith({ email: 'sunita.patil@communityhealth.org', password: ' pass word ' });
+    signInSpy.mockRestore();
   });
 });
 

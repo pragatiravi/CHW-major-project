@@ -133,7 +133,7 @@ export function getAvailableDemoCredentials() {
 /**
  * Authenticate with email & password via Supabase Auth or verified local credentials
  */
-export async function signInWithCredentials({ email, password }) {
+export async function signInWithCredentials({ email, password, useDemoCredentials = false }) {
   const normalizedEmail = (email || '').trim().toLowerCase();
 
   if (!normalizedEmail || !password) {
@@ -146,12 +146,13 @@ export async function signInWithCredentials({ email, password }) {
     throw new Error(`Too many failed sign-in attempts. Please wait ${lockout.remainingSeconds} seconds before trying again.`);
   }
 
-  // 1. Check if email belongs to predefined demo personas
+  // Local demo credentials are only considered when the cloud auth service is
+  // unavailable. A real Supabase account must always be checked by Supabase.
   const matchedDemo = Object.values(DEMO_CREDENTIALS).find(
     acc => acc.email.toLowerCase() === normalizedEmail
   );
 
-  if (matchedDemo) {
+  if (useDemoCredentials && matchedDemo) {
     if (!isDemoModeActive()) {
       throw new Error('Demo mode is disabled in production. An active Supabase connection is required.');
     }
@@ -200,21 +201,26 @@ export async function signInWithCredentials({ email, password }) {
     }
 
     // Role and status are strictly verified from the server-side profiles table
-    let profile = null;
-    try {
-      profile = await fetchUserProfile(data.user.id);
-    } catch (profErr) {
-      console.warn('Profile fetch warning on sign in:', profErr);
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles').select('*').eq('id', data.user.id).maybeSingle();
+
+    if (profileError) {
+      await supabase.auth.signOut();
+      throw Object.assign(new Error('Could not load your account profile. Please try again or contact your supervisor.'), { code: 'profile_read_failed' });
+    }
+    if (!profile) {
+      await supabase.auth.signOut();
+      throw Object.assign(new Error('Your account profile is missing. Please contact your supervisor.'), { code: 'profile_missing' });
     }
 
     if (profile?.status === 'pending') {
       await supabase.auth.signOut();
-      throw new Error('Your registration has been submitted and is pending supervisor approval. Please contact your PHC administrator.');
+      throw Object.assign(new Error('Your registration is waiting for supervisor approval.'), { code: 'account_pending' });
     }
 
     if (profile?.status === 'rejected' || profile?.status === 'suspended') {
       await supabase.auth.signOut();
-      throw new Error('This account has been suspended or is inactive. Please contact your subcenter supervisor.');
+      throw Object.assign(new Error(profile.status === 'rejected' ? 'This registration was rejected. Please contact your supervisor.' : 'This account is suspended. Please contact your supervisor.'), { code: profile.status === 'rejected' ? 'account_rejected' : 'account_suspended' });
     }
 
     resetFailedAttempts(normalizedEmail);
@@ -269,7 +275,11 @@ export async function signUpWithCredentials({
     throw new Error('Password must be at least 8 characters long.');
   }
 
-  const assignedRole = role === 'patient' ? 'patient' : (role === 'admin' ? 'chw' : role);
+  const allowedStaffRoles = new Set(['chw', 'doctor', 'supervisor']);
+  if (role !== 'patient' && !allowedStaffRoles.has(role)) {
+    throw new Error('This account type cannot be created through public registration.');
+  }
+  const assignedRole = role;
   const initialStatus = assignedRole === 'patient' ? 'approved' : 'pending';
 
   if (isSupabaseConfigured && supabase) {
@@ -295,23 +305,8 @@ export async function signUpWithCredentials({
       throw new Error(error.message);
     }
 
-    if (data?.user?.id) {
-      // Ensure profile row exists with correct column names (subcenter, not village)
-      try {
-        await supabase.from('profiles').upsert({
-          id: data.user.id,
-          full_name: fullName,
-          role: assignedRole,
-          status: initialStatus,
-          language_pref: languagePref,
-          phone: phone || null,
-          subcenter: village || 'Primary Health Subcenter',
-          updated_at: new Date().toISOString()
-        });
-      } catch (profileErr) {
-        console.warn('Could not insert profile on signup:', profileErr);
-      }
-    }
+    // The auth.users trigger is the sole authority for profile role/status.
+    // Never upsert a client-controlled profile during public signup.
 
     return {
       user: data.user,
@@ -319,16 +314,6 @@ export async function signUpWithCredentials({
       message: initialStatus === 'pending'
         ? 'Account created! Your registration is pending supervisor approval.'
         : 'Patient account created successfully! You can now sign in.'
-    };
-  }
-
-  // Local fallback simulation (only when demo mode is active)
-  if (isDemoModeActive()) {
-    return {
-      status: initialStatus,
-      message: initialStatus === 'pending'
-        ? 'Registration recorded in local evaluator mode. Requires supervisor approval.'
-        : 'Patient account registered successfully in evaluator mode.'
     };
   }
 
@@ -441,6 +426,15 @@ export async function requestPasswordReset(email) {
   }
 
   // Local demo simulation
+  return true;
+}
+
+export async function resendVerificationEmail(email) {
+  const normalizedEmail = (email || '').trim().toLowerCase();
+  if (!normalizedEmail || !normalizedEmail.includes('@')) throw new Error('Enter a valid email address.');
+  if (!isSupabaseConfigured || !supabase) throw new Error('Email verification requires the cloud account service.');
+  const { error } = await supabase.auth.resend({ type: 'signup', email: normalizedEmail, options: { emailRedirectTo: window.location.origin } });
+  if (error) throw error;
   return true;
 }
 

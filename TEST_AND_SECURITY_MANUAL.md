@@ -139,3 +139,67 @@ SELECT COUNT(*) AS doctor_referred_patients FROM public.patients;
 RESET ROLE;
 ```
 
+## 5. Real Registration, Approval, and Email Confirmation
+
+1. In Supabase, open **Authentication → Providers → Email** and turn **Confirm email** on. The latest migration removes the old trigger that forcibly confirmed every new address.
+2. Under **Authentication → URL Configuration**, set **Site URL** to `https://chw-major-project.vercel.app`; add redirect URLs `https://chw-major-project.vercel.app/**` and `http://localhost:5173/**`.
+3. On the app, register a patient with a reachable email, verify the email link, then sign in. Patient profiles should be `approved`.
+4. Register a CHW with another email. Verify it, attempt sign-in, and confirm the app says the registration is waiting for supervisor approval.
+5. Inspect and approve the CHW in Supabase SQL Editor:
+
+```sql
+SELECT id, email, email_confirmed_at, created_at
+FROM auth.users
+WHERE email = lower(trim('chw@example.org'));
+
+SELECT id, full_name, role, status, subcenter
+FROM public.profiles
+WHERE id = (SELECT id FROM auth.users WHERE email = lower(trim('chw@example.org')));
+
+UPDATE public.profiles
+SET status = 'approved', subcenter = 'Facility / Subcenter name', updated_at = now()
+WHERE id = (SELECT id FROM auth.users WHERE email = lower(trim('chw@example.org')))
+  AND role IN ('chw', 'doctor', 'supervisor');
+```
+
+The current schema stores staff affiliation in `profiles.subcenter`; it has no separate `facility_id` column. Then sign in again and confirm access.
+
+## 6. Deployed AI Smoke Test
+
+After the migration is applied and the new code is deployed, this PowerShell command sends a demo question. It requires Vercel `ALLOW_DEMO_CHAT=true` and uses the demo marker, which is spoofable and should be disabled after the viva.
+
+```powershell
+$payload = @{ message = 'How do I make tea?'; language = 'en'; context = @{} } | ConvertTo-Json -Depth 5
+Invoke-RestMethod -Method Post `
+  -Uri 'https://chw-major-project.vercel.app/api/chat' `
+  -Headers @{ 'x-chw-demo-session' = 'true' } `
+  -ContentType 'application/json' `
+  -Body $payload | ConvertTo-Json -Depth 8
+```
+
+Expected successful response shape (the model wording can vary):
+
+```json
+{
+  "reply": "...",
+  "model": "gemini-3.8-flash",
+  "source": "online_ai",
+  "badge": "online_ai_general",
+  "topic": null,
+  "authMode": "demo",
+  "wasTruncated": false
+}
+```
+
+For `What is normal BP?`, the expected badge is `online_ai_verified`. A missing key or bad model should return an offline guide badge (when relevant) and a `code` such as `no_key` or `bad_model`, never an online badge.
+
+## 7. Notification Manual Script
+
+1. Open the notification bell and choose **Enable**. The browser permission prompt must appear only after this click. Test allow, then repeat in browser settings with permission denied; verify the UI says notifications are blocked.
+2. Save a high-risk screening. Confirm one unread item appears, the unread count increments once, the toast appears, and mark-read/delete update the count.
+3. Create a referral, then approve it from the doctor view. Confirm creation and approval items route to referrals when clicked.
+4. Set a patient follow-up date to yesterday and refresh/open the authenticated app. Confirm a deduplicated follow-up item and toast appear. With browser notifications enabled, confirm a privacy-safe pop-up; clicking it opens the app and relevant screen.
+5. Sign out and sign in as another account on the same browser. Verify notification lists are isolated per user. Reload and confirm read state persists.
+
+Current notifications are stored on each browser/device. Cross-device Supabase Realtime delivery, closed-app Web Push, service-worker `showNotification`, and medication/sync/inventory/staff lifecycle triggers still require additional database/server configuration and are not covered by this smoke script.
+

@@ -345,7 +345,7 @@ export default function AdminPortal({
                 </div>
                 <div>
                   <span className="text-3xs text-slate-500 uppercase font-mono block">Active Model</span>
-                  <strong className="text-slate-800 font-mono text-2xs">{aiTestState.health?.ai?.model || 'gemini-2.0-flash'}</strong>
+                  <strong className="text-slate-800 font-mono text-2xs">{aiTestState.health?.ai?.model || 'gemini-3.8-flash'}</strong>
                 </div>
                 <div>
                   <span className="text-3xs text-slate-500 uppercase font-mono block">Round-Trip Latency</span>

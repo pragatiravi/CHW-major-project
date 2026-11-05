@@ -1,4 +1,4 @@
-import { useState, useEffect, lazy, Suspense } from 'react';
+import { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import LandingPage from './components/public/LandingPage';
 import SignInPage from './components/auth/SignInPage';
 import AppShell from './components/layout/AppShell';
@@ -13,7 +13,7 @@ const PatientPortal = lazy(() => import('./components/patient/PatientPortal'));
 
 import NotificationsDrawer from './components/shared/NotificationsDrawer';
 import { ToastProvider, useToast } from './components/shared/ToastContainer';
-import { LanguageProvider } from './components/shared/LanguageContext';
+import { LanguageProvider, useLanguage } from './components/shared/LanguageContext';
 import ErrorBoundary from './components/shared/ErrorBoundary';
 
 import { 
@@ -39,6 +39,8 @@ import {
 } from './lib/db';
 import { initSyncEngine, executeSync } from './lib/sync/syncEngine';
 import { getPendingSyncQueue, clearLocalDataIfClean } from './lib/db/dexieDb';
+import { addNotification, countUnreadNotifications, deleteNotification, loadNotifications, markAllNotificationsRead, markNotificationRead, saveNotifications } from './lib/notifications/notificationStore';
+import { getNotificationPermissionState, requestNotificationPermission, showBrowserNotification } from './lib/notifications/browserNotifications';
 
 function PortalFallback() {
   return (
@@ -52,6 +54,7 @@ function PortalFallback() {
 
 function AppContent() {
   const { toastSuccess, toastInfo, toastWarning, toastError } = useToast();
+  const { t } = useLanguage();
 
   // Session State: Default to null on fresh load (Public Landing)
   const [currentUser, setCurrentUser] = useState(() => {
@@ -85,7 +88,7 @@ function AppContent() {
     }
   });
 
-  const [activeNavSection, setActiveNavSection] = useState('home');
+  const [activeNavSection, setActiveNavSection] = useState(() => new URLSearchParams(window.location.search).get('section') || 'home');
   const [authReady, setAuthReady] = useState(false);
 
   useEffect(() => {
@@ -116,6 +119,17 @@ function AppContent() {
 
   // User-scoped patient dataset
   const [patients, setPatients] = useState([]);
+  const [notifications, setNotifications] = useState(() => loadNotifications(currentUser?.id));
+  const [showNotificationsDrawer, setShowNotificationsDrawer] = useState(false);
+  const [notificationPermission, setNotificationPermission] = useState(getNotificationPermissionState);
+  const [systemNotificationsEnabled, setSystemNotificationsEnabled] = useState(() => localStorage.getItem(`chw_system_notifications:${currentUser?.id || 'anonymous'}`) === 'true');
+  const notificationsRef = useRef(notifications);
+  const notificationSettingsRef = useRef({ permission: notificationPermission, enabled: systemNotificationsEnabled });
+
+  useEffect(() => {
+    notificationsRef.current = notifications;
+    notificationSettingsRef.current = { permission: notificationPermission, enabled: systemNotificationsEnabled };
+  }, [notifications, notificationPermission, systemNotificationsEnabled]);
 
   useEffect(() => {
     let active = true;
@@ -125,6 +139,29 @@ function AppContent() {
       .then((dbPatients) => {
         if (active && Array.isArray(dbPatients)) {
           setPatients(dbPatients);
+          const today = new Date().toISOString().slice(0, 10);
+          const due = dbPatients.filter(patient => {
+            const date = patient.followUpDate || patient.follow_up_date;
+            return date && String(date).slice(0, 10) <= today;
+          });
+          const newDue = due.map(patient => ({
+              id: `follow-up-${patient.id}-${today}`,
+              entityId: patient.id,
+              dedupeKey: `follow-up:${currentUser.id}:${patient.id}:${today}`,
+              titleKey: 'notificationFollowUpDue',
+              messageKey: 'notificationFollowUpDueBody',
+              time: 'Today', type: 'FOLLOW_UP', deepLink: 'patients'
+            })).filter(item => !notificationsRef.current.some(existing => existing.dedupeKey === item.dedupeKey));
+          if (newDue.length) {
+            setNotifications(current => newDue.reduce((items, notification) => addNotification(items, notification), current));
+            toastWarning(t('notificationFollowUpDue'));
+            if (notificationSettingsRef.current.enabled && notificationSettingsRef.current.permission === 'granted') {
+              newDue.forEach(notification => showBrowserNotification({ ...notification, title: t(notification.titleKey), browserBody: t('browserAlertBody') }, (clicked) => {
+                if (clicked.deepLink) setActiveNavSection(clicked.deepLink);
+                setShowNotificationsDrawer(true);
+              }));
+            }
+          }
         }
       })
       .catch((err) => {
@@ -133,7 +170,7 @@ function AppContent() {
       });
 
     return () => { active = false; };
-  }, [currentUser]);
+  }, [currentUser, t, toastWarning]);
 
   // Real-time synchronization engine background listeners
   useEffect(() => {
@@ -213,40 +250,52 @@ function AppContent() {
     }
   }, [theme]);
 
-  // Notifications State
-  const [notifications, setNotifications] = useState([
-    {
-      id: 'n-1',
-      title: 'Critical hypertensive crisis alert',
-      message: 'Fatima Begum (P4389) BP 185/112 mmHg with chest pain. Urgent referral generated.',
-      time: '10 mins ago',
-      type: 'CRITICAL_ALERT',
-      read: false
-    },
-    {
-      id: 'n-2',
-      title: 'Missed medication alert',
-      message: 'Priya Sharma (P7204) logged 1 missed dose for Amlodipine 5mg.',
-      time: '1 hour ago',
-      type: 'MEDICATION_ALERT',
-      read: false
-    },
-    {
-      id: 'n-3',
-      title: 'Doctor referral approved',
-      message: 'Dr. Ananya Roy approved referral treatment plan for Priya Sharma (P7204).',
-      time: '3 hours ago',
-      type: 'REFERRAL_UPDATE',
-      read: true
+  useEffect(() => {
+    saveNotifications(currentUser?.id, notifications);
+  }, [currentUser?.id, notifications]);
+
+  const publishNotification = (notification) => {
+    setNotifications((current) => addNotification(current, notification));
+    if (systemNotificationsEnabled && notificationPermission === 'granted') {
+      showBrowserNotification({ ...notification, title: t(notification.titleKey) || notification.title, browserBody: t('browserAlertBody') }, (clicked) => {
+        if (clicked.deepLink) setActiveNavSection(clicked.deepLink);
+        setShowNotificationsDrawer(true);
+      });
     }
-  ]);
-  const [showNotificationsDrawer, setShowNotificationsDrawer] = useState(false);
+  };
+
+  const handleToggleSystemNotifications = async () => {
+    if (systemNotificationsEnabled) {
+      setSystemNotificationsEnabled(false);
+      localStorage.setItem(`chw_system_notifications:${currentUser?.id || 'anonymous'}`, 'false');
+      return;
+    }
+    const permission = await requestNotificationPermission();
+    setNotificationPermission(permission);
+    if (permission === 'granted') {
+      setSystemNotificationsEnabled(true);
+      localStorage.setItem(`chw_system_notifications:${currentUser?.id || 'anonymous'}`, 'true');
+    }
+  };
+
+  useEffect(() => {
+    if (!('serviceWorker' in navigator)) return undefined;
+    const handleNotificationClick = (event) => {
+      if (event.data?.type !== 'CHW_NOTIFICATION_CLICK') return;
+      if (event.data.deepLink) setActiveNavSection(event.data.deepLink);
+      setShowNotificationsDrawer(true);
+    };
+    navigator.serviceWorker.addEventListener('message', handleNotificationClick);
+    return () => navigator.serviceWorker.removeEventListener('message', handleNotificationClick);
+  }, []);
 
   // -------------------------------------------------------------
   // AUTH HANDLERS
   // -------------------------------------------------------------
   const handleLogin = (userObj) => {
     setCurrentUser(userObj);
+    setNotifications(loadNotifications(userObj.id));
+    setSystemNotificationsEnabled(localStorage.getItem(`chw_system_notifications:${userObj.id || 'anonymous'}`) === 'true');
     setUserRole(userObj.role || 'chw');
     setActiveNavSection(userObj.role === 'doctor' ? 'triage' : (userObj.role === 'patient' ? 'overview' : (userObj.role === 'supervisor' ? 'overview' : (userObj.role === 'admin' ? 'overview' : 'home'))));
     setCurrentView('app');
@@ -264,7 +313,7 @@ function AppContent() {
   };
 
   const handlePasswordReset = async (email) => {
-    await requestPasswordReset(email);
+    return await requestPasswordReset(email);
   };
 
   const handleLogout = async () => {
@@ -290,6 +339,8 @@ function AppContent() {
       console.error('Sign out error:', e);
     }
     setCurrentUser(null);
+    setNotifications(loadNotifications(null));
+    setSystemNotificationsEnabled(localStorage.getItem('chw_system_notifications:anonymous') === 'true');
     setUserRole('chw');
     setPatients([]);
     setActiveNavSection('home');
@@ -320,13 +371,16 @@ function AppContent() {
     if (isHighRisk) {
       const highRiskNotif = {
         id: 'n-' + Date.now(),
-        title: `High risk alert: ${evaluatedRecord.name} (${evaluatedRecord.id})`,
-        message: `Clinical engine flagged ${evaluation.overallRiskLevel} Risk (BP ${evaluatedRecord.systolic}/${evaluatedRecord.diastolic} mmHg). Priority follow-up required.`,
+        titleKey: 'notificationHighRisk',
+        messageKey: 'notificationHighRiskBody',
         time: 'Just now',
         type: 'CRITICAL_ALERT',
         read: false
       };
-      setNotifications(prev => [highRiskNotif, ...prev]);
+      highRiskNotif.entityId = evaluatedRecord.id;
+      highRiskNotif.dedupeKey = `critical:${evaluatedRecord.id}:${new Date().toISOString().slice(0, 10)}`;
+      highRiskNotif.deepLink = 'screening';
+      publishNotification(highRiskNotif);
       toastWarning(`High Risk flagged for ${evaluatedRecord.name} (${evaluation.overallRiskLevel} Risk)`);
     } else {
       toastSuccess(`Patient record saved for ${evaluatedRecord.name}`);
@@ -443,13 +497,16 @@ function AppContent() {
 
     const newNotif = {
       id: 'n-' + Date.now(),
-      title: 'Hospital referral dispatched',
-      message: `Referral submitted for patient ID ${patientId} to ${referralObj.hospitalName}.`,
+      titleKey: 'notificationReferralCreated',
+      messageKey: 'notificationReferralCreatedBody',
       time: 'Just now',
       type: 'REFERRAL_UPDATE',
       read: false
     };
-    setNotifications(prev => [newNotif, ...prev]);
+    newNotif.entityId = patientId;
+    newNotif.dedupeKey = `referral-created:${patientId}`;
+    newNotif.deepLink = 'referrals';
+    publishNotification(newNotif);
     toastSuccess(`Hospital referral submitted to ${referralObj.hospitalName}`);
   };
 
@@ -471,6 +528,14 @@ function AppContent() {
       return p;
     }));
     toastSuccess(`Referral treatment plan approved for patient ID ${patientId}`);
+    publishNotification({
+      id: `referral-approved-${patientId}-${Date.now()}`,
+      entityId: patientId,
+      dedupeKey: `referral-approved:${patientId}`,
+      titleKey: 'notificationReferralApproved',
+      messageKey: 'notificationReferralApprovedBody',
+      time: 'Just now', type: 'REFERRAL_UPDATE', deepLink: 'referrals'
+    });
     return true;
   };
 
@@ -534,7 +599,7 @@ function AppContent() {
     toastSuccess('Backup database successfully restored.');
   };
 
-  const unreadCount = notifications.filter(n => !n.read).length;
+  const unreadCount = countUnreadNotifications(notifications);
 
   // -------------------------------------------------------------
   // CONDITIONAL RENDERING FLOW
@@ -680,17 +745,24 @@ function AppContent() {
         <NotificationsDrawer 
           notifications={notifications}
           onClose={() => setShowNotificationsDrawer(false)}
+          permissionState={notificationPermission}
+          systemNotificationsEnabled={systemNotificationsEnabled}
+          onToggleSystemNotifications={handleToggleSystemNotifications}
           onSelectNotification={(notification) => {
-            setNotifications((current) => current.map((item) => item.id === notification.id ? { ...item, read: true } : item));
+            setNotifications((current) => markNotificationRead(current, notification.id));
             setShowNotificationsDrawer(false);
-            if (notification.type === 'CRITICAL_ALERT' || notification.type === 'MEDICATION_ALERT') {
+            if (notification.deepLink) {
+              setActiveNavSection(notification.deepLink);
+            } else if (notification.type === 'CRITICAL_ALERT' || notification.type === 'MEDICATION_ALERT') {
               setActiveNavSection(userRole === 'patient' ? 'medicines' : 'patients');
             } else if (notification.type === 'REFERRAL_UPDATE' && userRole === 'chw') {
               setActiveNavSection('referrals');
             }
           }}
+          onMarkRead={(id) => setNotifications(current => markNotificationRead(current, id))}
+          onDeleteNotification={(id) => setNotifications(current => deleteNotification(current, id))}
           onMarkAllRead={() => {
-            setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+            setNotifications(prev => markAllNotificationsRead(prev));
             toastInfo('All notifications marked as read.');
           }}
         />

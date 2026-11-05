@@ -41,6 +41,16 @@ function getCurrentTimeStr() {
   return `${hours}:${minutes}`;
 }
 
+function getChatErrorMessage(t, code) {
+  const keys = {
+    no_key: 'chatError_noKey', bad_model: 'chatError_badModel',
+    unauthenticated: 'chatError_unauthenticated', rate_limited: 'chatError_rateLimited',
+    demo_rate_limited: 'chatError_rateLimited', timeout: 'chatError_timeout',
+    network_error: 'chatError_network', upstream_error: 'chatError_upstream'
+  };
+  return t(keys[code] || 'chatError_upstream');
+}
+
 export default function HealthAssistantChat({ 
   currentUser, 
   patientContext = null, 
@@ -147,6 +157,7 @@ export default function HealthAssistantChat({
     setMessages(prev => [...prev, userMsg]);
     setInputText('');
     setIsTyping(true);
+    let onlineFailureCode = null;
 
     // =========================================================================
     // 1. DETERMINISTIC RED-FLAG DETECTOR (Runs BEFORE any AI or KB search)
@@ -205,7 +216,7 @@ export default function HealthAssistantChat({
         if (sessionToken) {
           headers['Authorization'] = `Bearer ${sessionToken}`;
         }
-        if (isDemo || !sessionToken) {
+        if (isDemo) {
           headers['x-chw-demo-session'] = 'true';
         }
 
@@ -219,7 +230,7 @@ export default function HealthAssistantChat({
               role: m.sender === 'user' ? 'user' : 'model',
               text: m.text
             })),
-            context: {
+            context: isDemo ? {} : {
               role: currentUser?.role || 'patient',
               patientName: patientContext?.name || null,
               riskTier: patientContext?.risk_tier || null
@@ -231,17 +242,17 @@ export default function HealthAssistantChat({
           const data = await response.json();
           // Show truncation warning if the server shortened the input
           if (data.wasTruncated) {
-            toastWarning('Your message was shortened to 500 characters.');
+            toastWarning(t('chatInputShortened'));
           }
           const botMsg = {
             id: createMessageId('bot'),
             sender: 'bot',
             text: data.reply,
             timestamp: getCurrentTimeStr(),
-            source: data.source || 'online_ai',
+            source: data.badge || data.source || 'online_ai_general',
             badge: data.badge || data.source || 'online_ai',
             topic: data.topic || null,
-            fallbackReason: data.fallbackReason || null
+            fallbackReason: data.fallbackReason ? getChatErrorMessage(t, data.code) : null
           };
 
           setMessages(prev => [...prev, botMsg]);
@@ -258,14 +269,14 @@ export default function HealthAssistantChat({
             consentGiven: consentLogging
           });
           return;
-        } else if (response.status === 401) {
-          // Not authenticated — fall through to offline
-          console.warn('Chat: 401 from /api/chat — using offline KB');
         } else {
-          console.warn('Online chat request failed with status', response.status);
+          const payload = await response.json().catch(() => ({}));
+          onlineFailureCode = payload.code || (response.status === 401 ? 'unauthenticated' : 'upstream_error');
+          console.warn('Online chat request failed:', onlineFailureCode);
         }
       } catch (err) {
         console.warn('Online chat request failed, falling back to offline knowledge base:', err);
+        onlineFailureCode = 'network_error';
       }
     }
 
@@ -283,7 +294,8 @@ export default function HealthAssistantChat({
         topic: retrievalResult.topic,
         confidence: retrievalResult.confidence,
         timestamp: getCurrentTimeStr(),
-        source: retrievalResult.isFallback ? 'offline_fallback' : 'offline_kb'
+        source: retrievalResult.isFallback ? 'offline_fallback' : 'offline_kb',
+        fallbackReason: onlineFailureCode ? getChatErrorMessage(t, onlineFailureCode) : null
       };
 
       setMessages(prev => [...prev, botMsg]);
@@ -457,12 +469,12 @@ export default function HealthAssistantChat({
                   <p className="bubble-text">{msg.text}</p>
                   
                   {/* Source Badge — HONEST: reflects what actually produced the answer */}
-                  {msg.source === 'online_ai' ? (
+                  {['online_ai', 'online_ai_verified', 'online_ai_general'].includes(msg.source) ? (
                     <div className="bubble-fallback-tag" style={{ backgroundColor: '#ecfdf5', borderColor: '#a7f3d0', color: '#065f46' }}>
                       <Sparkles size={13} className="text-emerald-600" />
-                      <span>{language === 'kn' ? 'ಲೈವ್ ಎಐ' : language === 'hi' ? 'ऑनलाइन एआई' : language === 'mr' ? 'ऑनलाइन एआय' : 'Online AI'}</span>
+                      <span>{msg.source === 'online_ai_verified' ? t('onlineAiVerified') : t('onlineAiGeneral')}</span>
                     </div>
-                  ) : (msg.source === 'offline_kb') ? (
+                  ) : (msg.source === 'offline_kb' || msg.source === 'offline_guide') ? (
                     <div className="bubble-fallback-tag" style={{ backgroundColor: '#f0f9ff', borderColor: '#bae6fd', color: '#0369a1' }}>
                       <ShieldCheck size={13} className="text-sky-600" />
                       <span>

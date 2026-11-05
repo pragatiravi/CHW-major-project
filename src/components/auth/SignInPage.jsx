@@ -29,6 +29,7 @@ import {
   getAvailableDemoCredentials, 
   signUpWithCredentials 
 } from '../../lib/auth';
+import { resendVerificationEmail } from '../../lib/auth';
 import { getLockoutStatus } from '../../lib/authRateLimiter';
 import { isSupabaseConfigured, getSupabaseDiagnostics } from '../../lib/supabaseClient';
 import { useLanguage } from '../shared/LanguageContext';
@@ -51,6 +52,7 @@ export default function SignInPage({
   const [selectedStaffRole, setSelectedStaffRole] = useState('chw');
   const [email, setEmail] = useState(initialCreds.email || '');
   const [password, setPassword] = useState(initialCreds.password || '');
+  const [useDemoCredentials, setUseDemoCredentials] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
@@ -58,6 +60,7 @@ export default function SignInPage({
   const languagePref = language || 'en';
   const [authError, setAuthError] = useState('');
   const [authSuccess, setAuthSuccess] = useState('');
+  const [canResendVerification, setCanResendVerification] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showDiagnostics, setShowDiagnostics] = useState(false);
 
@@ -170,6 +173,7 @@ export default function SignInPage({
     if (!isDemo) return;
     setEmail(account.email);
     setPassword(account.password);
+    setUseDemoCredentials(true);
     setMode('signin');
     setAuthError('');
     const status = getLockoutStatus(account.email);
@@ -183,15 +187,16 @@ export default function SignInPage({
 
     setAuthError('');
     setAuthSuccess('');
+    setCanResendVerification(false);
     setIsSubmitting(true);
 
     try {
       if (mode === 'forgot') {
         const sent = await onResetPassword(email);
         if (sent) {
-          setAuthSuccess('Password recovery email dispatched. Please check your inbox.');
+          setAuthSuccess(t('passwordResetSent'));
         } else {
-          setAuthError('Could not send reset instructions. Please verify your email format.');
+          setAuthError(t('passwordResetFailed'));
         }
         return;
       }
@@ -217,14 +222,30 @@ export default function SignInPage({
       await onAuthenticate({
         email: email.trim().toLowerCase(),
         password,
+        useDemoCredentials,
       });
     } catch (error) {
       const friendlyError = mapSupabaseAuthError(error, language);
       setAuthError(friendlyError || error.message || 'Authentication failed. Please verify credentials.');
+      setCanResendVerification(error?.code === 'email_not_confirmed' || /email not confirmed/i.test(error?.message || ''));
       const status = getLockoutStatus(email);
       if (status.isLocked) {
         setLockoutSeconds(status.remainingSeconds);
       }
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleResendVerification = async () => {
+    setIsSubmitting(true);
+    setAuthError('');
+    try {
+      await resendVerificationEmail(email);
+      setAuthSuccess(t('verificationResent'));
+      setCanResendVerification(false);
+    } catch (error) {
+      setAuthError(mapSupabaseAuthError(error, language) || error.message);
     } finally {
       setIsSubmitting(false);
     }
@@ -495,6 +516,11 @@ export default function SignInPage({
                 </div>
               </div>
             )}
+            {canResendVerification && (
+              <button type="button" className="btn btn-secondary text-xs" onClick={handleResendVerification} disabled={isSubmitting}>
+                {t('resendVerification')}
+              </button>
+            )}
 
             {/* Success Message Banner */}
             {authSuccess && (
@@ -604,6 +630,7 @@ export default function SignInPage({
                     onChange={(e) => { 
                       const newEmail = e.target.value;
                       setEmail(newEmail); 
+                      setUseDemoCredentials(false);
                       setAuthError(''); 
                       const status = getLockoutStatus(newEmail);
                       setLockoutSeconds(status.isLocked ? status.remainingSeconds : 0);
@@ -629,7 +656,7 @@ export default function SignInPage({
                         className="text-xs text-sky-600 hover:underline font-medium"
                         onClick={() => { setMode('forgot'); setAuthError(''); setAuthSuccess(''); }}
                       >
-                        Forgot password?
+                        {t('forgotPassword')}
                       </button>
                     )}
                   </div>
@@ -639,7 +666,7 @@ export default function SignInPage({
                       id="auth-password"
                       type={showPassword ? 'text' : 'password'}
                       value={password}
-                      onChange={(e) => { setPassword(e.target.value); setAuthError(''); }}
+                      onChange={(e) => { setPassword(e.target.value); setUseDemoCredentials(false); setAuthError(''); }}
                       placeholder="Minimum 8 characters"
                       className="form-input text-xs has-trailing"
                       required

@@ -5,7 +5,7 @@
  *
  * PIPELINE ORDER:
  *  1. Auth check (real Supabase token OR ALLOW_DEMO_CHAT demo path)
- *  2. Input cleaning (trim, collapse whitespace, cap at 500 chars)
+ *  2. Input cleaning (trim, collapse whitespace, cap at 600 chars)
  *  3. Red-flag detector (pregnancy danger signs + cardiac/BP/stroke)
  *  4. Knowledge-base retrieval (top-3 passages, relevance threshold)
  *  5a. ONLINE: Gemini call with ONLY retrieved passages in prompt
@@ -25,12 +25,11 @@
  *  provides UX smoothing only — it is NOT a production rate-limit. For strict
  *  enforcement add Vercel KV or an edge middleware counter.
  *
- * CURRENT GEMINI MODEL: gemini-2.0-flash
- *  Chosen: gemini-1.5-flash is deprecated; gemini-2.0-flash is the current
- *  stable fast model. Override with GEMINI_MODEL env var if needed.
+ * CURRENT GEMINI MODEL: gemini-3.8-flash (stable). Set GEMINI_MODEL in Vercel.
  */
 
 import { createClient } from '@supabase/supabase-js';
+import { detectClinicalRedFlag } from '../src/lib/chat/redFlagDetector.js';
 
 // ---------------------------------------------------------------------------
 // Rate limiting (in-memory, UX-only — see note above)
@@ -73,7 +72,7 @@ function sanitize(v) { return (v || '').trim().replace(/^["']|["']$/g, ''); }
 
 /**
  * Clean input text: trim, collapse whitespace, strip pasted web boilerplate,
- * cap at 500 characters and return { clean, wasTruncated }.
+ * cap at 600 characters and return { clean, wasTruncated }.
  */
 function cleanInput(raw) {
   if (!raw || typeof raw !== 'string') return { clean: '', wasTruncated: false };
@@ -83,7 +82,7 @@ function cleanInput(raw) {
   // Strip common web-page boilerplate patterns
   s = s.replace(/\b(cookie policy|privacy policy|terms of service|accept all cookies|subscribe to newsletter)\b.*$/gi, '');
   s = s.trim();
-  const MAX = 500;
+  const MAX = 600;
   if (s.length > MAX) {
     return { clean: s.slice(0, MAX), wasTruncated: true };
   }
@@ -270,7 +269,7 @@ CORE BEHAVIOR:
 2. If the user asks about general health, nutrition, lifestyle, Type 1 vs Type 2 diabetes, blood pressure monitoring, or how to use the CHW Toolkit, provide an accurate, clear, helpful, educational response based on standard medical guidance.
 3. NEVER prescribe specific prescription drugs or alter medication dosages. Always remind the user to consult a qualified medical officer at the PHC or doctor.
 4. For medical emergencies (BP >= 180/120, chest pain radiating to left arm/jaw, severe shortness of breath, signs of stroke [face drooping, arm weakness, speech difficulty], or pregnancy danger signs [pre-eclampsia, severe headache, convulsions, heavy bleeding]), immediately urge the user to call 108 ambulance and reach the nearest hospital.
-5. If the query is completely unrelated to health or community medicine (e.g. software programming, movies, political opinions), politely decline by stating you are a specialized community health assistant.
+5. Answer non-medical questions normally. Apply the clinical guardrails only to health and medication topics.
 6. Respond in the user's requested language: English, Hindi, Kannada, or Marathi.
 7. Keep responses concise, supportive, and accessible (under 200 words).
 
@@ -324,9 +323,9 @@ export default async function handler(req, res) {
   }
 
   if (!authMode && isDemoRequest) {
-    // Demo path — check ALLOW_DEMO_CHAT flag (allows demo chat unless explicitly 'false')
+    // Demo path is enabled only by an explicit server-side ALLOW_DEMO_CHAT=true.
     const allowDemo = sanitize(process.env.ALLOW_DEMO_CHAT).toLowerCase();
-    const isDemoAllowed = allowDemo === '' || allowDemo === 'true' || allowDemo === '1' || process.env.VITE_DEMO_MODE === 'true';
+    const isDemoAllowed = allowDemo === 'true' || allowDemo === '1';
 
     if (isDemoAllowed) {
       // Demo rate limit: global cap
@@ -360,8 +359,8 @@ export default async function handler(req, res) {
   }
 
   // Demo users cannot send patient data
-  if (authMode === 'demo' && context?.patientId) {
-    return res.status(400).json({ error: 'Patient data cannot be sent in demo mode.', code: 'demo_patient_data_rejected' });
+  if (authMode === 'demo' && context && Object.keys(context).length > 0) {
+    return res.status(400).json({ error: 'Demo chat does not accept patient or account context.', code: 'demo_patient_data_rejected' });
   }
 
   // --- Input cleaning ---
@@ -372,7 +371,21 @@ export default async function handler(req, res) {
 
   const lang = ['en', 'hi', 'kn', 'mr'].includes(language) ? language : 'en';
 
-  // --- Pregnancy red-flag (server-side, before Gemini) ---
+  // --- All four-language clinical red flags run before retrieval or Gemini ---
+  const clinicalRedFlag = detectClinicalRedFlag(message, lang);
+  if (clinicalRedFlag.isRedFlag) {
+    const alert = clinicalRedFlag.alert;
+    return res.status(200).json({
+      reply: `${alert.title}: ${alert.warning}\n\n${alert.action}`,
+      source: 'red_flag_engine',
+      badge: 'urgent_referral',
+      matchedKeyword: clinicalRedFlag.matchedKeyword,
+      wasTruncated,
+      code: 'red_flag'
+    });
+  }
+
+  // --- Pregnancy fallback guard (also before Gemini) ---
   if (isPregnancyRedFlag(message)) {
     console.log(`[chat] pregnancy red-flag detected, ip=${clientIp.slice(0, 8)}…`);
     return res.status(200).json({
@@ -391,7 +404,7 @@ export default async function handler(req, res) {
 
   // --- AI key check ---
   const apiKey = sanitize(process.env.GEMINI_API_KEY || process.env.AI_API_KEY);
-  const modelName = sanitize(process.env.GEMINI_MODEL) || 'gemini-2.0-flash';
+  const modelName = sanitize(process.env.GEMINI_MODEL) || 'gemini-3.8-flash';
 
   if (!apiKey || apiKey.includes('your-gemini-api-key') || apiKey.length < 10) {
     // No AI key — serve offline guide if relevant, otherwise "can't answer"
@@ -404,7 +417,8 @@ export default async function handler(req, res) {
         topic: retrievedTopics,
         passages: passages.map(p => ({ topic: p.topic, source: p.id })),
         wasTruncated,
-        code: 'no_key'
+        code: 'no_key',
+        fallbackReason: 'no_key'
       });
     }
     return res.status(200).json({
@@ -412,7 +426,8 @@ export default async function handler(req, res) {
       source: 'offline_fallback',
       badge: 'cant_answer_offline',
       wasTruncated,
-      code: 'no_key'
+      code: 'no_key',
+      fallbackReason: 'no_key'
     });
   }
 
@@ -429,7 +444,7 @@ export default async function handler(req, res) {
       const role = (h.role === 'user' || h.sender === 'user') ? 'user' : 'model';
       geminiContents.push({
         role,
-        parts: [{ text: msgText.slice(0, 500) }]
+        parts: [{ text: msgText.slice(0, 600) }]
       });
     }
   }
@@ -454,7 +469,7 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: systemPrompt }] },
         contents: geminiContents,
-        generationConfig: { temperature: 0.2, maxOutputTokens: maxTokens }
+        generationConfig: { maxOutputTokens: maxTokens }
       })
     });
 
@@ -472,7 +487,7 @@ export default async function handler(req, res) {
           source: 'offline_kb',
           badge: 'offline_guide',
           topic: retrievedTopics,
-          fallbackReason: 'AI service unavailable, using offline guide.',
+          fallbackReason: errorCode,
           wasTruncated,
           code: errorCode
         });
@@ -481,7 +496,7 @@ export default async function handler(req, res) {
         reply: OFFLINE_CANNOT_ANSWER[lang] || OFFLINE_CANNOT_ANSWER.en,
         source: 'offline_fallback',
         badge: 'cant_answer_offline',
-        fallbackReason: 'AI service unavailable.',
+        fallbackReason: errorCode,
         wasTruncated,
         code: errorCode
       });
@@ -495,7 +510,7 @@ export default async function handler(req, res) {
         reply,
         model: modelName,
         source: 'online_ai',
-        badge: 'online_ai',
+        badge: hasRelevantPassages ? 'online_ai_verified' : 'online_ai_general',
         topic: retrievedTopics,
         authMode,
         wasTruncated
@@ -514,7 +529,7 @@ export default async function handler(req, res) {
         source: 'offline_kb',
         badge: 'offline_guide',
         topic: retrievedTopics,
-        fallbackReason: isTimeout ? 'AI request timed out. Showing offline guide.' : 'AI service error. Showing offline guide.',
+        fallbackReason: isTimeout ? 'timeout' : 'upstream_error',
         wasTruncated,
         code: isTimeout ? 'timeout' : 'upstream_error'
       });
@@ -523,7 +538,7 @@ export default async function handler(req, res) {
       reply: OFFLINE_CANNOT_ANSWER[lang] || OFFLINE_CANNOT_ANSWER.en,
       source: 'offline_fallback',
       badge: 'cant_answer_offline',
-      fallbackReason: isTimeout ? 'AI request timed out.' : 'AI service error.',
+      fallbackReason: isTimeout ? 'timeout' : 'upstream_error',
       wasTruncated,
       code: isTimeout ? 'timeout' : 'upstream_error'
     });

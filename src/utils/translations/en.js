@@ -97,7 +97,7 @@ export default {
   navClinicalCutoffs: "Clinical Cutoffs",
   navFHIR: "HL7 FHIR R4 Export",
   navAuditLogs: "Security Audit Trail",
-  
+
   // Roles
   roleCHW: "Community Health Worker (CHW)",
   roleDoctor: "Medical Officer / Clinician",
@@ -127,13 +127,13 @@ export default {
   normalRange: "Normal Range",
   elevatedRange: "Elevated Range",
   crisisRange: "Hypertensive Crisis Range",
-  
+
   // Risk Tiers
   criticalRisk: "Critical Risk",
   highRisk: "High Risk",
   moderateRisk: "Moderate Risk",
   lowRisk: "Low Risk",
-  
+
   // Common Actions
   save: "Save",
   cancel: "Cancel",
@@ -228,7 +228,7 @@ export default {
   daysSuffix: "days",
   allRiskLevelsOption: "All Risk Levels",
   searchDirectoryPlaceholder: "Search by name, ID, or village...",
-  
+
   // Doctor Portal
   triageTabPending: "Pending Referrals",
   triageTabApproved: "Approved Plans",
@@ -240,7 +240,7 @@ export default {
   approvePlanButton: "Approve Treatment Plan",
   declineReferralButton: "Decline Referral",
   noReferralsFound: "No patient referrals matching this criteria.",
-  
+
   // Supervisor Portal
   populationRiskAnalyticsTitle: "Population Health Risk Analytics",
   chwFieldCoverageTitle: "CHW Field Activity & Coverage",
@@ -248,7 +248,7 @@ export default {
   approvalQueueTitle: "Healthcare Staff Approvals",
   approveStaffButton: "Approve Staff",
   rejectStaffButton: "Reject",
-  
+
   // Admin Portal
   systemHealthTitle: "System Operations & Health",
   userManagementTitle: "User Accounts & Role Directory",
@@ -256,7 +256,7 @@ export default {
   clinicalCutoffsTitle: "Clinical Cutoffs & Thresholds",
   auditTrailTitle: "Security & Regulatory Audit Trail",
   exportFHIRButton: "Export HL7 FHIR R4 Bundle",
-  
+
   // Patient Portal
   bilingualHealthPassportTitle: "Bilingual Health Passport",
   activeDailyMedsTitle: "Daily Medication Schedule",
@@ -266,7 +266,7 @@ export default {
   doseMissedStatus: "Missed",
   vitalsHistoryTitle: "Vitals History & Trends",
   upcomingAppointmentsTitle: "Upcoming Appointments & Visits",
-  
+
   // Chatbot Interface
   chatAssistantTitle: "CHW Clinical Guidance Assistant",
   chatAssistantSubtitle: "Ask about NCD care, blood pressure, diabetes, nutrition, or app usage.",

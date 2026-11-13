@@ -65,4 +65,17 @@ Before primary field deployment in Primary Health Centres (PHCs) and Sub-Centres
 - [ ] **Karnataka PHC Medical Officer Review**: Verify that dialect matches Belagavi / North Karnataka Kannada idioms understood by ASHA workers.
 - [ ] **Maharashtra Sub-Centre ANM Review**: Confirm Marathi health terminology aligns with standard state health society communications.
 - [ ] **ASHA Field Comprehension Test**: Conduct roleplay testing with 5 frontline workers using the voice recognition and audio ThinkLets modules.
-The new authentication verification labels and AI source/failure messages in `src/utils/translations/{en,hi,kn,mr}.js` were drafted for this change. Please have native Kannada, Hindi, and Marathi speakers review terminology and tone before clinical use.
+
+---
+
+## 6. AI Source Badges & Notification Terminology (Recent Additions)
+
+| English Key | Kannada (ಕನ್ನಡ) | Hindi (हिन्दी) | Marathi (मराठी) | Usage Context |
+| :--- | :--- | :--- | :--- | :--- |
+| **onlineAiVerified** | ಆನ್‌ಲೈನ್ ಎಐ + ಪರಿಶೀಲಿತ ಮಾರ್ಗದರ್ಶಿ | ऑनलाइन एआई + सत्यापित गाइड | ऑनलाइन एआई + पडताळलेले मार्गदर्शन | Displayed when Gemini online answer is grounded with bundled ICMR/WHO guidelines. |
+| **onlineAiGeneral** | ಆನ್‌ಲೈನ್ ಎಐ (ಸಾಮಾನ್ಯ ಉತ್ತರ) | ऑनलाइन एआई (सामान्य उत्तर) | ऑनलाइन एआई (सामान्य उत्तर) | Displayed when answering general health inquiries outside local NCD guidelines. |
+| **offlineVerifiedGuide** | ಆಫ್‌ಲೈನ್ ಪರಿಶೀಲಿತ ಮಾರ್ಗದರ್ಶಿ | ऑफलाइन सत्यापित गाइड | ऑफलाइन सत्यापित मार्गदर्शक | Displayed when offline matching local clinical knowledge base. |
+| **urgentReferralBadge** | ತುರ್ತು ಎಚ್ಚರಿಕೆ | आपातकालीन अलर्ट | आणीबाणी अलर्ट | Displayed when deterministic red flag or pre-eclampsia danger sign triggers. |
+| **offlineNoMatchBadge** | ಆಫ್‌ಲೈನ್ - ಹೊಂದಾಣಿಕೆ ಇಲ್ಲ | ऑफलाइन - कोई मेल नहीं | ऑफलाइन - जुळणी नाही | Displayed when network is offline and query is outside local database. |
+
+The new authentication verification labels, notifications drawer tabs, and AI source/failure messages in `src/utils/translations/{en,hi,kn,mr}.js` were drafted for this change. Please have native Kannada, Hindi, and Marathi speakers review terminology and tone before clinical use.

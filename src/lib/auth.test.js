@@ -522,5 +522,73 @@ describe('Environment Resolution & Vercel Variable Compatibility', () => {
       setDemoModeOverride(null);
     }
   });
+
+  it('detects existing account on signup when GoTrue returns empty identities', async () => {
+    const signUpSpy = vi.spyOn(supabase.auth, 'signUp').mockResolvedValue({
+      data: {
+        user: {
+          id: 'existing-id',
+          email: 'existing@example.com',
+          identities: []
+        }
+      },
+      error: null
+    });
+
+    await expect(signUpWithCredentials({
+      email: 'existing@example.com',
+      password: 'StrongPassword123!',
+      fullName: 'Existing User'
+    })).rejects.toMatchObject({ code: 'user_already_exists' });
+
+    signUpSpy.mockRestore();
+  });
+
+  it('self-heals missing profile row during sign-in and applies correct status', async () => {
+    const mockUser = {
+      id: 'self-heal-user-id',
+      email: 'selfheal@example.com',
+      user_metadata: { full_name: 'Self Heal Staff', role: 'chw', village: 'Kittur' }
+    };
+    const signInSpy = vi.spyOn(supabase.auth, 'signInWithPassword').mockResolvedValue({
+      data: { user: mockUser },
+      error: null
+    });
+    const signOutSpy = vi.spyOn(supabase.auth, 'signOut').mockResolvedValue({ error: null });
+
+    const fromSpy = vi.spyOn(supabase, 'from').mockImplementation((table) => {
+      if (table === 'profiles') {
+        return {
+          select: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockReturnThis(),
+          maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+          insert: vi.fn().mockReturnValue({
+            select: vi.fn().mockReturnValue({
+              maybeSingle: vi.fn().mockResolvedValue({
+                data: {
+                  id: 'self-heal-user-id',
+                  role: 'chw',
+                  status: 'pending',
+                  full_name: 'Self Heal Staff'
+                },
+                error: null
+              })
+            })
+          })
+        };
+      }
+      return {};
+    });
+
+    await expect(signInWithCredentials({
+      email: 'selfheal@example.com',
+      password: 'StrongPassword123!'
+    })).rejects.toMatchObject({ code: 'account_pending' });
+
+    expect(signOutSpy).toHaveBeenCalled();
+    signInSpy.mockRestore();
+    signOutSpy.mockRestore();
+    fromSpy.mockRestore();
+  });
 });
 

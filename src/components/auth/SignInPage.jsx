@@ -27,9 +27,10 @@ import {
 import { 
   isDemoModeActive, 
   getAvailableDemoCredentials, 
-  signUpWithCredentials 
+  signUpWithCredentials,
+  resendVerificationEmail,
+  resetPasswordWithToken
 } from '../../lib/auth';
-import { resendVerificationEmail } from '../../lib/auth';
 import { getLockoutStatus } from '../../lib/authRateLimiter';
 import { isSupabaseConfigured, getSupabaseDiagnostics } from '../../lib/supabaseClient';
 import { useLanguage } from '../shared/LanguageContext';
@@ -41,13 +42,20 @@ export default function SignInPage({
   onResetPassword,
   onBackToLanding,
   initialRole = 'chw',
+  initialMode = 'signin',
 }) {
   const { t, language } = useLanguage();
   const isDemo = isDemoModeActive();
   const demoAccountsMap = getAvailableDemoCredentials();
   const initialCreds = isDemo && demoAccountsMap[initialRole] ? demoAccountsMap[initialRole] : { email: '', password: '' };
 
-  const [mode, setMode] = useState('signin'); // 'signin' | 'signup' | 'forgot'
+  const [mode, setMode] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const hash = window.location.hash || '';
+      if (hash.includes('reset') || hash.includes('type=recovery')) return 'reset';
+    }
+    return initialMode;
+  }); // 'signin' | 'signup' | 'forgot' | 'reset'
   const [accountType, setAccountType] = useState('staff'); // 'staff' | 'patient'
   const [selectedStaffRole, setSelectedStaffRole] = useState('chw');
   const [email, setEmail] = useState(initialCreds.email || '');
@@ -191,6 +199,21 @@ export default function SignInPage({
     setIsSubmitting(true);
 
     try {
+      if (mode === 'reset') {
+        if (!password || password.length < 8) {
+          setAuthError(t('weak_password') || 'New password must be at least 8 characters long.');
+          return;
+        }
+        await resetPasswordWithToken(password);
+        setAuthSuccess(t('passwordUpdated') || 'Password successfully updated! You can now sign in with your new password.');
+        setMode('signin');
+        setPassword('');
+        if (typeof window !== 'undefined' && window.location.hash) {
+          window.history.replaceState(null, '', window.location.pathname);
+        }
+        return;
+      }
+
       if (mode === 'forgot') {
         const sent = await onResetPassword(email);
         if (sent) {
@@ -464,7 +487,7 @@ export default function SignInPage({
               <div className="flex justify-between items-center mb-3">
                 <div className="auth-badge">
                   <ShieldCheck size={14} className="text-sky-600" aria-hidden="true" />
-                  <span>{mode === 'signup' ? 'New Registration' : (mode === 'forgot' ? 'Account Recovery' : 'Secure Login')}</span>
+                  <span>{mode === 'reset' ? 'Password Reset' : (mode === 'signup' ? 'New Registration' : (mode === 'forgot' ? 'Account Recovery' : 'Secure Login'))}</span>
                 </div>
                 <div className="flex gap-1.5 p-1 bg-slate-100 rounded-lg border border-slate-200">
                   <button
@@ -487,14 +510,22 @@ export default function SignInPage({
               </div>
 
               <h3 className="text-xl font-bold text-slate-900">
-                {mode === 'signup' ? 'Create Health Platform Account' : (mode === 'forgot' ? 'Reset Account Password' : (t('signInToWorkspace') || 'Sign In to Workspace'))}
+                {mode === 'reset'
+                  ? (t('resetPassword') || 'Set New Password')
+                  : mode === 'signup'
+                    ? 'Create Health Platform Account'
+                    : mode === 'forgot'
+                      ? 'Reset Account Password'
+                      : (t('signInToWorkspace') || 'Sign In to Workspace')}
               </h3>
               <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-                {mode === 'signup'
-                  ? 'Frontline staff accounts require supervisor verification. Patient self-registrations activate immediately.'
-                  : (mode === 'forgot'
-                    ? 'Enter your registered email address to receive password recovery instructions.'
-                    : 'Enter your institutional email address and password to continue.')}
+                {mode === 'reset'
+                  ? 'Choose a strong new password with at least 8 characters to regain access.'
+                  : mode === 'signup'
+                    ? 'Frontline staff accounts require supervisor verification. Patient self-registrations activate immediately.'
+                    : mode === 'forgot'
+                      ? 'Enter your registered email address to receive password recovery instructions.'
+                      : 'Enter your institutional email address and password to continue.'}
               </p>
             </div>
 
@@ -517,9 +548,21 @@ export default function SignInPage({
               </div>
             )}
             {canResendVerification && (
-              <button type="button" className="btn btn-secondary text-xs" onClick={handleResendVerification} disabled={isSubmitting}>
-                {t('resendVerification')}
-              </button>
+              <div className="mb-3 p-3 rounded-lg bg-sky-50 border border-sky-200 flex items-center justify-between gap-3">
+                <div className="text-2xs text-sky-900">
+                  <strong className="block font-semibold">Email confirmation link required</strong>
+                  <span>Need a fresh activation email?</span>
+                </div>
+                <button
+                  type="button"
+                  className="btn btn-secondary text-xs flex items-center gap-1.5 py-1.5 px-3 whitespace-nowrap shadow-xs"
+                  onClick={handleResendVerification}
+                  disabled={isSubmitting}
+                >
+                  <Mail size={14} className="text-sky-600" />
+                  <span>{t('resendVerification') || 'Resend verification email'}</span>
+                </button>
+              </div>
             )}
 
             {/* Success Message Banner */}
@@ -617,38 +660,40 @@ export default function SignInPage({
               )}
 
               {/* Email Address */}
-              <div className="form-group">
-                <label className="form-label text-xs font-semibold text-slate-700" htmlFor="auth-email">
-                  Email Address *
-                </label>
-                <div className="input-with-icon">
-                  <Mail size={18} className="input-icon" />
-                  <input 
-                    id="auth-email"
-                    type="email" 
-                    value={email}
-                    onChange={(e) => { 
-                      const newEmail = e.target.value;
-                      setEmail(newEmail); 
-                      setUseDemoCredentials(false);
-                      setAuthError(''); 
-                      const status = getLockoutStatus(newEmail);
-                      setLockoutSeconds(status.isLocked ? status.remainingSeconds : 0);
-                    }}
-                    placeholder={mode === 'signup' && accountType === 'patient' ? "patient@example.com" : "staff@communityhealth.org"}
-                    className="form-input text-xs"
-                    required
-                    autoComplete="username"
-                  />
+              {mode !== 'reset' && (
+                <div className="form-group">
+                  <label className="form-label text-xs font-semibold text-slate-700" htmlFor="auth-email">
+                    Email Address *
+                  </label>
+                  <div className="input-with-icon">
+                    <Mail size={18} className="input-icon" />
+                    <input 
+                      id="auth-email"
+                      type="email" 
+                      value={email}
+                      onChange={(e) => { 
+                        const newEmail = e.target.value;
+                        setEmail(newEmail); 
+                        setUseDemoCredentials(false);
+                        setAuthError(''); 
+                        const status = getLockoutStatus(newEmail);
+                        setLockoutSeconds(status.isLocked ? status.remainingSeconds : 0);
+                      }}
+                      placeholder={mode === 'signup' && accountType === 'patient' ? "patient@example.com" : "staff@communityhealth.org"}
+                      className="form-input text-xs"
+                      required
+                      autoComplete="username"
+                    />
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Password Field with Show/Hide Toggle & Strength Meter */}
               {mode !== 'forgot' && (
                 <div className="form-group">
                   <div className="flex justify-between items-center mb-1">
                     <label className="form-label text-xs font-semibold text-slate-700 mb-0" htmlFor="auth-password">
-                      Password *
+                      {mode === 'reset' ? 'New Password *' : 'Password *'}
                     </label>
                     {mode === 'signin' && (
                       <button 
@@ -755,6 +800,10 @@ export default function SignInPage({
                     <UserPlus size={16} /> 
                     {accountType === 'patient' ? 'Complete Patient Registration' : 'Submit Staff Registration'}
                   </span>
+                ) : mode === 'reset' ? (
+                  <span className="flex items-center gap-2">
+                    <KeyRound size={16} /> Set New Password
+                  </span>
                 ) : mode === 'forgot' ? (
                   <span className="flex items-center gap-2">
                     <KeyRound size={16} /> Send Recovery Instructions
@@ -766,7 +815,7 @@ export default function SignInPage({
                 )}
               </button>
 
-              {mode === 'forgot' && (
+              {(mode === 'forgot' || mode === 'reset') && (
                 <button
                   type="button"
                   className="btn btn-secondary text-xs w-full justify-center mt-2"

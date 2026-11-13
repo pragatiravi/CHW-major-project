@@ -68,6 +68,10 @@ function AppContent() {
 
   const [currentView, setCurrentView] = useState(() => {
     try {
+      if (typeof window !== 'undefined') {
+        const hash = window.location.hash || '';
+        if (hash.includes('type=recovery') || hash.includes('reset')) return 'auth';
+      }
       const savedSession = sessionStorage.getItem('chw_auth_session');
       return savedSession ? 'app' : 'landing'; // 'landing' | 'auth' | 'app'
     } catch {
@@ -90,6 +94,26 @@ function AppContent() {
 
   const [activeNavSection, setActiveNavSection] = useState(() => new URLSearchParams(window.location.search).get('section') || 'home');
   const [authReady, setAuthReady] = useState(false);
+  const [authMode, setAuthMode] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const hash = window.location.hash || '';
+      if (hash.includes('type=recovery') || hash.includes('reset')) return 'reset';
+    }
+    return 'signin';
+  });
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    const handleHashChange = () => {
+      const hash = window.location.hash || '';
+      if (hash.includes('type=recovery') || hash.includes('reset')) {
+        setAuthMode('reset');
+        setCurrentView('auth');
+      }
+    };
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
 
   useEffect(() => {
     restoreAuthenticatedUser()
@@ -637,6 +661,7 @@ function AppContent() {
         onResetPassword={handlePasswordReset}
         onBackToLanding={() => setCurrentView('landing')}
         initialRole={userRole}
+        initialMode={authMode}
       />
     );
   }

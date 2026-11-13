@@ -84,8 +84,12 @@ export function mapSupabaseAuthError(rawError, lang = 'en') {
   if (code === 'account_rejected') return ERROR_MAP.account_rejected[['en', 'kn', 'hi', 'mr'].includes(lang) ? lang : 'en'];
   if (code === 'account_suspended') return ERROR_MAP.account_suspended[['en', 'kn', 'hi', 'mr'].includes(lang) ? lang : 'en'];
   if (code === 'email_not_confirmed') return ERROR_MAP.email_not_confirmed[['en', 'kn', 'hi', 'mr'].includes(lang) ? lang : 'en'];
-  if (['over_email_send_rate_limit', 'too_many_requests', 'rate_limit_exceeded'].includes(code)) return ERROR_MAP.rate_limit[['en', 'kn', 'hi', 'mr'].includes(lang) ? lang : 'en'];
+  if (['over_email_send_rate_limit', 'too_many_requests', 'rate_limit_exceeded', '429'].includes(code)) return ERROR_MAP.rate_limit[['en', 'kn', 'hi', 'mr'].includes(lang) ? lang : 'en'];
   if (code === 'invalid_credentials') return ERROR_MAP.invalid_credentials[['en', 'kn', 'hi', 'mr'].includes(lang) ? lang : 'en'];
+  if (code === 'user_not_found') return ERROR_MAP.user_not_found[['en', 'kn', 'hi', 'mr'].includes(lang) ? lang : 'en'];
+  if (code === 'profile_missing') return ERROR_MAP.profile_missing[['en', 'kn', 'hi', 'mr'].includes(lang) ? lang : 'en'];
+  if (code === 'profile_read_failed') return ERROR_MAP.profile_read_failed[['en', 'kn', 'hi', 'mr'].includes(lang) ? lang : 'en'];
+  if (code === 'network_error') return ERROR_MAP.network_error[['en', 'kn', 'hi', 'mr'].includes(lang) ? lang : 'en'];
   if (ERROR_MAP[code]) return ERROR_MAP[code][['en', 'kn', 'hi', 'mr'].includes(lang) ? lang : 'en'];
   const message = (typeof rawError === 'string' ? rawError : rawError.message || '').toLowerCase();
   const currentLang = ['en', 'kn', 'hi', 'mr'].includes(lang) ? lang : 'en';
@@ -94,6 +98,12 @@ export function mapSupabaseAuthError(rawError, lang = 'en') {
     return ERROR_MAP.invalid_credentials[currentLang];
   }
   if (message.includes('user not found') || message.includes('no user')) return ERROR_MAP.user_not_found[currentLang];
+  if (message.includes('profile is missing') || message.includes('profile missing') || message.includes('profile_missing')) {
+    return ERROR_MAP.profile_missing[currentLang];
+  }
+  if (message.includes('profile') && (message.includes('load') || message.includes('failed to load'))) {
+    return ERROR_MAP.profile_read_failed[currentLang];
+  }
   if (message.includes('email not confirmed') || message.includes('confirm your email')) {
     return ERROR_MAP.email_not_confirmed[currentLang];
   }

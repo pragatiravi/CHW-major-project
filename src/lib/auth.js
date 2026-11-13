@@ -201,8 +201,38 @@ export async function signInWithCredentials({ email, password, useDemoCredential
     }
 
     // Role and status are strictly verified from the server-side profiles table
-    const { data: profile, error: profileError } = await supabase
+    let { data: profile, error: profileError } = await supabase
       .from('profiles').select('*').eq('id', data.user.id).maybeSingle();
+
+    if (!profile && !profileError) {
+      // Safe self-healing: trigger might not have completed or table had constraint conflict
+      try {
+        const requestedRole = (data.user.user_metadata?.role || 'chw').toLowerCase();
+        const safeRole = ['chw', 'doctor', 'supervisor', 'patient'].includes(requestedRole) ? requestedRole : 'chw';
+        const safeStatus = safeRole === 'patient' ? 'approved' : 'pending';
+        const fallbackProfile = {
+          id: data.user.id,
+          full_name: data.user.user_metadata?.full_name || (data.user.email ? data.user.email.split('@')[0] : 'Healthcare User'),
+          role: safeRole,
+          status: safeStatus,
+          language_pref: data.user.user_metadata?.language_pref || 'en',
+          phone: data.user.user_metadata?.phone || null,
+          subcenter: data.user.user_metadata?.village || data.user.user_metadata?.subcenter || 'Primary Health Subcenter'
+        };
+
+        const { data: insertedProfile } = await supabase
+          .from('profiles')
+          .insert(fallbackProfile)
+          .select('*')
+          .maybeSingle();
+
+        if (insertedProfile) {
+          profile = insertedProfile;
+        }
+      } catch (selfHealErr) {
+        console.warn('Profile self-healing attempt:', selfHealErr);
+      }
+    }
 
     if (profileError) {
       await supabase.auth.signOut();
@@ -246,13 +276,22 @@ export async function signInWithCredentials({ email, password, useDemoCredential
     return authenticatedUser;
   }
 
-  // 3. Fallback when Supabase is not configured and email is unknown
-  if (!isDemoModeActive()) {
-    throw new Error('Demo mode is disabled in production. An active Supabase connection is required.');
+  // 3. Fallback when Supabase is not configured or offline
+  if (!isSupabaseConfigured || !supabase) {
+    if (!isDemoModeActive()) {
+      throw Object.assign(
+        new Error('Cloud authentication service is unavailable. Please check your internet connection or try again later.'),
+        { code: 'network_error' }
+      );
+    }
   }
 
+  // If in demo mode and user entered an unrecognized email
   recordFailedAttempt(normalizedEmail);
-  throw new Error('Invalid email or password. Please verify your credentials.');
+  throw Object.assign(
+    new Error('Invalid email or password. Please verify your credentials.'),
+    { code: 'invalid_credentials' }
+  );
 }
 
 /**
@@ -300,9 +339,20 @@ export async function signUpWithCredentials({
     if (error) {
       const msg = error.message || '';
       if (msg.includes('already registered') || msg.includes('already exists')) {
-        throw new Error('An account with this email address already exists. Please sign in or use password recovery.');
+        throw Object.assign(
+          new Error('An account with this email address already exists. Please sign in or use password recovery.'),
+          { code: 'user_already_exists' }
+        );
       }
-      throw new Error(error.message);
+      throw error;
+    }
+
+    // In Supabase GoTrue with account enumeration protection, an existing user returns identities = []
+    if (data?.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+      throw Object.assign(
+        new Error('An account with this email address already exists. Please sign in or use password recovery.'),
+        { code: 'user_already_exists' }
+      );
     }
 
     // The auth.users trigger is the sole authority for profile role/status.

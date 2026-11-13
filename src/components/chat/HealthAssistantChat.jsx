@@ -204,8 +204,8 @@ export default function HealthAssistantChat({
       try {
         // Build auth headers:
         // - Real users: get Supabase session token
-        // - Demo users: send x-chw-demo-session marker (server checks ALLOW_DEMO_CHAT)
-        const isDemo = isDemoModeActive() && currentUser?.source === 'local_demo';
+        // - Demo users / unauthenticated: send x-chw-demo-session marker
+        const isDemo = (isDemoModeActive() && currentUser?.source === 'local_demo') || !currentUser?.id || currentUser?.source === 'local_demo';
         let sessionToken = null;
         if (!isDemo && supabase) {
           const { data } = await supabase.auth.getSession().catch(() => ({ data: null }));
@@ -216,7 +216,7 @@ export default function HealthAssistantChat({
         if (sessionToken) {
           headers['Authorization'] = `Bearer ${sessionToken}`;
         }
-        if (isDemo) {
+        if (isDemo || !sessionToken) {
           headers['x-chw-demo-session'] = 'true';
         }
 
@@ -472,25 +472,25 @@ export default function HealthAssistantChat({
                   {['online_ai', 'online_ai_verified', 'online_ai_general'].includes(msg.source) ? (
                     <div className="bubble-fallback-tag" style={{ backgroundColor: '#ecfdf5', borderColor: '#a7f3d0', color: '#065f46' }}>
                       <Sparkles size={13} className="text-emerald-600" />
-                      <span>{msg.source === 'online_ai_verified' ? t('onlineAiVerified') : t('onlineAiGeneral')}</span>
+                      <span>{msg.source === 'online_ai_verified' ? (t('onlineAiVerified') || 'Online AI + verified guide') : (t('onlineAiGeneral') || 'Online AI (general answer)')}</span>
                     </div>
                   ) : (msg.source === 'offline_kb' || msg.source === 'offline_guide') ? (
                     <div className="bubble-fallback-tag" style={{ backgroundColor: '#f0f9ff', borderColor: '#bae6fd', color: '#0369a1' }}>
                       <ShieldCheck size={13} className="text-sky-600" />
                       <span>
-                        {language === 'kn' ? 'ಆಫ್‌ಲೈನ್ ಮಾರ್ಗದರ್ಶಿ' : language === 'hi' ? 'ऑफलाइन गाइड' : language === 'mr' ? 'ऑफलाइन मार्गदर्शक' : 'Offline guide'}
+                        {t('offlineVerifiedGuide') || (language === 'kn' ? 'ಆಫ್‌ಲೈನ್ ಪರಿಶೀಲಿತ ಮಾರ್ಗದರ್ಶಿ' : language === 'hi' ? 'ऑफलाइन सत्यापित गाइड' : language === 'mr' ? 'ऑफलाइन सत्यापित मार्गदर्शक' : 'Offline verified guide')}
                         {msg.topic ? ` (${msg.topic.replace(/_/g, ' ')})` : ''}
                       </span>
                     </div>
-                  ) : (msg.source === 'red_flag_pregnancy' || msg.source === 'red_flag_engine') ? (
+                  ) : (msg.source === 'red_flag_pregnancy' || msg.source === 'red_flag_engine' || msg.badge === 'urgent_referral') ? (
                     <div className="bubble-fallback-tag" style={{ backgroundColor: '#fef2f2', borderColor: '#fecaca', color: '#991b1b' }}>
                       <AlertTriangle size={13} />
-                      <span>{language === 'kn' ? 'ತಕ್ಷಣ ರೆಫರ್' : language === 'hi' ? 'तत्काल रेफरल' : language === 'mr' ? 'तात्काळ रेफरल' : 'Urgent referral'}</span>
+                      <span>{t('urgentReferralBadge') || (language === 'kn' ? 'ತುರ್ತು ಎಚ್ಚರಿಕೆ' : language === 'hi' ? 'आपातकालीन अलर्ट' : language === 'mr' ? 'आणीबाणी अलर्ट' : 'Emergency alert')}</span>
                     </div>
-                  ) : (msg.isFallback || msg.source === 'offline_fallback') ? (
+                  ) : (msg.isFallback || msg.source === 'offline_fallback' || msg.badge === 'offline_no_match' || msg.badge === 'cant_answer_offline') ? (
                     <div className="bubble-fallback-tag" style={{ backgroundColor: '#fffbeb', borderColor: '#fde68a', color: '#92400e' }}>
                       <Info size={13} />
-                      <span>{language === 'kn' ? 'ಆಫ್‌ಲೈನ್‌ನಲ್ಲಿ ಉತ್ತರವಿಲ್ಲ' : language === 'hi' ? 'ऑफलाइन उत्तर नहीं' : language === 'mr' ? 'ऑफलाइन उत्तर नाही' : "Can't answer offline"}</span>
+                      <span>{t('offlineNoMatchBadge') || (language === 'kn' ? 'ಆಫ್‌ಲೈನ್ - ಹೊಂದಾಣಿಕೆ ಇಲ್ಲ' : language === 'hi' ? 'ऑफलाइन - कोई मेल नहीं' : language === 'mr' ? 'ऑफलाइन - जुळणी नाही' : 'Offline - no match')}</span>
                     </div>
                   ) : null}
                   {/* Show why AI fell back (e.g., timeout, bad key) */}

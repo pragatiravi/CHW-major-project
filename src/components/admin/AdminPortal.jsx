@@ -23,6 +23,8 @@ import PredictionTestLab from './PredictionTestLab';
 import { useToast } from '../shared/ToastContainer';
 import { fetchAllProfiles, updateProfileRoleAndStatus } from '../../lib/db/profiles';
 import { useLanguage } from '../shared/LanguageContext';
+import { supabase } from '../../lib/supabaseClient';
+import { isDemoModeActive } from '../../lib/auth';
 
 export default function AdminPortal({ 
   auditLogs = INITIAL_AUDIT_LOGS, 
@@ -69,13 +71,20 @@ export default function AdminPortal({
       }
 
       // 2. Query /api/chat with test prompt
+      const headers = { 'Content-Type': 'application/json' };
+      if (supabase) {
+        const { data } = await supabase.auth.getSession().catch(() => ({ data: null }));
+        if (data?.session?.access_token) {
+          headers['Authorization'] = `Bearer ${data.session.access_token}`;
+        }
+      }
+      if (isDemoModeActive() || !headers['Authorization']) {
+        headers['x-chw-demo-session'] = 'true';
+      }
+
       const chatRes = await fetch('/api/chat', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${sessionStorage.getItem('supabase_auth_token') || 'admin_evaluator_session'}`,
-          'x-chw-session': 'admin_evaluator_session'
-        },
+        headers,
         body: JSON.stringify({
           message: 'What is the recommended dietary salt intake for a hypertension patient?',
           language: 'en'

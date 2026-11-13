@@ -96,22 +96,25 @@ const CLINICAL_RULES = [
     category: RED_FLAG_CATEGORIES.PREGNANCY_DANGER,
     emergencyMessages: PREGNANCY_EMERGENCY_MESSAGES,
     test: (text) => {
-      // English
-      if (/(?:pregnant|pregnancy).{0,40}(?:bp|blood pressure|high bp|140|150|160|170|headache|vision|swelling|blurring|bleeding|fits|convul|epigastric|upper abdominal pain|fetal movement)/i.test(text)) return 'pregnancy hypertension / pre-eclampsia';
+      // English & Transliterated
+      if (/(?:pregnant|pregnancy|garbhavati|garodar|garbh).{0,50}(?:bp|blood pressure|high bp|140|150|160|170|headache|vision|blurr|swelling|oedema|bleeding|fits|convul|seizure|epigastric|upper abdominal|stomach pain|fetal movement|baby not moving)/i.test(text)) return 'pregnancy hypertension / pre-eclampsia';
       if (/(?:preeclampsia|pre-eclampsia|eclampsia)/i.test(text)) return 'pre-eclampsia / eclampsia';
       if (/(?:gestational hypertension|gestational diabetes with bp|high bp in pregnancy)/i.test(text)) return 'gestational hypertension';
-      if (/(?:pregnant.{0,30}severe headache|severe headache.{0,30}pregnant)/i.test(text)) return 'pregnancy danger — severe headache';
-      if (/(?:pregnant.{0,30}blurred vision|blurred vision.{0,30}pregnant)/i.test(text)) return 'pregnancy danger — blurred vision';
-      if (/(?:pregnant.{0,30}swelling|face.{0,20}swelling.{0,30}pregnant)/i.test(text)) return 'pregnancy danger — oedema';
-      if (/(?:reduced fetal movement|no fetal movement|baby not moving)/i.test(text)) return 'reduced fetal movement — urgent';
+      if (/(?:pregnant|pregnancy).{0,30}(?:severe headache|headache)/i.test(text)) return 'pregnancy danger — severe headache';
+      if (/(?:pregnant|pregnancy).{0,30}(?:blurred vision|vision|blurr)/i.test(text)) return 'pregnancy danger — blurred vision';
+      if (/(?:pregnant|pregnancy).{0,30}(?:swelling|face swelling|facial swelling|hand swelling)/i.test(text)) return 'pregnancy danger — oedema';
+      if (/(?:pregnant|pregnancy).{0,30}(?:upper abdominal pain|epigastric pain|stomach pain)/i.test(text)) return 'pregnancy danger — epigastric pain';
+      if (/(?:pregnant|pregnancy).{0,30}(?:fits|convulsion|seizure)/i.test(text)) return 'pregnancy danger — convulsions/fits';
+      if (/(?:pregnant|pregnancy).{0,30}(?:bleeding|vaginal bleeding|blood)/i.test(text)) return 'pregnancy danger — bleeding';
+      if (/(?:reduced fetal movement|no fetal movement|baby not moving|less baby movement)/i.test(text)) return 'reduced fetal movement — urgent';
       // Kannada
-      if (/(?:ಗರ್ಭಿಣಿ|ಗರ್ಭ).{0,30}(?:ರಕ್ತದೊತ್ತಡ|ಬಿಪಿ|ತಲೆನೋವು|ದೃಷ್ಟಿ ಮಸುಕು|ಊತ|ರಕ್ತಸ್ರಾವ|ಮೂರ್ಛೆ)/.test(text)) return 'ಗರ್ಭಾವಸ್ಥೆ ಅಪಾಯ';
+      if (/(?:ಗರ್ಭಿಣಿ|ಗರ್ಭ|ಗರ್ಭವತಿ).{0,40}(?:ರಕ್ತದೊತ್ತಡ|ಬಿಪಿ|ತಲೆನೋವು|ದೃಷ್ಟಿ ಮಸುಕು|ಊತ|ರಕ್ತಸ್ರಾವ|ಮೂರ್ಛೆ|ಫಿಟ್ಸ್|ಹೊಟ್ಟೆ ನೋವು|ಮಗುವಿನ ಚಲನೆ)/.test(text)) return 'ಗರ್ಭಾವಸ್ಥೆ ಅಪಾಯ';
       if (/ಪ್ರಿ-ಎಕ್ಲಾಂಪ್ಸಿಯಾ|ಎಕ್ಲಾಂಪ್ಸಿಯಾ/.test(text)) return 'ಪ್ರಿ-ಎಕ್ಲಾಂಪ್ಸಿಯಾ';
       // Hindi
-      if (/(?:गर्भवती|गर्भावस्था).{0,30}(?:रक्तचाप|बीपी|सिरदर्द|दृष्टि|सूजन|खून|दौरे)/.test(text)) return 'गर्भावस्था में अपाय';
+      if (/(?:गर्भवती|गर्भावस्था|गर्भ|गवती).{0,40}(?:रक्तचाप|बीपी|सिरदर्द|दृष्टि|धुंधला|सूजन|खून|रक्तस्राव|दौरे|झटके|पेट दर्द|बच्चे की हलचल)/.test(text)) return 'गर्भावस्था में अपाय';
       if (/प्री-एक्लेम्पसिया|एक्लेम्पसिया/.test(text)) return 'प्री-एक्लेम्पसिया';
       // Marathi
-      if (/(?:गरोदर|गरोदरपण).{0,30}(?:रक्तदाब|बीपी|डोकेदुखी|दृष्टी|सूज|रक्तस्राव|झटके)/.test(text)) return 'गरोदरपणातील धोका';
+      if (/(?:गरोदर|गरोदरपण|गर्भ|बाळंतीण).{0,40}(?:रक्तदाब|बीपी|डोकेदुखी|दृष्टी|धूसर|सूज|रक्तस्राव|झटके|पोटदुखी|बाळाची हालचाल)/.test(text)) return 'गरोदरपणातील धोका';
       if (/प्री-एक्लेम्पसिया|एक्लेम्पसिया/.test(text)) return 'प्री-एक्लेम्पसिया';
       return null;
     }

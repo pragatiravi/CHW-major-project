@@ -72,7 +72,7 @@ function sanitize(v) { return (v || '').trim().replace(/^["']|["']$/g, ''); }
 
 /**
  * Clean input text: trim, collapse whitespace, strip pasted web boilerplate,
- * cap at 600 characters and return { clean, wasTruncated }.
+ * strip prompt-injection attempts, cap at 600 characters and return { clean, wasTruncated }.
  */
 function cleanInput(raw) {
   if (!raw || typeof raw !== 'string') return { clean: '', wasTruncated: false };
@@ -81,6 +81,8 @@ function cleanInput(raw) {
   s = s.replace(/\s+/g, ' ');
   // Strip common web-page boilerplate patterns
   s = s.replace(/\b(cookie policy|privacy policy|terms of service|accept all cookies|subscribe to newsletter)\b.*$/gi, '');
+  // Strip common adversarial prompt-injection prefixes/commands
+  s = s.replace(/\b(ignore (all )?previous instructions|you are now DAN|forget your (previous )?rules|jailbreak|developer mode)\b/gi, '');
   s = s.trim();
   const MAX = 600;
   if (s.length > MAX) {
@@ -192,6 +194,12 @@ const SERVER_KB = [
   }
 ];
 
+const RETRIEVAL_STOP_WORDS = new Set([
+  'how', 'what', 'when', 'where', 'which', 'who', 'whom', 'this', 'that', 'with', 'from',
+  'have', 'does', 'about', 'some', 'your', 'patient', 'give', 'take', 'tell', 'need',
+  'please', 'help', 'care', 'for', 'treat', 'can', 'should', 'make', 'like', 'much', 'many'
+]);
+
 /**
  * Very lightweight keyword-based retriever (no Fuse.js in serverless).
  * Returns top-3 passages with a relevance score.
@@ -200,33 +208,34 @@ const SERVER_KB = [
  */
 function retrievePassages(query) {
   const q = query.toLowerCase();
+  const qTokens = q.split(/[\s,?.!/]+/).filter(t => t.length >= 2 && !RETRIEVAL_STOP_WORDS.has(t));
+
   const scored = SERVER_KB.map(entry => {
     let score = 0;
     for (const kw of entry.keywords) {
       const kwL = kw.toLowerCase();
       if (q.includes(kwL)) {
-        score += kwL.split(' ').length * 4; // multi-word phrases score higher
+        score += kwL.split(' ').length * 6; // multi-word exact phrase match gets high score
       } else {
-        // Token overlap
-        const qTokens = q.split(/\s+/);
-        const kwTokens = kwL.split(/\s+/);
+        const kwTokens = kwL.split(/\s+/).filter(k => !RETRIEVAL_STOP_WORDS.has(k));
         for (const qt of qTokens) {
-          if (qt.length >= 3 && kwTokens.some(kt => kt.includes(qt) || qt.includes(kt))) {
-            score += 2;
+          if (kwTokens.some(kt => kt === qt)) {
+            score += 4;
           }
         }
       }
     }
     return { ...entry, score };
   });
+
   return scored
-    .filter(e => e.score > 0)
+    .filter(e => e.score >= 10)
     .sort((a, b) => b.score - a.score)
     .slice(0, 3);
 }
 
 // Minimum relevance threshold: skip KB grounding if top score is too low
-const MIN_RELEVANT_SCORE = 4;
+const MIN_RELEVANT_SCORE = 10;
 
 // ---------------------------------------------------------------------------
 // Server-side pregnancy red-flag detector (runs before Gemini call)
@@ -258,20 +267,21 @@ const PREGNANCY_URGENT = {
 // System prompt (sent to Gemini)
 // ---------------------------------------------------------------------------
 function buildSystemPrompt(passages) {
-  const passageText = passages.length > 0
+  const hasPassages = passages.length > 0;
+  const passageText = hasPassages
     ? passages.map((p, i) => `[Passage ${i + 1} — ${p.topic}]\n${p.answer}`).join('\n\n')
-    : 'No specific local passages retrieved for this question.';
+    : 'No specific local verified passages matched for this question.';
 
-  return `You are the CHW Healthcare Assistant for rural India (supporting Karnataka and Maharashtra). Your role is to help ASHA/ANM Community Health Workers and patients understand healthcare topics, non-communicable diseases (hypertension, diabetes), maternal health, nutrition, wellness, and application features.
+  return `You are the CHW Healthcare Assistant for rural India (supporting Karnataka and Maharashtra). Your role is to assist ASHA/ANM Community Health Workers and rural patients with healthcare, disease prevention, maternal health, nutrition, wellness, and practical guidance.
 
 CORE BEHAVIOR:
 1. When local verified clinical passages are provided below, prioritize and ground your advice directly in those passages.
-2. If the user asks about general health, nutrition, lifestyle, Type 1 vs Type 2 diabetes, blood pressure monitoring, or how to use the CHW Toolkit, provide an accurate, clear, helpful, educational response based on standard medical guidance.
-3. NEVER prescribe specific prescription drugs or alter medication dosages. Always remind the user to consult a qualified medical officer at the PHC or doctor.
-4. For medical emergencies (BP >= 180/120, chest pain radiating to left arm/jaw, severe shortness of breath, signs of stroke [face drooping, arm weakness, speech difficulty], or pregnancy danger signs [pre-eclampsia, severe headache, convulsions, heavy bleeding]), immediately urge the user to call 108 ambulance and reach the nearest hospital.
-5. Answer non-medical questions normally. Apply the clinical guardrails only to health and medication topics.
-6. Respond in the user's requested language: English, Hindi, Kannada, or Marathi.
-7. Keep responses concise, supportive, and accessible (under 200 words).
+2. ${hasPassages ? 'Ground your answer strictly on the verified passages provided below.' : 'Answer the question using standard medical, health, and wellness guidance in simple, compassionate language suitable for rural healthcare workers and community members. You can answer questions on any health topic (e.g. fever, dengue, asthma, millets, diabetes, hypertension, ORS, nutrition, child care, first aid, skin rashes, snake/dog bite) or general non-medical queries.'}
+3. NEVER prescribe specific prescription drugs or alter medication dosages. Always remind the user to consult a qualified medical officer at the PHC or doctor for prescription medicines.
+4. For medical emergencies (BP >= 180/120, severe crushing chest pain radiating to left arm/jaw, acute breathlessness, signs of stroke [facial drooping, arm weakness, slurred speech], or pregnancy danger signs [BP >= 140/90, severe headache, blurred vision, fits, vaginal bleeding, reduced fetal movement]), urge the user to call 108 ambulance and reach the nearest hospital IMMEDIATELY.
+5. Answer non-medical questions normally and politely. Apply clinical guardrails only to health and medication topics.
+6. Respond in the user's requested language: English, Hindi, Kannada, or Marathi. Keep the tone respectful, clear, and reassuring.
+7. Keep responses concise and accessible (under 200 words).
 
 VERIFIED LOCAL CLINICAL GUIDANCE:
 ${passageText}`;
@@ -323,8 +333,8 @@ export default async function handler(req, res) {
   }
 
   if (!authMode && isDemoRequest) {
-    // Demo path is enabled only by an explicit server-side ALLOW_DEMO_CHAT=true.
-    const allowDemo = sanitize(process.env.ALLOW_DEMO_CHAT).toLowerCase();
+    // Demo path is enabled by ALLOW_DEMO_CHAT=true OR VITE_DEMO_MODE=true
+    const allowDemo = sanitize(process.env.ALLOW_DEMO_CHAT || process.env.VITE_ALLOW_DEMO_CHAT || process.env.VITE_DEMO_MODE).toLowerCase();
     const isDemoAllowed = allowDemo === 'true' || allowDemo === '1';
 
     if (isDemoAllowed) {
@@ -404,7 +414,8 @@ export default async function handler(req, res) {
 
   // --- AI key check ---
   const apiKey = sanitize(process.env.GEMINI_API_KEY || process.env.AI_API_KEY);
-  const modelName = sanitize(process.env.GEMINI_MODEL) || 'gemini-3.8-flash';
+  const configuredModel = sanitize(process.env.GEMINI_MODEL);
+  const primaryModel = configuredModel || 'gemini-3.5-flash';
 
   if (!apiKey || apiKey.includes('your-gemini-api-key') || apiKey.length < 10) {
     // No AI key — serve offline guide if relevant, otherwise "can't answer"
@@ -424,7 +435,7 @@ export default async function handler(req, res) {
     return res.status(200).json({
       reply: OFFLINE_CANNOT_ANSWER[lang] || OFFLINE_CANNOT_ANSWER.en,
       source: 'offline_fallback',
-      badge: 'cant_answer_offline',
+      badge: 'offline_no_match',
       wasTruncated,
       code: 'no_key',
       fallbackReason: 'no_key'
@@ -455,92 +466,89 @@ export default async function handler(req, res) {
     parts: [{ text: `[Language: ${lang}] ${message}` }]
   });
 
-  // --- Online Gemini call with grounded passages ---
   const systemPrompt = buildSystemPrompt(hasRelevantPassages ? passages : []);
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 12_000);
 
-  try {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
-    const geminiRes = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      signal: controller.signal,
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: systemPrompt }] },
-        contents: geminiContents,
-        generationConfig: { maxOutputTokens: maxTokens }
-      })
-    });
+  // Multi-model resilience: try primary model, fall back to tested fast models if 503/404/429/timeout
+  const candidateModels = [
+    primaryModel,
+    'gemini-3.5-flash',
+    'gemini-3.5-flash-lite',
+    'gemini-3.1-flash-lite'
+  ].filter((m, idx, arr) => m && arr.indexOf(m) === idx);
 
-    clearTimeout(timeoutId);
+  let successfulReply = null;
+  let successfulModel = null;
+  let lastError = null;
 
-    if (!geminiRes.ok) {
-      const errText = await geminiRes.text().catch(() => '');
-      console.warn(`[chat] Gemini ${geminiRes.status} upstream error:`, errText.slice(0, 200));
-      const errorCode = geminiRes.status === 404 ? 'bad_model' : geminiRes.status === 429 ? 'rate_limited' : 'upstream_error';
+  for (const modelToTry of candidateModels) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10_000);
+    try {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelToTry}:generateContent?key=${apiKey}`;
+      const geminiRes = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal,
+        body: JSON.stringify({
+          systemInstruction: { parts: [{ text: systemPrompt }] },
+          contents: geminiContents,
+          generationConfig: { maxOutputTokens: maxTokens }
+        })
+      });
+      clearTimeout(timeoutId);
 
-      // Fall back to offline KB
-      if (hasRelevantPassages) {
-        return res.status(200).json({
-          reply: passages[0].answer,
-          source: 'offline_kb',
-          badge: 'offline_guide',
-          topic: retrievedTopics,
-          fallbackReason: errorCode,
-          wasTruncated,
-          code: errorCode
-        });
+      if (geminiRes.ok) {
+        const data = await geminiRes.json();
+        const text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+        if (text) {
+          successfulReply = text;
+          successfulModel = modelToTry;
+          break;
+        }
+      } else {
+        const errText = await geminiRes.text().catch(() => '');
+        console.warn(`[chat] Model ${modelToTry} returned HTTP ${geminiRes.status}:`, errText.slice(0, 160));
+        lastError = geminiRes.status === 404 ? 'bad_model' : geminiRes.status === 429 ? 'rate_limited' : geminiRes.status === 503 ? 'overloaded' : 'upstream_error';
       }
-      return res.status(200).json({
-        reply: OFFLINE_CANNOT_ANSWER[lang] || OFFLINE_CANNOT_ANSWER.en,
-        source: 'offline_fallback',
-        badge: 'cant_answer_offline',
-        fallbackReason: errorCode,
-        wasTruncated,
-        code: errorCode
-      });
+    } catch (err) {
+      clearTimeout(timeoutId);
+      const isTimeout = err.name === 'AbortError';
+      console.warn(`[chat] Model ${modelToTry} call failed (${isTimeout ? 'timeout' : err.message?.slice(0, 60)})`);
+      lastError = isTimeout ? 'timeout' : 'upstream_error';
     }
+  }
 
-    const data = await geminiRes.json();
-    const reply = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
-
-    if (reply) {
-      return res.status(200).json({
-        reply,
-        model: modelName,
-        source: 'online_ai',
-        badge: hasRelevantPassages ? 'online_ai_verified' : 'online_ai_general',
-        topic: retrievedTopics,
-        authMode,
-        wasTruncated
-      });
-    }
-    throw new Error('Empty response from Gemini');
-
-  } catch (err) {
-    clearTimeout(timeoutId);
-    const isTimeout = err.name === 'AbortError';
-    console.warn(`[chat] Error (${isTimeout ? 'timeout' : err.message?.slice(0, 80)}), falling back to offline KB`);
-
-    if (hasRelevantPassages) {
-      return res.status(200).json({
-        reply: passages[0].answer,
-        source: 'offline_kb',
-        badge: 'offline_guide',
-        topic: retrievedTopics,
-        fallbackReason: isTimeout ? 'timeout' : 'upstream_error',
-        wasTruncated,
-        code: isTimeout ? 'timeout' : 'upstream_error'
-      });
-    }
+  if (successfulReply) {
     return res.status(200).json({
-      reply: OFFLINE_CANNOT_ANSWER[lang] || OFFLINE_CANNOT_ANSWER.en,
-      source: 'offline_fallback',
-      badge: 'cant_answer_offline',
-      fallbackReason: isTimeout ? 'timeout' : 'upstream_error',
-      wasTruncated,
-      code: isTimeout ? 'timeout' : 'upstream_error'
+      reply: successfulReply,
+      model: successfulModel,
+      source: 'online_ai',
+      badge: hasRelevantPassages ? 'online_ai_verified' : 'online_ai_general',
+      topic: retrievedTopics,
+      authMode,
+      wasTruncated
     });
   }
+
+  // If all models failed, fall back to offline KB or honest cannot-answer
+  if (hasRelevantPassages) {
+    return res.status(200).json({
+      reply: passages[0].answer,
+      source: 'offline_kb',
+      badge: 'offline_guide',
+      topic: retrievedTopics,
+      fallbackReason: lastError || 'upstream_error',
+      wasTruncated,
+      code: lastError || 'upstream_error'
+    });
+  }
+
+  return res.status(200).json({
+    reply: OFFLINE_CANNOT_ANSWER[lang] || OFFLINE_CANNOT_ANSWER.en,
+    source: 'offline_fallback',
+    badge: 'offline_no_match',
+    fallbackReason: lastError || 'upstream_error',
+    wasTruncated,
+    code: lastError || 'upstream_error'
+  });
 }

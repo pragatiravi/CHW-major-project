@@ -13,7 +13,7 @@ export default function handler(req, res) {
 
   const geminiKey = process.env.AI_API_KEY || process.env.GEMINI_API_KEY;
   const configuredModel = (process.env.GEMINI_MODEL || '').trim();
-  const modelName = configuredModel || 'gemini-3.8-flash';
+  const modelName = configuredModel || 'gemini-3.5-flash';
   const sanitize = (v) => (v || '').trim().replace(/^["']|["']$/g, '');
   const supabaseUrl = sanitize(process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL);
   const supabaseKey = sanitize(
@@ -36,7 +36,10 @@ export default function handler(req, res) {
 
   const isDemoChatAllowed = Boolean(
     process.env.ALLOW_DEMO_CHAT === 'true' ||
-    process.env.ALLOW_DEMO_CHAT === '1'
+    process.env.ALLOW_DEMO_CHAT === '1' ||
+    process.env.VITE_ALLOW_DEMO_CHAT === 'true' ||
+    process.env.VITE_DEMO_MODE === 'true' ||
+    process.env.VITE_DEMO_MODE === '1'
   );
 
   return res.status(200).json({

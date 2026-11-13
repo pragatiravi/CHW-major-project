@@ -39,7 +39,7 @@ import {
 } from './lib/db';
 import { initSyncEngine, executeSync } from './lib/sync/syncEngine';
 import { getPendingSyncQueue, clearLocalDataIfClean } from './lib/db/dexieDb';
-import { addNotification, countUnreadNotifications, deleteNotification, loadNotifications, markAllNotificationsRead, markNotificationRead, saveNotifications } from './lib/notifications/notificationStore';
+import { addNotification, clearAllNotifications, countUnreadNotifications, deleteNotification, loadNotifications, markAllNotificationsRead, markNotificationRead, saveNotifications } from './lib/notifications/notificationStore';
 import { getNotificationPermissionState, requestNotificationPermission, showBrowserNotification } from './lib/notifications/browserNotifications';
 
 function PortalFallback() {
@@ -786,6 +786,10 @@ function AppContent() {
           }}
           onMarkRead={(id) => setNotifications(current => markNotificationRead(current, id))}
           onDeleteNotification={(id) => setNotifications(current => deleteNotification(current, id))}
+          onClearAll={() => {
+            setNotifications(clearAllNotifications(currentUser?.id));
+            toastInfo('All notifications cleared.');
+          }}
           onMarkAllRead={() => {
             setNotifications(prev => markAllNotificationsRead(prev));
             toastInfo('All notifications marked as read.');

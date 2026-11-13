@@ -39,6 +39,15 @@ export function deleteNotification(notifications, id) {
   return notifications.filter(item => item.id !== id);
 }
 
+export function clearAllNotifications(userId) {
+  try {
+    localStorage.removeItem(notificationStorageKey(userId));
+  } catch (error) {
+    console.warn('Could not clear notifications on this device:', error);
+  }
+  return [];
+}
+
 export function countUnreadNotifications(notifications) {
   return notifications.filter(item => !item.read).length;
 }

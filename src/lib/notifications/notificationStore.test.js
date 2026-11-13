@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { addNotification, countUnreadNotifications, deleteNotification, loadNotifications, markAllNotificationsRead, markNotificationRead, saveNotifications } from './notificationStore';
+import { addNotification, clearAllNotifications, countUnreadNotifications, deleteNotification, loadNotifications, markAllNotificationsRead, markNotificationRead, saveNotifications } from './notificationStore';
 import { getNotificationPermissionState, requestNotificationPermission, showBrowserNotification } from './browserNotifications';
 
 describe('notification store', () => {
@@ -7,12 +7,16 @@ describe('notification store', () => {
     const storage = new Map();
     vi.stubGlobal('localStorage', {
       getItem: key => storage.get(key) || null,
-      setItem: (key, value) => storage.set(key, String(value))
+      setItem: (key, value) => storage.set(key, String(value)),
+      removeItem: key => storage.delete(key)
     });
     saveNotifications('user-a', [{ id: 'a', title: 'A' }]);
     saveNotifications('user-b', [{ id: 'b', title: 'B' }]);
     expect(loadNotifications('user-a').map(item => item.id)).toEqual(['a']);
     expect(loadNotifications('user-b').map(item => item.id)).toEqual(['b']);
+    clearAllNotifications('user-a');
+    expect(loadNotifications('user-a')).toEqual([]);
+    expect(loadNotifications('user-b')).toHaveLength(1);
   });
   afterEach(() => vi.unstubAllGlobals());
 
@@ -24,6 +28,33 @@ describe('notification store', () => {
     expect(countUnreadNotifications(read)).toBe(0);
     expect(countUnreadNotifications(markAllNotificationsRead(first))).toBe(0);
     expect(deleteNotification(first, 'n1')).toEqual([]);
+  });
+
+  it('enforces privacy guardrail: browser notification body never leaks PHI or phone numbers', async () => {
+    const showNotification = vi.fn().mockResolvedValue(undefined);
+    const notificationApi = vi.fn();
+    notificationApi.permission = 'granted';
+    vi.stubGlobal('window', { Notification: notificationApi });
+    vi.stubGlobal('navigator', { serviceWorker: { ready: Promise.resolve({ showNotification }) } });
+
+    // Sanitized alert with default browser body
+    await showBrowserNotification({
+      title: 'High-risk screening alert',
+      browserBody: 'Open the app to review this care update.',
+      deepLink: 'screening'
+    });
+
+    const callArgs = showNotification.mock.calls[0];
+    const title = callArgs[0];
+    const options = callArgs[1];
+
+    // Assert NO 10-digit phone numbers
+    expect(title).not.toMatch(/[6-9]\d{9}/);
+    expect(options.body).not.toMatch(/[6-9]\d{9}/);
+    // Assert NO blood pressure readings like 180/120
+    expect(options.body).not.toMatch(/\d{2,3}\/\d{2,3}/);
+    // Body is generic, compliant with healthcare data protection
+    expect(options.body).toBe('Open the app to review this care update.');
   });
 });
 

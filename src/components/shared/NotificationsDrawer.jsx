@@ -1,8 +1,28 @@
+import { useState } from 'react';
 import { Bell, AlertTriangle, Pill, Calendar, CheckCircle2, X, Trash2, BellRing } from 'lucide-react';
 import { useLanguage } from './LanguageContext';
 
-export default function NotificationsDrawer({ notifications = [], onClose, onMarkAllRead, onMarkRead, onDeleteNotification, onSelectNotification, permissionState, systemNotificationsEnabled, onToggleSystemNotifications }) {
+export default function NotificationsDrawer({ 
+  notifications = [], 
+  onClose, 
+  onMarkAllRead, 
+  onMarkRead, 
+  onDeleteNotification, 
+  onClearAll,
+  onSelectNotification, 
+  permissionState, 
+  systemNotificationsEnabled, 
+  onToggleSystemNotifications 
+}) {
   const { t } = useLanguage();
+  const [filterTab, setFilterTab] = useState('all');
+
+  const filteredNotifications = notifications.filter(n => {
+    if (filterTab === 'unread') return !n.read;
+    if (filterTab === 'highPriority') return n.type === 'CRITICAL_ALERT' || n.type === 'HIGH_RISK' || n.priority === 'high' || n.priority === 'emergency';
+    return true;
+  });
+
   const getIcon = (type) => {
     switch (type) {
       case 'CRITICAL_ALERT':
@@ -60,16 +80,50 @@ export default function NotificationsDrawer({ notifications = [], onClose, onMar
         </div>
         <p className="px-4 pb-2 text-3xs text-slate-500">{t('browserNotificationsExplain')}</p>
 
+        {/* Filter Tabs & Clear All */}
+        <div className="flex items-center border-b border-slate-200 px-4 pt-1.5 gap-2 text-2xs bg-slate-50/60">
+          <button
+            type="button"
+            className={`pb-2 px-1.5 font-semibold border-b-2 transition-all ${filterTab === 'all' ? 'border-sky-600 text-sky-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+            onClick={() => setFilterTab('all')}
+          >
+            All ({notifications.length})
+          </button>
+          <button
+            type="button"
+            className={`pb-2 px-1.5 font-semibold border-b-2 transition-all ${filterTab === 'unread' ? 'border-sky-600 text-sky-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+            onClick={() => setFilterTab('unread')}
+          >
+            Unread ({notifications.filter(n => !n.read).length})
+          </button>
+          <button
+            type="button"
+            className={`pb-2 px-1.5 font-semibold border-b-2 transition-all ${filterTab === 'highPriority' ? 'border-rose-600 text-rose-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+            onClick={() => setFilterTab('highPriority')}
+          >
+            High Priority ({notifications.filter(n => n.type === 'CRITICAL_ALERT' || n.type === 'HIGH_RISK' || n.priority === 'high' || n.priority === 'emergency').length})
+          </button>
+          {notifications.length > 0 && onClearAll && (
+            <button
+              type="button"
+              className="ml-auto text-3xs text-rose-600 hover:underline pb-2 font-medium"
+              onClick={onClearAll}
+            >
+              Clear all
+            </button>
+          )}
+        </div>
+
         {/* List */}
         <div className="p-4 overflow-y-auto flex-1 space-y-2.5">
-          {notifications.length === 0 ? (
+          {filteredNotifications.length === 0 ? (
             <div className="py-12 text-center text-slate-400">
               <CheckCircle2 size={32} className="mx-auto mb-2 text-emerald-500" />
               <p className="text-xs font-semibold text-slate-600">{t('notificationsEmptyTitle')}</p>
               <p className="text-2xs text-slate-400 mt-0.5">{t('notificationsEmptyBody')}</p>
             </div>
           ) : (
-            notifications.map((n) => (
+            filteredNotifications.map((n) => (
               <div
                 key={n.id} 
                 className={`notification-list-item p-3 rounded-xl border transition-all cursor-pointer ${
